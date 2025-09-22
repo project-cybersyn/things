@@ -1,0 +1,18 @@
+{
+  "name": "0-things",
+  "version": "1.0.0",
+  "title": "Things",
+  "author": "The LORD thy GOD",
+  "contact": "https://github.com/project-cybersyn/things",
+  "homepage": "https://github.com/project-cybersyn/things",
+  "description": "Things provides advanced entity management capabilities to other Factorio mods. (This mod makes no gameplay changes. WARNING: disabling Things while other mods are using it may break your save!)",
+  "factorio_version": "2.0",
+  "dependencies": [ "base >= 2.0.66" ],
+  "package": {
+    "git_publish_branch": "main",
+    "ignore": [ "crowdin.yml", "stylua.toml", "tests", "doc" ],
+    "scripts": {
+    },
+    "sync_portal_details": true
+  }
+}
