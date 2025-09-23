@@ -78,7 +78,11 @@ local function built_ghost(event, ghost, tags)
 		ghost.tags = tags
 		erec.tags = tags
 		erec:set_state("initial_ghost")
+		return
 	end
+	-- Ghost is a new unthing
+	debug_log("built_ghost: ghost is a new unthing")
+	script.raise_event("things-on_unthing_built", { entity = ghost })
 end
 
 local function built_real(event, entity, tags)
@@ -89,15 +93,36 @@ local function built_real(event, entity, tags)
 		local local_id = tags["@i"]
 		debug_log("built_real: real from a bplib blueprint with local_id", local_id)
 		-- Start a file on it
-		local erec = Thing:new()
-		erec.entity = entity
-		erec.local_id = local_id
+		local thing = Thing:new()
+		thing.entity = entity
+		thing.local_id = local_id
 		-- Remove the tag
 		tags["@i"] = nil
-		tags["@ig"] = erec.id
-		erec.tags = tags
-		erec:set_state("real")
+		tags["@ig"] = thing.id
+		thing.tags = tags
+		thing:set_state("real")
+		return
 	end
+	-- Real is a revived ghost thing
+	if tags and tags["@ig"] then
+		local thing_id = tags["@ig"]
+		debug_log("built_real: real is a revived ghost thing with id", thing_id)
+		local thing = get_thing(thing_id)
+		if thing then
+			thing.entity = entity
+			thing.tags = tags
+			thing:set_state("real")
+		else
+			debug_log(
+				"built_real: real is a revived ghost thing but we don't know about it",
+				thing_id
+			)
+		end
+		return
+	end
+	-- Real is an unthing
+	debug_log("built_real: real is a new unthing")
+	script.raise_event("things-on_unthing_built", { entity = entity })
 end
 
 on_unified_build(function(event, entity, tags)
@@ -119,6 +144,23 @@ on_unified_build(function(event, entity, tags)
 end)
 
 on_entity_cloned(function(event) debug_log("on_entity_cloned", event) end)
+
+-- Death
+
+on_entity_died(function(event)
+	local un = event.unit_number
+	if not un then return end
+	local thing = get_thing_by_unit_number(un)
+	if not thing then return end
+	local ghost = event.ghost
+	if ghost then
+	else
+		-- Died leaving no ghost; safe to destroy Thing altogether.
+		thing:destroy()
+	end
+end)
+
+-- Configuration
 
 on_player_flipped_entity(function(event, entity)
 	debug_log("on_player_flipped_entity", event)

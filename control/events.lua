@@ -4,6 +4,12 @@ _G.on_init, _G.raise_init = event("init", "nil", "nil", "nil", "nil", "nil")
 
 _G.on_load, _G.raise_load = event("load", "nil", "nil", "nil", "nil", "nil")
 
+_G.on_configuration_changed, _G.raise_configuration_changed =
+	event("configuration_changed", "nil", "nil", "nil", "nil", "nil")
+
+_G.on_mod_settings_changed, _G.raise_mod_settings_changed =
+	event("mod_settings_changed", "nil", "nil", "nil", "nil", "nil")
+
 ---Information relating to resetting stored game state.
 ---@class things.ResetData
 
@@ -124,3 +130,6 @@ _G.on_entity_settings_pasted, _G.raise_entity_settings_pasted = event(
 	"nil",
 	"nil"
 )
+
+_G.on_thing_lifecycle, _G.raise_thing_lifecycle =
+	event("thing_lifecycle", "things.Thing", "string", "string", "nil", "nil")

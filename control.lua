@@ -4,7 +4,7 @@
 
 local counters = require("lib.core.counters")
 local events = require("lib.core.events")
-local actual = require("api.actual")
+local actual = require("lib.core.blueprint.actual")
 
 local function debug_log(...)
 	local x = table.pack(...)
@@ -23,8 +23,16 @@ end
 _G.debug_log = debug_log
 events.set_strace_handler(debug_log)
 
+-- Early init
 require("control.events")
 require("control.storage")
+require("control.settings")
+-- Late init
+require("control.thing")
+require("control.extraction")
+require("control.construction")
+require("control.debug-overlay")
+require("control.remote")
 
 -- Enable support for the Global Variable Viewer debugging mod, if it is
 -- installed.
@@ -37,6 +45,12 @@ on_startup(counters.init, true)
 script.on_init(raise_init)
 on_init(function() raise_startup({}) end, true)
 script.on_load(raise_load)
+
+script.on_configuration_changed(raise_configuration_changed)
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+	update_mod_settings()
+	raise_mod_settings_changed()
+end)
 
 -- Blueprinting
 
@@ -86,6 +100,15 @@ script.on_event(defines.events.script_raised_revive, handle_built_with_tags)
 
 -- Deconstruction and death
 
+local function handle_pre_destroyed(event) end
+
+script.on_event(defines.events.on_pre_player_mined_item, handle_pre_destroyed)
+script.on_event(defines.events.on_robot_pre_mined, handle_pre_destroyed)
+script.on_event(
+	defines.events.on_space_platform_pre_mined,
+	handle_pre_destroyed
+)
+
 local function handle_destroyed(event)
 	raise_unified_destroy(event, event.entity)
 end
@@ -120,4 +143,4 @@ script.on_event(
 
 -- API
 
--- remote.add_interface("bplib", _G.api)
+remote.add_interface("things", _G.remote_interface)
