@@ -35,15 +35,13 @@ _G.DEFINES_EVENTS_REVERSE_MAP = {
 
 ---@alias AnyFactorioBuildEventData EventData.script_raised_built|EventData.script_raised_revive|EventData.on_built_entity|EventData.on_robot_built_entity|EventData.on_entity_cloned|EventData.on_space_platform_built_entity
 
----@alias AnyFactorioDestroyEventData EventData.on_player_mined_entity|EventData.on_robot_mined_entity|EventData.on_space_platform_mined_entity|EventData.script_raised_destroy
-
 ---Event raised representing a union of all Factorio's possible build events.
 _G.on_unified_build, _G.raise_unified_build = event(
 	"unified_build",
 	"AnyFactorioBuildEventData",
 	"LuaEntity",
 	"Tags",
-	"nil",
+	"LuaPlayer",
 	"nil"
 )
 
@@ -86,12 +84,34 @@ _G.on_entity_cloned, _G.raise_entity_cloned = event(
 	"nil"
 )
 
+_G.on_pre_ghost_deconstructed, _G.raise_pre_ghost_deconstructed = event(
+	"pre_ghost_deconstructed",
+	"EventData.on_pre_ghost_deconstructed",
+	"LuaEntity",
+	"nil",
+	"nil",
+	"nil"
+)
+
+---@alias AnyFactorioPreDestroyEventData EventData.on_pre_player_mined_item|EventData.on_robot_pre_mined|EventData.on_space_platform_pre_mined|EventData.on_pre_ghost_deconstructed
+
+_G.on_unified_pre_destroy, _G.raise_unified_pre_destroy = event(
+	"unified_pre_destroy",
+	"AnyFactorioPreDestroyEventData",
+	"LuaEntity",
+	"LuaPlayer",
+	"nil",
+	"nil"
+)
+
+---@alias AnyFactorioDestroyEventData EventData.on_player_mined_entity|EventData.on_robot_mined_entity|EventData.on_space_platform_mined_entity|EventData.script_raised_destroy
+
 _G.on_unified_destroy, _G.raise_unified_destroy = event(
 	"unified_destroy",
 	"AnyFactorioDestroyEventData",
 	"LuaEntity",
-	"nil",
-	"nil",
+	"LuaPlayer",
+	"boolean",
 	"nil"
 )
 

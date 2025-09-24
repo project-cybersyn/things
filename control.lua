@@ -38,7 +38,12 @@ require("control.remote")
 -- installed.
 if script.active_mods["gvv"] then require("__gvv__.gvv")() end
 
--- Startup
+--------------------------------------------------------------------------------
+-- EVENTS
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- MOD LIFECYCLE
+--------------------------------------------------------------------------------
 
 on_startup(counters.init, true)
 
@@ -52,7 +57,9 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	raise_mod_settings_changed()
 end)
 
--- Blueprinting
+--------------------------------------------------------------------------------
+-- BLUEPRINTING
+--------------------------------------------------------------------------------
 
 script.on_event(defines.events.on_player_setup_blueprint, function(event)
 	local player = game.get_player(event.player_index)
@@ -79,14 +86,27 @@ script.on_event(defines.events.on_pre_build, function(event)
 	raise_pre_build_from_item(event, player)
 end)
 
--- Construction
+--------------------------------------------------------------------------------
+-- CONSTRUCTION
+--------------------------------------------------------------------------------
 
 ---@param event AnyFactorioBuildEventData
 local function handle_built_with_tags(event)
-	raise_unified_build(event, event.entity, event.tags)
+	raise_unified_build(event, event.entity, event.tags, nil)
 end
 
-script.on_event(defines.events.on_built_entity, handle_built_with_tags)
+script.on_event(defines.events.on_built_entity, function(event)
+	if event.player_index then
+		raise_unified_build(
+			event,
+			event.entity,
+			event.tags,
+			game.get_player(event.player_index)
+		)
+	else
+		raise_unified_build(event, event.entity, event.tags, nil)
+	end
+end)
 script.on_event(defines.events.on_robot_built_entity, handle_built_with_tags)
 script.on_event(
 	defines.events.on_space_platform_built_entity,
@@ -98,27 +118,77 @@ script.on_event(defines.events.script_raised_built, function()
 end)
 script.on_event(defines.events.script_raised_revive, handle_built_with_tags)
 
--- Deconstruction and death
+--------------------------------------------------------------------------------
+-- DECONSTRUCTION AND DEATH
+--------------------------------------------------------------------------------
 
-local function handle_pre_destroyed(event) end
+local function handle_pre_destroyed(event)
+	raise_unified_pre_destroy(event, event.entity, nil)
+end
 
-script.on_event(defines.events.on_pre_player_mined_item, handle_pre_destroyed)
+script.on_event(defines.events.on_pre_player_mined_item, function(event)
+	if event.player_index then
+		raise_unified_pre_destroy(
+			event,
+			event.entity,
+			game.get_player(event.player_index)
+		)
+	else
+		raise_unified_pre_destroy(event, event.entity, nil)
+	end
+end)
 script.on_event(defines.events.on_robot_pre_mined, handle_pre_destroyed)
 script.on_event(
 	defines.events.on_space_platform_pre_mined,
 	handle_pre_destroyed
 )
+script.on_event(defines.events.on_pre_ghost_deconstructed, function(event)
+	-- Ghost deconstruction is special as it doesn't fire a destroy event.
+	-- We synthesize it here.
+	if event.player_index then
+		local player = game.get_player(event.player_index)
+		raise_unified_pre_destroy(event, event.ghost, player)
+		raise_unified_destroy(event, event.ghost, player, true)
+	else
+		raise_unified_destroy(event, event.ghost, nil, true)
+	end
+end)
 
 local function handle_destroyed(event)
-	raise_unified_destroy(event, event.entity)
+	raise_unified_destroy(event, event.entity, nil, true)
 end
 
-script.on_event(defines.events.on_player_mined_entity, handle_destroyed)
+script.on_event(defines.events.on_player_mined_entity, function(event)
+	if event.player_index then
+		raise_unified_destroy(
+			event,
+			event.entity,
+			game.get_player(event.player_index),
+			true
+		)
+	else
+		raise_unified_destroy(event, event.entity, nil, true)
+	end
+end)
 script.on_event(defines.events.on_robot_mined_entity, handle_destroyed)
 script.on_event(defines.events.on_space_platform_mined_entity, handle_destroyed)
-script.on_event(defines.events.script_raised_destroy, handle_destroyed)
+script.on_event(defines.events.script_raised_destroy, function(event)
+	-- Script destruction isn't undo-able
+	raise_unified_destroy(event, event.entity, nil, false)
+end)
 
 script.on_event(defines.events.on_post_entity_died, raise_entity_died)
+
+-- Undo/redo
+
+script.on_event(
+	defines.events.on_undo_applied,
+	function(event) debug_log("on_undo_applied", event) end
+)
+script.on_event(
+	defines.events.on_redo_applied,
+	function(event) debug_log("on_redo_applied", event) end
+)
 
 -- Orientation
 
