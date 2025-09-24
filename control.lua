@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local counters = require("lib.core.counters")
+local scheduler = require("lib.core.scheduler")
 local events = require("lib.core.events")
 local actual = require("lib.core.blueprint.actual")
 
@@ -29,6 +30,7 @@ require("control.storage")
 require("control.settings")
 -- Late init
 require("control.thing")
+require("control.virtual-undo")
 require("control.extraction")
 require("control.construction")
 require("control.debug-overlay")
@@ -46,6 +48,7 @@ if script.active_mods["gvv"] then require("__gvv__.gvv")() end
 --------------------------------------------------------------------------------
 
 on_startup(counters.init, true)
+on_startup(scheduler.init, true)
 
 script.on_init(raise_init)
 on_init(function() raise_startup({}) end, true)
@@ -56,6 +59,8 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	update_mod_settings()
 	raise_mod_settings_changed()
 end)
+
+script.on_nth_tick(1, function(data) scheduler.tick(data) end)
 
 --------------------------------------------------------------------------------
 -- BLUEPRINTING
@@ -150,12 +155,12 @@ script.on_event(defines.events.on_pre_ghost_deconstructed, function(event)
 		raise_unified_pre_destroy(event, event.ghost, player)
 		raise_unified_destroy(event, event.ghost, player, true)
 	else
-		raise_unified_destroy(event, event.ghost, nil, true)
+		raise_unified_destroy(event, event.ghost, nil, false)
 	end
 end)
 
 local function handle_destroyed(event)
-	raise_unified_destroy(event, event.entity, nil, true)
+	raise_unified_destroy(event, event.entity, nil, false)
 end
 
 script.on_event(defines.events.on_player_mined_entity, function(event)
@@ -167,7 +172,7 @@ script.on_event(defines.events.on_player_mined_entity, function(event)
 			true
 		)
 	else
-		raise_unified_destroy(event, event.entity, nil, true)
+		raise_unified_destroy(event, event.entity, nil, false)
 	end
 end)
 script.on_event(defines.events.on_robot_mined_entity, handle_destroyed)
@@ -179,16 +184,30 @@ end)
 
 script.on_event(defines.events.on_post_entity_died, raise_entity_died)
 
+-- Marking and unmarking
+script.on_event(defines.events.on_marked_for_deconstruction, function(event)
+	if event.player_index then
+		raise_entity_marked(
+			event,
+			event.entity,
+			game.get_player(event.player_index)
+		)
+	end
+end)
+script.on_event(defines.events.on_cancelled_deconstruction, function(event)
+	if event.player_index then
+		raise_entity_unmarked(
+			event,
+			event.entity,
+			game.get_player(event.player_index)
+		)
+	end
+end)
+
 -- Undo/redo
 
-script.on_event(
-	defines.events.on_undo_applied,
-	function(event) debug_log("on_undo_applied", event) end
-)
-script.on_event(
-	defines.events.on_redo_applied,
-	function(event) debug_log("on_redo_applied", event) end
-)
+script.on_event(defines.events.on_undo_applied, raise_undo_applied)
+script.on_event(defines.events.on_redo_applied, raise_redo_applied)
 
 -- Orientation
 

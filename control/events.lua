@@ -84,6 +84,24 @@ _G.on_entity_cloned, _G.raise_entity_cloned = event(
 	"nil"
 )
 
+_G.on_entity_marked, _G.raise_entity_marked = event(
+	"entity_marked",
+	"EventData.on_marked_for_deconstruction",
+	"LuaEntity",
+	"LuaPlayer",
+	"nil",
+	"nil"
+)
+
+_G.on_entity_unmarked, _G.raise_entity_unmarked = event(
+	"entity_unmarked",
+	"EventData.on_cancelled_deconstruction",
+	"LuaEntity",
+	"LuaPlayer",
+	"nil",
+	"nil"
+)
+
 _G.on_pre_ghost_deconstructed, _G.raise_pre_ghost_deconstructed = event(
 	"pre_ghost_deconstructed",
 	"EventData.on_pre_ghost_deconstructed",
@@ -123,6 +141,12 @@ _G.on_entity_died, _G.raise_entity_died = event(
 	"nil",
 	"nil"
 )
+
+_G.on_undo_applied, _G.raise_undo_applied =
+	event("undo_applied", "EventData.on_undo_applied", "nil", "nil", "nil", "nil")
+
+_G.on_redo_applied, _G.raise_redo_applied =
+	event("redo_applied", "EventData.on_redo_applied", "nil", "nil", "nil", "nil")
 
 _G.on_player_flipped_entity, _G.raise_player_flipped_entity = event(
 	"player_flipped_entity",

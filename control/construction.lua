@@ -1,5 +1,4 @@
 local tlib = require("lib.core.table")
-local elib = require("lib.core.entities")
 
 -- Synthesis of construction events
 
@@ -52,20 +51,18 @@ on_pre_build_from_item(
 ---@param player? LuaPlayer
 local function built_ghost(event, ghost, tags, player)
 	debug_log("built_ghost", event, ghost, tags, player)
-	if player then
-		debug_log("built_ghost: player is", player.name)
-		-- debug_log(
-		-- 	"built_ghost: undo stack is",
-		-- 	player.undo_redo_stack.get_undo_item(1)
-		-- )
-	end
-	-- Check if ghost is a potential undo over a tombstone
 	-- Ghost is someone we knew who died
 	local known = get_thing_by_unit_number(ghost.ghost_unit_number)
 	if known then
 		debug_log("built_ghost: ghost of a dead bplib entity:", known)
 		return
 	end
+	-- Player-built ghost could be an undo/redo result
+	if player then
+		if maybe_undo_tombstone(ghost, player) then return end
+	end
+	-- Check if ghost is a potential undo over a tombstone
+
 	-- Ghost is a tagged bplib object from a blueprint
 	if tags and tags["@i"] then
 		local local_id = tags["@i"] --[[@as int]]
@@ -156,6 +153,16 @@ end)
 
 on_entity_cloned(function(event) debug_log("on_entity_cloned", event) end)
 
+on_undo_applied(function(event)
+	local vups = get_undo_player_state(event.player_index)
+	if vups then vups:on_undo_applied(event.actions) end
+end)
+
+on_redo_applied(function(event)
+	local vups = get_undo_player_state(event.player_index)
+	if vups then vups:on_redo_applied(event.actions) end
+end)
+
 -- Death
 
 on_unified_pre_destroy(function(event, entity, player)
@@ -165,17 +172,28 @@ on_unified_pre_destroy(function(event, entity, player)
 	if not thing then return end
 end)
 
+on_entity_marked(function(event, entity, player)
+	local un = entity.unit_number
+	if not un then return end
+	local thing = get_thing_by_unit_number(un)
+	if not thing then return end
+	thing:create_undo_tombstone(entity, player)
+end)
+
 on_unified_destroy(function(event, entity, player, leave_tombstone)
 	local un = entity.unit_number
 	if not un then return end
 	local thing = get_thing_by_unit_number(un)
 	if not thing then return end
-	if leave_tombstone then
-		-- thing:tombstone(entity)
-		thing:destroy()
-	else
-		thing:destroy()
+	-- If the thing was destroyed by an undoable player action, create an
+	-- immediate tombstone for it.
+	if player and leave_tombstone then
+		debug_log("thing destroyed by undoable player action, leaving tombstone")
+		thing:create_undo_tombstone(entity, player)
 	end
+	-- Notify the thing that its entity was destroyed. (Logic here will
+	-- check for tombstone state and act accordingly.)
+	thing:entity_destroyed(entity)
 end)
 
 on_entity_died(function(event)

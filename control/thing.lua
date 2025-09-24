@@ -3,6 +3,8 @@ local counters = require("lib.core.counters")
 local StateMachine = require("lib.core.state-machine")
 local entities = require("lib.core.entities")
 local lib_pos = require("lib.core.math.pos")
+local world_state = require("lib.core.world-state")
+local get_world_key = world_state.get_world_key
 
 local pos_close = lib_pos.pos_close
 local pos_get = lib_pos.pos_get
@@ -33,6 +35,8 @@ local ThingState = {
 	ghost_blueprint = "ghost_blueprint",
 	---Thing is a ghost after its real entity died.
 	ghost_died = "ghost_died",
+	---Thing is a ghost that may be from undo.
+	ghost_maybe_undo = "ghost_maybe_undo",
 	---Thing is a ghost that was determined to be from undo
 	ghost_undo = "ghost_undo",
 	---Thing is an alive entity that was manually thingified
@@ -43,9 +47,6 @@ local ThingState = {
 	alive_revived = "alive_revived",
 	---Thing is destroyed but remaining as an undo tombstone.
 	tombstone = "tombstone",
-	---A matching ghost has been built over this Thing's tombstone; waiting
-	---for an undo operation for revival.
-	tombstone_maybe_undo = "tombstone_maybe_undo",
 	---Thing has been destroyed and is no longer usable.
 	destroyed = "destroyed",
 }
@@ -65,8 +66,7 @@ local ThingState = {
 ---@field public entity LuaEntity? Current entity representing the thing. Due to potential for lifecycle leaks, must be checked for validity each time used.
 ---@field public debug_overlay? Core.MultiLineTextOverlay Debug overlay for this Thing.
 ---@field public tags Tags The tags associated with this Thing.
----@field public tombstone_key? string If this Thing is an undo tombstone, its key.
----@field public tombstone_tick? uint If this Thing is an undo tombstone, the tick it was last seen.
+---@field public last_known_position? MapPosition The last known position of this Thing's entity, if any.
 local Thing = class("things.Thing", StateMachine)
 _G.Thing = Thing
 
@@ -159,21 +159,53 @@ end
 
 ---Create an undo tombstone for this Thing.
 ---@param death_entity LuaEntity
-function Thing:tombstone(death_entity)
-	local pos = death_entity.position
-	local surface_index = death_entity.surface_index
-	local _, prototype_name = entities.resolve_possible_ghost(death_entity)
-	local x, y = pos_get(pos)
-	self.tombstone_key =
-		string.format("%2.2f:%2.2f:%d:%s", x, y, surface_index, prototype_name)
-	self.tombstone_tick = game.tick
-	storage.tombstones[self.tombstone_key] = self
-	self:set_state("tombstone")
+---@param player LuaPlayer
+function Thing:create_undo_tombstone(death_entity, player)
+	local vups = get_undo_player_state(player.index)
+	if not vups then return end
+	vups:create_tombstone(death_entity, self.id)
+end
+
+---Convert a maybe_undo_ghost to an undo_ghost after we are sure the undo
+---operation created it.
+function Thing:is_undo_ghost()
+	if self.state ~= "ghost_maybe_undo" then return end
+	self:set_state("ghost_undo")
+end
+
+---Invoked when the Thing's corresponding world entity is destroyed.
+---Looks for a corresponding tombstone and either puts the Thing into
+---tombstoned or destroyed state.
+---@param entity LuaEntity
+function Thing:entity_destroyed(entity)
+	-- Expect `entity` to match our own opinion of what our entity is.
+	-- TODO: remove after stability/edgecase verifications
+	if (not self.entity) or not self.entity.valid or (self.entity ~= entity) then
+		debug_log(
+			"Thing:entity_destroyed: entity mismatch, ignoring",
+			self.id,
+			self.entity,
+			entity
+		)
+		return
+	end
+	self.last_known_position = entity.position
+	self.entity = nil
+	self:set_unit_number(nil)
+	-- Check for matching tombstone
+	if storage.tombstones[get_world_key(entity)] then
+		self:set_state("tombstone")
+	else
+		self:destroy()
+	end
 end
 
 ---Destroy this Thing. This is a terminal state and the Thing may not be
 ---reused from here.
 function Thing:destroy()
+	if self.entity and self.entity.valid then
+		self.last_known_position = self.entity.position
+	end
 	-- TODO: force destroy entity if needed
 	self.entity = nil
 	-- Remove from registry
@@ -207,19 +239,21 @@ end
 
 ---Determine if a ghost entity might be an undo over a tombstone.
 ---If so, move the tombstone to a "maybe undo" state and return it.
-function _G.maybe_undo_tombstone(ghost)
+---@param ghost LuaEntity
+---@param player LuaPlayer
+function _G.maybe_undo_tombstone(ghost, player)
 	if not ghost.valid or ghost.type ~= "entity-ghost" then return nil end
-	local pos = ghost.position
-	local surface_index = ghost.surface_index
-	local _, prototype_name = entities.resolve_possible_ghost(ghost)
-	local x, y = pos_get(pos)
-	local key =
-		string.format("%2.2f:%2.2f:%d:%s", x, y, surface_index, prototype_name)
-	local tombstone = storage.tombstones[key]
+	local vups = get_undo_player_state(player.index)
+	if not vups then return nil end
+	local key = get_world_key(ghost)
+	local tombstone = vups:has_tombstone(key)
 	if not tombstone then return nil end
-	if tombstone.state ~= "tombstone" then return nil end
-	tombstone:set_state("tombstone_maybe_undo")
-	return tombstone
+	local thing = get_thing(tombstone.thing_id)
+	if not thing or thing.state ~= "tombstone" then return nil end
+	thing.entity = ghost
+	thing:set_unit_number(ghost.unit_number)
+	thing:set_state("ghost_maybe_undo")
+	return thing
 end
 
 ---@param entity LuaEntity A *valid* LuaEntity with a `unit_number`
