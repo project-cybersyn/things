@@ -11,18 +11,17 @@ local function debug_log(...)
 	local x = table.pack(...)
 	x.n = nil
 	if #x == 1 then x = x[1] end
+	local line = serpent.line(x, { nocode = true })
 	if game then
-		game.print(serpent.line(x, { nocode = true }), {
+		game.print(line, {
 			skip = defines.print_skip.never,
 			sound = defines.print_sound.never,
 			game_state = false,
 		})
-	else
-		log(serpent.line(x, { nocode = true }))
 	end
+	log(line)
 end
 _G.debug_log = debug_log
-events.set_strace_handler(debug_log)
 
 -- Early init
 require("control.events")
@@ -233,3 +232,22 @@ script.on_event(
 -- API
 
 remote.add_interface("things", _G.remote_interface)
+
+-- Commands
+
+-- XXX: remove
+commands.add_command(
+	"things-debug-undo-stack",
+	"Debug undo stack",
+	function(cmd)
+		local player = game.get_player(cmd.player_index)
+		if not player then return end
+		local vups = get_undo_player_state(player.index)
+		if not vups then return end
+		local urs = player.undo_redo_stack
+		if urs.get_undo_item_count() > 0 then
+			debug_log("Top undo item:", urs.get_undo_item(1))
+		end
+		debug_log("Top markers", vups.top_marker_set)
+	end
+)

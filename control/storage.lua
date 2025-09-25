@@ -1,8 +1,8 @@
 ---@class (exact) things.Storage
+---@field public tasks {[string]: int} Global scheduled task ids by name.
 ---@field public things {[uint]: things.Thing} Things by thing id.
 ---@field public things_by_unit_number {[uint]: things.Thing} Things by unit_number of reified entity, if it exists.
 ---@field public player_undo {[uint]: things.VirtualUndoPlayerState} Player undo states by player index.
----@field public tombstones {[Core.WorldKey]: things.UndoTombstone} Map from world keys to tombstones.
 ---@field public extractions {[uint]: things.Extraction} Data for blueprints being extracted, indexed by extraction id
 storage = {}
 
@@ -15,7 +15,7 @@ function _G.init_storage()
 	init_storage_key("things_by_unit_number")
 	init_storage_key("extractions")
 	init_storage_key("player_undo")
-	init_storage_key("tombstones")
+	init_storage_key("tasks")
 end
 
 -- TODO: eliminate for release

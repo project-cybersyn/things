@@ -61,7 +61,6 @@ local function built_ghost(event, ghost, tags, player)
 	if player then
 		if maybe_undo_tombstone(ghost, player) then return end
 	end
-	-- Check if ghost is a potential undo over a tombstone
 
 	-- Ghost is a tagged bplib object from a blueprint
 	if tags and tags["@i"] then
@@ -82,6 +81,7 @@ local function built_ghost(event, ghost, tags, player)
 		erec:set_state("ghost_initial")
 		return
 	end
+
 	-- Ghost is a new unthing
 	debug_log("built_ghost: ghost is a new unthing")
 	script.raise_event("things-on_unthing_built", {
@@ -144,6 +144,9 @@ on_unified_build(function(event, entity, tags, player)
 	-- 	entity.mirroring
 	-- )
 
+	-- XXX: debug
+	if player then debug_undo_stack(player) end
+
 	if entity.type == "entity-ghost" then
 		built_ghost(event, entity, tags, player)
 	else
@@ -154,22 +157,27 @@ end)
 on_entity_cloned(function(event) debug_log("on_entity_cloned", event) end)
 
 on_undo_applied(function(event)
+	local player = game.get_player(event.player_index)
+	if not player then return end
+	local urs = player.undo_redo_stack
+	if urs.get_undo_item_count() > 0 then
+		debug_log("undo_applied. Top undo item is:", urs.get_undo_item(1))
+	end
 	local vups = get_undo_player_state(event.player_index)
-	if vups then vups:on_undo_applied(event.actions) end
+	if not vups then return end
+	vups:on_undo_applied(event.actions)
 end)
 
 on_redo_applied(function(event)
 	local vups = get_undo_player_state(event.player_index)
-	if vups then vups:on_redo_applied(event.actions) end
+	if not vups then return end
+	vups:on_redo_applied(event.actions)
 end)
 
 -- Death
 
 on_unified_pre_destroy(function(event, entity, player)
-	local un = entity.unit_number
-	if not un then return end
-	local thing = get_thing_by_unit_number(un)
-	if not thing then return end
+	-- TODO: do we need to hook pre destroy?
 end)
 
 on_entity_marked(function(event, entity, player)
@@ -177,7 +185,12 @@ on_entity_marked(function(event, entity, player)
 	if not un then return end
 	local thing = get_thing_by_unit_number(un)
 	if not thing then return end
-	thing:create_undo_tombstone(entity, player)
+	-- XXX: UNDOABLE ACTION - Player mark for deconstruction
+	local vups = get_undo_player_state(player.index)
+	if not vups then return end
+	local marker = UndoMarker:new(entity, thing, true, "deconstruction")
+	vups:add_marker(marker)
+	vups:reconcile_later()
 end)
 
 on_unified_destroy(function(event, entity, player, leave_tombstone)
@@ -188,8 +201,15 @@ on_unified_destroy(function(event, entity, player, leave_tombstone)
 	-- If the thing was destroyed by an undoable player action, create an
 	-- immediate tombstone for it.
 	if player and leave_tombstone then
+		--- XXX: UNDOABLE ACTION - Player mines entity.
 		debug_log("thing destroyed by undoable player action, leaving tombstone")
-		thing:create_undo_tombstone(entity, player)
+		debug_undo_stack(player)
+		local vups = get_undo_player_state(player.index)
+		if vups then
+			local marker = UndoMarker:new(entity, thing, true, "deconstruction")
+			vups:add_marker(marker)
+			vups:reconcile_later()
+		end
 	end
 	-- Notify the thing that its entity was destroyed. (Logic here will
 	-- check for tombstone state and act accordingly.)

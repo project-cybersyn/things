@@ -1,13 +1,7 @@
 local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
 local StateMachine = require("lib.core.state-machine")
-local entities = require("lib.core.entities")
-local lib_pos = require("lib.core.math.pos")
-local world_state = require("lib.core.world-state")
-local get_world_key = world_state.get_world_key
-
-local pos_close = lib_pos.pos_close
-local pos_get = lib_pos.pos_get
+local scheduler = require("lib.core.scheduler")
 
 ---@enum things.ThingManagementFlags
 local ThingManagementFlags = {
@@ -67,6 +61,7 @@ local ThingState = {
 ---@field public debug_overlay? Core.MultiLineTextOverlay Debug overlay for this Thing.
 ---@field public tags Tags The tags associated with this Thing.
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity, if any.
+---@field public n_undo_markers uint The number of undo markers currently associated with this Thing.
 local Thing = class("things.Thing", StateMachine)
 _G.Thing = Thing
 
@@ -76,8 +71,18 @@ function Thing:new()
 	local obj = StateMachine.new(self, "unknown")
 	obj.id = id
 	obj.tags = {}
+	obj.n_undo_markers = 0
 	storage.things[id] = obj
 	return obj
+end
+
+function Thing:undo_ref() self.n_undo_markers = self.n_undo_markers + 1 end
+
+function Thing:undo_deref()
+	self.n_undo_markers = math.max(0, self.n_undo_markers - 1)
+	if self.n_undo_markers == 0 then
+		-- TODO: cleanup
+	end
 end
 
 ---Update the `unit_number` associated with this Thing, maintaining referential
@@ -103,41 +108,6 @@ function Thing:raw_set_tag(key, value)
 	end
 end
 
----Attempt to locate an undo record for this Thing on the player's undo stack.
----If found, tag it with this Thing's id for later retrieval.
----@param player LuaPlayer?
-function Thing:tag_undo_record(player)
-	if self.has_undo_record then return end
-	if
-		not player
-		or not player.valid
-		or not self.entity
-		or not self.entity.valid
-	then
-		return
-	end
-	local undo_item = player.undo_redo_stack.get_undo_item(1)
-	if not undo_item then return end
-	for action_index, action in pairs(undo_item) do
-		if
-			action.type == "built-entity"
-			and action.target.name == self.entity.name
-			and action.surface_index == self.entity.surface_index
-			and pos_close(action.target.position, self.entity.position)
-		then
-			player.undo_redo_stack.set_undo_tag(1, action_index, "@thing_id", self.id)
-			debug_log(
-				"tag_undo_record: tagged undo item",
-				action_index,
-				"for thing",
-				self.id
-			)
-			self.has_undo_record = true
-			return
-		end
-	end
-end
-
 ---Called when this Thing's entity dies, leaving a ghost behind.
 ---@param ghost LuaEntity
 function Thing:died_leaving_ghost(ghost)
@@ -157,13 +127,12 @@ function Thing:revived_from_ghost(revived_entity, tags)
 	self:set_state("alive_revived")
 end
 
----Create an undo tombstone for this Thing.
----@param death_entity LuaEntity
----@param player LuaPlayer
-function Thing:create_undo_tombstone(death_entity, player)
-	local vups = get_undo_player_state(player.index)
-	if not vups then return end
-	vups:create_tombstone(death_entity, self.id)
+function Thing:is_maybe_undo_ghost(ghost)
+	if self.state ~= "tombstone" then return false end
+	self.entity = ghost
+	self:set_unit_number(ghost.unit_number)
+	self:set_state("ghost_maybe_undo")
+	return true
 end
 
 ---Convert a maybe_undo_ghost to an undo_ghost after we are sure the undo
@@ -171,6 +140,16 @@ end
 function Thing:is_undo_ghost()
 	if self.state ~= "ghost_maybe_undo" then return end
 	self:set_state("ghost_undo")
+end
+
+---Convert a maybe_undo_ghost back into a tombstone and notify that what
+---we thought was a maybe_undo_ghost is the ghost of an unthing.
+function Thing:isnt_undo_ghost()
+	if self.state ~= "ghost_maybe_undo" then return end
+	local ghost = self.entity
+	self.entity = nil
+	self:set_unit_number(nil)
+	self:set_state("tombstone")
 end
 
 ---Invoked when the Thing's corresponding world entity is destroyed.
@@ -192,8 +171,7 @@ function Thing:entity_destroyed(entity)
 	self.last_known_position = entity.position
 	self.entity = nil
 	self:set_unit_number(nil)
-	-- Check for matching tombstone
-	if storage.tombstones[get_world_key(entity)] then
+	if self.n_undo_markers > 0 then
 		self:set_state("tombstone")
 	else
 		self:destroy()
@@ -235,25 +213,6 @@ function _G.get_thing(id) return storage.things[id or ""] end
 ---@return things.Thing?
 function _G.get_thing_by_unit_number(unit_number)
 	return storage.things_by_unit_number[unit_number or ""]
-end
-
----Determine if a ghost entity might be an undo over a tombstone.
----If so, move the tombstone to a "maybe undo" state and return it.
----@param ghost LuaEntity
----@param player LuaPlayer
-function _G.maybe_undo_tombstone(ghost, player)
-	if not ghost.valid or ghost.type ~= "entity-ghost" then return nil end
-	local vups = get_undo_player_state(player.index)
-	if not vups then return nil end
-	local key = get_world_key(ghost)
-	local tombstone = vups:has_tombstone(key)
-	if not tombstone then return nil end
-	local thing = get_thing(tombstone.thing_id)
-	if not thing or thing.state ~= "tombstone" then return nil end
-	thing.entity = ghost
-	thing:set_unit_number(ghost.unit_number)
-	thing:set_state("ghost_maybe_undo")
-	return thing
 end
 
 ---@param entity LuaEntity A *valid* LuaEntity with a `unit_number`
