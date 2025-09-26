@@ -66,13 +66,13 @@ _G.on_blueprint_apply, _G.raise_blueprint_apply = event(
 )
 
 ---Player pre-builds something from a non-blueprint item.
-_G.on_pre_build_from_item, _G.raise_pre_build_from_item = event(
-	"pre_build_from_item",
+_G.on_pre_build_entity, _G.raise_pre_build_entity = event(
+	"pre_build_entity",
 	"EventData.on_pre_build",
 	"LuaPlayer",
-	"nil",
-	"nil",
-	"nil"
+	"LuaEntityPrototype",
+	"LuaQualityPrototype",
+	"LuaSurface"
 )
 
 _G.on_entity_cloned, _G.raise_entity_cloned = event(

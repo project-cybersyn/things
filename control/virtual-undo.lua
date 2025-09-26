@@ -8,8 +8,11 @@ local tlib = require("lib.core.table")
 
 local INF = mconst.BIG_INT
 local NINF = mconst.BIG_NEG_INT
+local RECONCILE_ID_TAG = "@rid"
+local THINGS_TAGS = "@tags"
 
 local get_world_key = world_state.get_world_key
+local make_world_key = world_state.make_world_key
 
 -- Virtualized undo/redo
 --
@@ -24,55 +27,51 @@ local get_world_key = world_state.get_world_key
 -- implementation. All code is newly written.
 --
 -- The things we need to achieve are:
--- 1) When an entity is destroyed by an undoable action, tag the action
+-- 1) When an entity or ghost is destroyed by an undoable action, tag the action
 -- with the Thing id and pickle the Thing for later restoration.
--- 2) When a ghost is built, was it the result of an undo recorded in (1)? If
+-- 2) When an entity or ghost is built, was it the result of an undo recorded in (1)? If
 -- so, restore its Thing-ness; if not, treat as new construction.
 --
--- Complications with (1) include that there is no event whatsoever for when
--- a new entry is added to the undo stack. We can only assume (correctly so far)
--- that when an undoable action occurs, by scheduling an event for the *next*
--- tick, the undo stack will have been updated. Unfortunately:
--- XXX: If game is paused, this COMPLETELY breaks down.
--- XXX: If other mods trigger events on same tick, see above.
--- XXX: If an undo occurs on the very next tick after an undoable action, this code may leak.
--- XXX: If multiple undos somehow occur per tick per player (perhaps via a mod forcing undo?) this code may leak.
+-- (1) is complicated by the fact that there is no event whatsoever for when
+-- an entry is added to the undo stack. In fact if the game is paused there are
+-- situations where it is *impossible* for any mod code to run between an
+-- undo entry being pushed and that same entry being popped. In such situations
+-- the fact that the undo stack supports tags is useless because there is
+-- simply no time to tag it.
 --
--- A further complication is that we must engage in bookkeeping to connect the
--- undoable actions and associated Things with the reconciliation process that
--- takes place a tick later. This requires the use of `storage` and a system
--- of "world keys" basically mapping (position, name) tuples to Thing ids.
--- Later, when reconciling the undo/redo stacks, the `action.target` can also
--- be mapped to a world key, and if a Thing id is found, the action can be
--- mapped to the Thing. Unfortunately:
--- XXX: If multiple entities of the same type are destroyed at the same position
--- only one will be recorded for undo purposes. (I'm not sure this is possible)
+-- This is where some ideas from Fiber Optics and Compact Circuits come in.
+-- We create "undo markers" keyed by world keys (position, surface, name).
+-- When we get the chance (i.e. before an undoable thing occurs) we opportunistically
+-- reconcile these markers with the undo stack, saving them as tags. For those
+-- moments where there haven't been any events and we can't rely on tags,
+-- we treat outstanding unreconciled markers as if they were potential tags.
 --
--- The primary complication with step (2) is that ghost building takes place
--- *before* the `on_undo_applied` event, and there is no indications that the
--- ghosts came from the undo. This requires that we once again bookkeep and
--- reconcile between the two events. The kicker here is that if there *isn't*
--- a matching undo, we simply have no way of knowing that because there's no
--- such thing as a "didn't undo" event. We solve this again by waiting until
--- next tick, at which time we assume there wasn't an undo.
--- This creates ample possibility for leaks in the abstraction.
+-- (2) is likewise complicated by screwy event ordering and missing events.
+-- This time around, there is no event for when an undo operation begins. You
+-- just get a bunch of build events followed by an `on_undo_applied` event.
+-- Furthermore, the entry has already been popped from the stack before
+-- any of these events.
 --
--- Furthermore, when a ghost is built, it carries no information about whether
--- it came from an undo (if it e.g. pointed to the undo action that created it that would solve this whole problem) so we
--- must "educated guess" by checking if the ghost's world key matches any of
--- the world keys of items on top of the undo/redo stack. If so, we assume it
--- came from an undo, and mark it as "maybe undo". Then, when either the
--- undo event or tick event comes in, we can finally resolve the situation.
+-- Cracking this relies on several ideas.
 --
--- What this all amounts to is we basically have to rewrite the whole undo
--- system in Lua, piggybacking on `storage` and the undo stack's tags capability
--- for data.
+-- First, it turns out that undo-events aren't associated with a `pre_build`.
+-- This means by bookkeeping `pre_build` using world keys, we can basically
+-- figure out which entities are being built by undo operations and which
+-- aren't.
+--
+-- Second, we once again have to virtualize the stack here because we need
+-- a decision on whether a build is an undo during `on_build`. We can't wait
+-- for an `on_undo_applied` that may never come. So we maintain a "top set"
+-- of world keys that are on the top of either the undo or redo stack, plus
+-- all outstanding unreconciled keys. A build is an undo if its world key
+-- matches any of those.
+--
+-- What this all amounts to is we basically have to virtualize a big chunk
+-- of the undo system in Lua and perform a bunch of very expensive bookkeeping
+-- but it IS just barely possible in userspace to have generally correct undo
+-- for custom entities.
 --
 -- Anyway, rant over, here's the implementation.
-
--- "Undo from unreconciled": reconcile "in place" on Undo push
--- on-chunk-charted happens every second while editor-paused
--- built by a player without prebuild = possible undo applied
 
 ---Marker associated with an undoable action affecting a Thing.
 ---@class (exact) things.UndoMarker: Core.WorldState
@@ -104,7 +103,10 @@ function UndoMarker:new(entity, thing, retain, marker_type, data)
 	return obj
 end
 
----Clone an undo marker with a new id.
+---Clone an undo marker. Results in an otherwise identical marker with a new
+---id. If the marker retains a Thing, the Thing's refcount is incremented
+---again.
+---@return things.UndoMarker
 function UndoMarker:clone()
 	local obj = tlib.assign({}, self)
 	setmetatable(obj, getmetatable(self))
@@ -117,7 +119,8 @@ function UndoMarker:clone()
 	return obj
 end
 
----Destroy an undo marker.
+---Destroy an undo marker. If the marker retains a Thing, the Thing's refcount
+---is decremented.
 function UndoMarker:destroy()
 	if self.retain then
 		local thing = get_thing(self.thing_id)
@@ -149,15 +152,14 @@ function UndoReconciliation:destroy()
 	end
 end
 
----Per player virtualized undo/redo system. One of these is stored per player
----id.
+---Per player virtualized undo/redo state. One of these must exist in `storage`
+---for each active player.
 ---@class (exact) things.VirtualUndoPlayerState
 ---@field public player_index uint The player index this state is for.
 ---@field public unreconciled_markers {[Core.WorldKey]: things.UndoMarker} Map from world keys to possible markers caused by this player since last reconcile.
 ---@field public reconciliations {[int]: things.UndoReconciliation} Reconciliations on the stack, by id.
 ---@field public top_marker_set {[Core.WorldKey]: things.UndoMarker} Set of world keys at the top of either undo or redo stack as of last reconcile.
----@field public reconcile_task int? The scheduled task id for the next reconcile, if any.
----@field public last_reconcile_ticks_played uint The unpaused tick at which the last reconcile was performed.
+---@field public last_reconcile_ticks_played uint The unpaused `ticks_played` value when the last reconcile was performed.
 local VirtualUndoPlayerState = class("things.VirtualUndoPlayerState")
 _G.VirtualUndoPlayerState = VirtualUndoPlayerState
 
@@ -168,6 +170,7 @@ function VirtualUndoPlayerState:new(player_index)
 	obj.unreconciled_markers = {}
 	obj.reconciliations = {}
 	obj.top_marker_set = {}
+	obj.last_reconcile_ticks_played = 0
 	return obj
 end
 
@@ -189,23 +192,10 @@ end
 
 ---Reconcile if needed based on the paused tick
 function VirtualUndoPlayerState:reconcile_if_needed()
-	if self.last_reconcile_ticks_played < game.ticks_played then
+	if (self.last_reconcile_ticks_played or 0) < game.ticks_played then
 		self:perform_reconcile()
 	end
 end
-
----Schedule a reconcile for the next tick if one isn't already scheduled.
-function VirtualUndoPlayerState:reconcile_later()
-	if self.reconcile_task then return end
-	self.reconcile_task = scheduler.at(game.tick + 1, "reconcile", self)
-end
-
--- Handler for scheduled reconcile tasks
-scheduler.register_handler("reconcile", function(task)
-	local obj = task.data --[[@as things.VirtualUndoPlayerState]]
-	obj.reconcile_task = nil
-	obj:perform_reconcile()
-end)
 
 ---@param action UndoRedoAction
 ---@param key string
@@ -228,36 +218,38 @@ end
 
 ---@param vups things.VirtualUndoPlayerState
 ---@param view Core.UndoRedoStackView
----@param checklist {[int]: true?} Set of all reconcile IDs; seen ones will be marked nil.
----@param tops {[Core.WorldKey]: things.UndoMarker} All world keys at top of stack will be written here after reconciliation.
+---@return boolean changed Whether any new reconciliations were needed.
 ---@return int bottom_id Rec.ID at the bottom of the stack.
-local function reconcile_view(vups, view, checklist, tops)
-	local bottom_id = NINF
+local function reconcile_view(vups, view)
+	local changed = false
+	local bottom_id = nil
 	local len = view.get_item_count()
-	for i = 1, len do
+	-- Reconcile in reverse order. This will ensure higher reconcile_ids are
+	-- always at top of stack, making GC easier later.
+	for i = len, 1, -1 do
 		local item = view.get_item(i)
 		if #item == 0 then
 			error("Encountered impossible situation of empty undo item.")
 		end
 		-- Check for already reconciled
-		local reconcile_id = view.get_tag(i, 1, "things-reconcile-id")
+		local reconcile_id = view.get_tag(i, 1, RECONCILE_ID_TAG)
 		if reconcile_id then
 			local n_reconcile_id = tonumber(reconcile_id)
 			if n_reconcile_id then
-				bottom_id = n_reconcile_id
-				checklist[n_reconcile_id] = nil
+				if not bottom_id then bottom_id = n_reconcile_id end
 			end
 			goto continue
 		end
 		-- Generate a new reconciliation
+		changed = true
 		local reconciliation = UndoReconciliation:new()
 		vups.reconciliations[reconciliation.id] = reconciliation
-		view.set_tag(i, 1, "things-reconcile-id", reconciliation.id)
+		view.set_tag(i, 1, RECONCILE_ID_TAG, reconciliation.id)
 		-- Tag matching actions
 		for j = 1, #item do
 			local action = item[j]
 			if action.target and action.surface_index then
-				local action_key = world_state.make_key(
+				local action_key = make_world_key(
 					action.target.position,
 					action.surface_index,
 					action.target.name
@@ -266,7 +258,7 @@ local function reconcile_view(vups, view, checklist, tops)
 				if marker then
 					local tags = reconcile_action(action, action_key, marker)
 					if tags then
-						view.set_tag(i, j, "things-tags", tags)
+						view.set_tag(i, j, THINGS_TAGS, tags)
 						reconciliation:add_marker(marker:clone())
 					end
 				end
@@ -276,9 +268,17 @@ local function reconcile_view(vups, view, checklist, tops)
 		::continue::
 	end
 
-	-- After reconciling, update tops set
+	return changed, bottom_id or NINF
+end
+
+---Get the top markers from a view of the undo or redo stack.
+---@param vups things.VirtualUndoPlayerState
+---@param view Core.UndoRedoStackView
+---@param tops {[Core.WorldKey]: things.UndoMarker}
+local function get_tops(vups, view, tops)
+	local len = view.get_item_count()
 	if len > 0 then
-		local top_reconciliation_id = view.get_tag(1, 1, "things-reconcile-id")
+		local top_reconciliation_id = view.get_tag(1, 1, RECONCILE_ID_TAG)
 		if top_reconciliation_id then
 			local n_top_reconciliation_id = tonumber(top_reconciliation_id)
 			if n_top_reconciliation_id then
@@ -291,11 +291,11 @@ local function reconcile_view(vups, view, checklist, tops)
 			end
 		end
 	end
-
-	return bottom_id
 end
 
----Reconcile the ingame undo stack with the virtualized one.
+---Reconcile the ingame undo stack with the virtualized marker data. Creates
+---tags on the undo stack pickling the marker data to the greatest extent
+---possible.
 function VirtualUndoPlayerState:perform_reconcile()
 	local player = game.get_player(self.player_index)
 	if not player or not player.valid then return end
@@ -312,47 +312,22 @@ function VirtualUndoPlayerState:perform_reconcile()
 	)
 	self.last_reconcile_ticks_played = game.ticks_played
 
-	-- Create checklist of all known reconciliations
-	local checklist = {}
-	for id in pairs(self.reconciliations) do
-		checklist[id] = true
-	end
-	-- Create top_marker_set
-	self.top_marker_set = {}
-
 	-- Reconcile undo and redo stacks
-	local bottom_undo = reconcile_view(
-		self,
-		urs_lib.make_undo_stack_view(urs),
-		checklist,
-		self.top_marker_set
-	)
-	reconcile_view(
-		self,
-		urs_lib.make_redo_stack_view(urs),
-		checklist,
-		self.top_marker_set
-	)
+	local undo_view, redo_view =
+		urs_lib.make_undo_stack_view(urs), urs_lib.make_redo_stack_view(urs)
+	local changed_undo, bottom_undo = reconcile_view(self, undo_view)
+	local changed_redo, bottom_redo = reconcile_view(self, redo_view)
+	local changed = changed_undo or changed_redo
+	local rock_bottom = math.min(bottom_undo, bottom_redo)
 
-	-- XXX: this doesnt work. undo stack can have hidden entries pushed back
-	-- onto it via redo. we can only kill stuff that falls off the bottom of the
-	-- undo stack.
-	-- After reconcile, destroy all reconciliations still on the checklist
-	-- These are the ones not seen during reconcile, i.e. dropped off the
-	-- undo/redo stack.
-	-- for id in pairs(checklist) do
-	-- 	local reconciliation = self.reconciliations[id]
-	-- 	if reconciliation then
-	-- 		debug_log(
-	-- 			"Reconcile: dropping reconciliation",
-	-- 			id,
-	-- 			"for player",
-	-- 			self.player_index
-	-- 		)
-	-- 		reconciliation:destroy()
-	-- 		self.reconciliations[id] = nil
-	-- 	end
-	-- end
+	-- update tops set
+	-- TODO: optimize by checking if top indices changed
+	self.top_marker_set = {}
+	get_tops(self, undo_view, self.top_marker_set)
+	get_tops(self, redo_view, self.top_marker_set)
+
+	-- TODO: Garbage collection is required here. Theoretically, anything lower
+	-- than the rock bottom of the two stacks can be GC'd.
 
 	-- After reconcile, destroy all unreconciled markers
 	for _, marker in pairs(self.unreconciled_markers) do
@@ -377,32 +352,60 @@ local function apply_undo_action(action, tags)
 	end
 end
 
----@param actions UndoRedoAction[]
-local function apply_undo_actions(actions)
+local function apply_reconciled_undo_actions(actions)
 	for i = 1, #actions do
 		local action = actions[i]
 		local tags = action.tags
-		debug_log("apply_undo_actions: action", action)
 		if not tags then goto continue end
-		tags = tags["things-tags"] --[[@as Tags?]]
+		tags = tags[THINGS_TAGS] --[[@as Tags?]]
 		if not tags then goto continue end
 		apply_undo_action(action, tags)
 		::continue::
 	end
 end
 
+---@param actions UndoRedoAction[]
+---@param markers {[Core.WorldKey]: things.UndoMarker}
+local function apply_unreconciled_undo_actions(actions, markers)
+	for i = 1, #actions do
+		local action = actions[i]
+		if action.target and action.surface_index then
+			local action_key = make_world_key(
+				action.target.position,
+				action.surface_index,
+				action.target.name
+			)
+			local marker = markers[action_key]
+			if marker then
+				local tags = reconcile_action(action, action_key, marker)
+				if tags then apply_undo_action(action, tags) end
+			end
+		end
+	end
+end
+
+---@param actions UndoRedoAction[]
+---@param markers {[Core.WorldKey]: things.UndoMarker}
+local function apply_undo_actions(actions, markers)
+	if not actions or #actions == 0 then return end
+	local tags = actions[1].tags
+	if tags and tags[RECONCILE_ID_TAG] then
+		apply_reconciled_undo_actions(actions)
+	else
+		apply_unreconciled_undo_actions(actions, markers)
+	end
+end
+
 ---Apply an undo operation.
 ---@param actions UndoRedoAction[]
 function VirtualUndoPlayerState:on_undo_applied(actions)
-	apply_undo_actions(actions)
-	self:reconcile_later()
+	apply_undo_actions(actions, self.unreconciled_markers)
 end
 
 ---Apply a redo operation.
 ---@param actions UndoRedoAction[]
 function VirtualUndoPlayerState:on_redo_applied(actions)
-	apply_undo_actions(actions)
-	self:reconcile_later()
+	apply_undo_actions(actions, self.unreconciled_markers)
 end
 
 ---Get the VirtualUndoPlayerState for a player index, creating it if needed.
@@ -416,39 +419,15 @@ function _G.get_undo_player_state(player_index)
 	return res
 end
 
--- Handler for `later_check_maybe_ghost`
-scheduler.register_handler("maybe_ghost_check", function(task)
-	storage.tasks["maybe_ghost"] = nil
-	local data = task.data --[[@as {[things.Thing]: true}]]
-	for thing, _ in pairs(data) do
-		thing:isnt_undo_ghost()
-	end
-end)
-
----In 1 tick, check if this thing is still a maybe_undo_ghost, and if so,
----notify it that it isn't really an undo ghost.
----@param thing things.Thing
-local function later_check_maybe_ghost(thing)
-	local task_id = storage.tasks["maybe_ghost"]
-	if not task_id then
-		storage.tasks["maybe_ghost"] =
-			scheduler.at(game.tick + 1, "maybe_ghost_check", { [thing] = true })
-	else
-		local task = scheduler.get(task_id)
-		if task and task.data then task.data[thing] = true end
-	end
-end
-
 ---Determine if a ghost entity might be an undo over a tombstone.
 ---If so, move the tombstone to a "maybe undo" state and return it.
----@param ghost LuaEntity
+---@param ghost LuaEntity A *valid ghost* entity.
+---@param key Core.WorldKey The ghost's world key.
 ---@param player LuaPlayer
 ---@return things.Thing?
-function _G.maybe_undo_tombstone(ghost, player)
-	if not ghost.valid or ghost.type ~= "entity-ghost" then return nil end
+function _G.maybe_undo_ghost(ghost, key, player)
 	local vups = get_undo_player_state(player.index)
 	if not vups then return nil end
-	local key = get_world_key(ghost)
 	debug_log("maybe_undo_tombstone: checking for tombstone at", key)
 	local marker = vups:get_top_marker(key)
 	if (not marker) or (marker.marker_type ~= "deconstruction") then
@@ -456,10 +435,7 @@ function _G.maybe_undo_tombstone(ghost, player)
 		return nil
 	end
 	local thing = get_thing(marker.thing_id)
-	if thing and thing:is_maybe_undo_ghost(ghost) then
-		later_check_maybe_ghost(thing)
-		return thing
-	end
+	if thing and thing:to_undo_ghost(ghost) then return thing end
 end
 
 function _G.debug_undo_stack(player, player_index)

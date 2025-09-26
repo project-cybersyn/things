@@ -1,7 +1,7 @@
 local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
 local StateMachine = require("lib.core.state-machine")
-local scheduler = require("lib.core.scheduler")
+local entities = require("lib.core.entities")
 
 ---@enum things.ThingManagementFlags
 local ThingManagementFlags = {
@@ -127,29 +127,19 @@ function Thing:revived_from_ghost(revived_entity, tags)
 	self:set_state("alive_revived")
 end
 
-function Thing:is_maybe_undo_ghost(ghost)
+---Convert this Thing to an undo ghost.
+---@param ghost LuaEntity A *valid ghost* entity.
+function Thing:to_undo_ghost(ghost)
 	if self.state ~= "tombstone" then return false end
 	self.entity = ghost
+	entities.ghost_set_tag(ghost, "@ig", self.id)
 	self:set_unit_number(ghost.unit_number)
-	self:set_state("ghost_maybe_undo")
+	self:set_state("ghost_undo")
 	return true
 end
 
----Convert a maybe_undo_ghost to an undo_ghost after we are sure the undo
----operation created it.
 function Thing:is_undo_ghost()
-	if self.state ~= "ghost_maybe_undo" then return end
-	self:set_state("ghost_undo")
-end
-
----Convert a maybe_undo_ghost back into a tombstone and notify that what
----we thought was a maybe_undo_ghost is the ghost of an unthing.
-function Thing:isnt_undo_ghost()
-	if self.state ~= "ghost_maybe_undo" then return end
-	local ghost = self.entity
-	self.entity = nil
-	self:set_unit_number(nil)
-	self:set_state("tombstone")
+	-- TODO: evaluate if needed
 end
 
 ---Invoked when the Thing's corresponding world entity is destroyed.

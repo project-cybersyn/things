@@ -1,4 +1,8 @@
 local tlib = require("lib.core.table")
+local world_state = require("lib.core.world-state")
+
+local make_key = world_state.make_world_key
+local get_world_key = world_state.get_world_key
 
 -- Synthesis of construction events
 
@@ -41,9 +45,20 @@ on_blueprint_apply(function(player, blueprint, surface, event)
 	-- Create application record
 end)
 
-on_pre_build_from_item(
-	function(event, player) debug_log("on_pre_build_from_item", event, player) end
-)
+on_pre_build_entity(function(event, player, entity_prototype, quality, surface)
+	debug_log(
+		"on_pre_build_entity",
+		event,
+		player,
+		entity_prototype,
+		quality,
+		surface
+	)
+	-- Create prebuild record
+	local prebuild = get_prebuild_player_state(player.index)
+	local key = make_key(event.position, surface.index, entity_prototype.name)
+	prebuild:mark_key_as_prebuilt(key)
+end)
 
 ---@param event AnyFactorioBuildEventData
 ---@param ghost LuaEntity
@@ -51,15 +66,19 @@ on_pre_build_from_item(
 ---@param player? LuaPlayer
 local function built_ghost(event, ghost, tags, player)
 	debug_log("built_ghost", event, ghost, tags, player)
-	-- Ghost is someone we knew who died
-	local known = get_thing_by_unit_number(ghost.ghost_unit_number)
-	if known then
-		debug_log("built_ghost: ghost of a dead bplib entity:", known)
-		return
-	end
-	-- Player-built ghost could be an undo/redo result
+
+	-- Check for ghost resulting from undo operation. (owned by player, no
+	-- corresponding pre-build event)
 	if player then
-		if maybe_undo_tombstone(ghost, player) then return end
+		local prebuild = get_prebuild_player_state(player.index)
+		local key = world_state.get_world_key(ghost)
+		if not prebuild:was_key_prebuilt(key) then
+			-- Likely an undo/redo ghost
+			if maybe_undo_ghost(ghost, key, player) then
+				debug_log("built_ghost: ghost from undo/redo", key)
+				return
+			end
+		end
 	end
 
 	-- Ghost is a tagged bplib object from a blueprint
@@ -91,7 +110,11 @@ local function built_ghost(event, ghost, tags, player)
 	})
 end
 
-local function built_real(event, entity, tags)
+---@param event AnyFactorioBuildEventData
+---@param entity LuaEntity
+---@param tags? Tags
+---@param player? LuaPlayer
+local function built_real(event, entity, tags, player)
 	debug_log("built_real", event, entity, tags)
 	-- Real is a tagged bplib object from a blueprint.
 	-- (It must've been built via cheat/editor because it skipped ghost state)
@@ -188,9 +211,9 @@ on_entity_marked(function(event, entity, player)
 	-- XXX: UNDOABLE ACTION - Player mark for deconstruction
 	local vups = get_undo_player_state(player.index)
 	if not vups then return end
+	vups:reconcile_if_needed()
 	local marker = UndoMarker:new(entity, thing, true, "deconstruction")
 	vups:add_marker(marker)
-	vups:reconcile_later()
 end)
 
 on_unified_destroy(function(event, entity, player, leave_tombstone)
@@ -206,9 +229,9 @@ on_unified_destroy(function(event, entity, player, leave_tombstone)
 		debug_undo_stack(player)
 		local vups = get_undo_player_state(player.index)
 		if vups then
+			vups:reconcile_if_needed()
 			local marker = UndoMarker:new(entity, thing, true, "deconstruction")
 			vups:add_marker(marker)
-			vups:reconcile_later()
 		end
 	end
 	-- Notify the thing that its entity was destroyed. (Logic here will

@@ -29,6 +29,7 @@ require("control.storage")
 require("control.settings")
 -- Late init
 require("control.thing")
+require("control.prebuild")
 require("control.virtual-undo")
 require("control.extraction")
 require("control.construction")
@@ -86,8 +87,34 @@ script.on_event(defines.events.on_pre_build, function(event)
 		if not bp then return end
 		return raise_blueprint_apply(player, bp, player.surface, event)
 	end
-	-- Other buildable item
-	raise_pre_build_from_item(event, player)
+	-- Item with entity place result
+	local stack = player.cursor_stack
+	if stack and stack.valid_for_read then
+		local entity_placed = stack.prototype.place_result
+		if entity_placed then
+			return raise_pre_build_entity(
+				event,
+				player,
+				entity_placed,
+				stack.quality,
+				player.surface
+			)
+		end
+	end
+	-- Ghost cursor
+	local cursor_ghost = player.cursor_ghost
+	if cursor_ghost then
+		local entity_placed = cursor_ghost.name.place_result
+		if entity_placed then
+			return raise_pre_build_entity(
+				event,
+				player,
+				entity_placed,
+				cursor_ghost.quality --[[@as LuaQualityPrototype]],
+				player.surface
+			)
+		end
+	end
 end)
 
 --------------------------------------------------------------------------------

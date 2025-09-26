@@ -4,10 +4,12 @@
 ---@field public things_by_unit_number {[uint]: things.Thing} Things by unit_number of reified entity, if it exists.
 ---@field public player_undo {[uint]: things.VirtualUndoPlayerState} Player undo states by player index.
 ---@field public extractions {[uint]: things.Extraction} Data for blueprints being extracted, indexed by extraction id
+---@field public player_prebuild {[uint]: things.PrebuildPlayerState} Data for prebuild operations.
 storage = {}
 
-local function init_storage_key(key)
-	if storage[key] == nil then storage[key] = {} end
+local function init_storage_key(key, value)
+	if value == nil then value = {} end
+	if storage[key] == nil then storage[key] = value end
 end
 
 function _G.init_storage()
@@ -16,6 +18,7 @@ function _G.init_storage()
 	init_storage_key("extractions")
 	init_storage_key("player_undo")
 	init_storage_key("tasks")
+	init_storage_key("player_prebuild")
 end
 
 -- TODO: eliminate for release
