@@ -4,6 +4,7 @@ local world_state = require("lib.core.world-state")
 local urs_lib = require("lib.core.undo-redo-stack")
 local counters = require("lib.core.counters")
 local mconst = require("lib.core.math.constants")
+local tlib = require("lib.core.table")
 
 local INF = mconst.BIG_INT
 local NINF = mconst.BIG_NEG_INT
@@ -31,8 +32,9 @@ local get_world_key = world_state.get_world_key
 -- Complications with (1) include that there is no event whatsoever for when
 -- a new entry is added to the undo stack. We can only assume (correctly so far)
 -- that when an undoable action occurs, by scheduling an event for the *next*
--- tick, the undo stack will have been updated. It turns out undo/redo
--- don't work while tick is paused, so this is reasonably safe. Unfortunately:
+-- tick, the undo stack will have been updated. Unfortunately:
+-- XXX: If game is paused, this COMPLETELY breaks down.
+-- XXX: If other mods trigger events on same tick, see above.
 -- XXX: If an undo occurs on the very next tick after an undoable action, this code may leak.
 -- XXX: If multiple undos somehow occur per tick per player (perhaps via a mod forcing undo?) this code may leak.
 --
@@ -69,6 +71,8 @@ local get_world_key = world_state.get_world_key
 -- Anyway, rant over, here's the implementation.
 
 -- "Undo from unreconciled": reconcile "in place" on Undo push
+-- on-chunk-charted happens every second while editor-paused
+-- built by a player without prebuild = possible undo applied
 
 ---Marker associated with an undoable action affecting a Thing.
 ---@class (exact) things.UndoMarker: Core.WorldState
@@ -97,6 +101,19 @@ function UndoMarker:new(entity, thing, retain, marker_type, data)
 	if retain then thing:undo_ref() end
 	obj.marker_type = marker_type
 	obj.data = data
+	return obj
+end
+
+---Clone an undo marker with a new id.
+function UndoMarker:clone()
+	local obj = tlib.assign({}, self)
+	setmetatable(obj, getmetatable(self))
+	---@cast obj things.UndoMarker
+	obj.id = counters.next("undo_marker")
+	if obj.retain then
+		local thing = get_thing(obj.thing_id)
+		if thing then thing:undo_ref() end
+	end
 	return obj
 end
 
@@ -168,6 +185,13 @@ function VirtualUndoPlayerState:add_marker(marker)
 	-- Already exists
 	if self.unreconciled_markers[key] then return end
 	self.unreconciled_markers[key] = marker
+end
+
+---Reconcile if needed based on the paused tick
+function VirtualUndoPlayerState:reconcile_if_needed()
+	if self.last_reconcile_ticks_played < game.ticks_played then
+		self:perform_reconcile()
+	end
 end
 
 ---Schedule a reconcile for the next tick if one isn't already scheduled.
@@ -243,8 +267,7 @@ local function reconcile_view(vups, view, checklist, tops)
 					local tags = reconcile_action(action, action_key, marker)
 					if tags then
 						view.set_tag(i, j, "things-tags", tags)
-						reconciliation:add_marker(marker)
-						vups.unreconciled_markers[action_key] = nil
+						reconciliation:add_marker(marker:clone())
 					end
 				end
 			end
