@@ -67,14 +67,14 @@ end)
 local function built_ghost(event, ghost, tags, player)
 	debug_log("built_ghost", event, ghost, tags, player)
 
-	-- Check for ghost resulting from undo operation. (owned by player, no
+	-- Check for undo operation. (owned by player, no
 	-- corresponding pre-build event)
 	if player then
 		local prebuild = get_prebuild_player_state(player.index)
 		local key = world_state.get_world_key(ghost)
 		if not prebuild:was_key_prebuilt(key) then
 			-- Likely an undo/redo ghost
-			if maybe_undo_ghost(ghost, key, player) then
+			if maybe_undo(ghost, key, player) then
 				debug_log("built_ghost: ghost from undo/redo", key)
 				return
 			end
@@ -116,6 +116,21 @@ end
 ---@param player? LuaPlayer
 local function built_real(event, entity, tags, player)
 	debug_log("built_real", event, entity, tags)
+
+	-- Check for undo operation. (owned by player, no
+	-- corresponding pre-build event)
+	if player then
+		local prebuild = get_prebuild_player_state(player.index)
+		local key = world_state.get_world_key(entity)
+		if not prebuild:was_key_prebuilt(key) then
+			-- Likely an undo/redo ghost
+			if maybe_undo(entity, key, player) then
+				debug_log("built_real: real from undo/redo", key)
+				return
+			end
+		end
+	end
+
 	-- Real is a tagged bplib object from a blueprint.
 	-- (It must've been built via cheat/editor because it skipped ghost state)
 	if tags and tags["@i"] then

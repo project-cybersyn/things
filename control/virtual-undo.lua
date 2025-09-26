@@ -17,7 +17,10 @@ local make_world_key = world_state.make_world_key
 -- Virtualized undo/redo
 --
 -- The general idea of this code is that when an undoable action occurs, we
--- need to know which if any Things were involved. Unfortunately, Factorio's
+-- need to know which if any Things were involved, and when an undo occurs
+-- we need to restore the identities/states of Things appropriately.
+--
+-- Unfortunately, Factorio's
 -- paucity of events and information, along with imo backwards event ordering
 -- makes this a massively difficult problem.
 --
@@ -419,23 +422,21 @@ function _G.get_undo_player_state(player_index)
 	return res
 end
 
----Determine if a ghost entity might be an undo over a tombstone.
----If so, move the tombstone to a "maybe undo" state and return it.
----@param ghost LuaEntity A *valid ghost* entity.
----@param key Core.WorldKey The ghost's world key.
+---Determine if an entity might be an undo over a decon marker.
+---If so, attempt to restore its Thing identity.
+---@param entity LuaEntity A *valid* entity.
+---@param key Core.WorldKey The entity's world key.
 ---@param player LuaPlayer
 ---@return things.Thing?
-function _G.maybe_undo_ghost(ghost, key, player)
+function _G.maybe_undo(entity, key, player)
 	local vups = get_undo_player_state(player.index)
 	if not vups then return nil end
-	debug_log("maybe_undo_tombstone: checking for tombstone at", key)
 	local marker = vups:get_top_marker(key)
 	if (not marker) or (marker.marker_type ~= "deconstruction") then
-		debug_log("maybe_undo_tombstone: no valid marker found")
 		return nil
 	end
 	local thing = get_thing(marker.thing_id)
-	if thing and thing:to_undo_ghost(ghost) then return thing end
+	if thing and thing:undo_with(entity) then return thing end
 end
 
 function _G.debug_undo_stack(player, player_index)

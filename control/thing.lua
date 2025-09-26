@@ -37,6 +37,8 @@ local ThingState = {
 	alive_initial = "alive_initial",
 	---Thing was created alive from a blueprint (cheat mode)
 	alive_blueprint = "alive_blueprint",
+	---Thing was created alive from an undo operation (cheat mode)
+	alive_undo = "alive_undo",
 	---Thing was revived from a ghost
 	alive_revived = "alive_revived",
 	---Thing is destroyed but remaining as an undo tombstone.
@@ -125,6 +127,23 @@ function Thing:revived_from_ghost(revived_entity, tags)
 	self:set_unit_number(revived_entity.unit_number)
 	if tags then self.tags = tags end
 	self:set_state("alive_revived")
+end
+
+---Try to resurrect a potentially tombstoned entity that was revived via
+---an undo operation. `entity` is previously calculated by the undo
+---subsystem to be a suitably overlapping entity.
+---@param entity LuaEntity A *valid* entity.
+function Thing:undo_with(entity)
+	if self.state ~= "tombstone" then return false end
+	self.entity = entity
+	self:set_unit_number(entity.unit_number)
+	if entity.type == "entity-ghost" then
+		entities.ghost_set_tag(entity, "@ig", self.id)
+		self:set_state("ghost_undo")
+	else
+		self:set_state("alive_undo")
+	end
+	return true
 end
 
 ---Convert this Thing to an undo ghost.
