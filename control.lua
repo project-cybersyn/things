@@ -32,6 +32,7 @@ require("control.thing")
 require("control.prebuild")
 require("control.virtual-undo")
 require("control.extraction")
+require("control.application")
 require("control.construction")
 require("control.debug-overlay")
 require("control.remote")
@@ -122,32 +123,26 @@ end)
 --------------------------------------------------------------------------------
 
 ---@param event AnyFactorioBuildEventData
-local function handle_built_with_tags(event)
-	raise_unified_build(event, event.entity, event.tags, nil)
+local function handle_generic_built(event)
+	local player = event.player_index and game.get_player(event.player_index)
+		or nil
+	local entity = event.entity
+	if entity.type == "entity-ghost" then
+		raise_built_ghost(event, entity, entity.tags, player)
+	else
+		raise_built_real(event, entity, event.tags, player)
+	end
 end
 
-script.on_event(defines.events.on_built_entity, function(event)
-	if event.player_index then
-		raise_unified_build(
-			event,
-			event.entity,
-			event.tags,
-			game.get_player(event.player_index)
-		)
-	else
-		raise_unified_build(event, event.entity, event.tags, nil)
-	end
-end)
-script.on_event(defines.events.on_robot_built_entity, handle_built_with_tags)
+script.on_event(defines.events.on_built_entity, handle_generic_built)
+script.on_event(defines.events.on_robot_built_entity, handle_generic_built)
 script.on_event(
 	defines.events.on_space_platform_built_entity,
-	handle_built_with_tags
+	handle_generic_built
 )
 script.on_event(defines.events.on_entity_cloned, raise_entity_cloned)
-script.on_event(defines.events.script_raised_built, function()
-	-- TODO: tags not present here
-end)
-script.on_event(defines.events.script_raised_revive, handle_built_with_tags)
+script.on_event(defines.events.script_raised_built, handle_generic_built)
+script.on_event(defines.events.script_raised_revive, handle_generic_built)
 
 --------------------------------------------------------------------------------
 -- DECONSTRUCTION AND DEATH

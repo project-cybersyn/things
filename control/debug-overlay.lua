@@ -7,6 +7,10 @@ local function update_overlay(thing)
 		"Thing " .. thing.id,
 		thing.state,
 	}
+	-- XXX: remove this
+	if thing.tags and thing.tags.clicker then
+		table.insert(lines, "Clicker: " .. thing.tags.clicker)
+	end
 	thing.debug_overlay:set_text(lines)
 end
 
@@ -59,4 +63,8 @@ end)
 
 on_thing_lifecycle(function(thing, new_state, old_state)
 	if mod_settings.debug then rebuild_overlay(thing) end
+end)
+
+on_thing_tags_changed(function(thing, previous_tags)
+	if mod_settings.debug then update_overlay(thing) end
 end)

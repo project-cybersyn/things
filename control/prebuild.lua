@@ -4,8 +4,8 @@ local class = require("lib.core.class").class
 
 ---@class things.PrebuildPlayerState
 ---@field public player_index uint The player index.
----@field public last_ticks_played uint The last game tick this state was updated.
----@field public prebuilt_key_set {[Core.WorldKey]: true} Set of world keys corresponding to objects pre_built on this tick.
+---@field public last_ticks_played uint The last tick_played this state was updated.
+---@field public prebuilt_key_set {[Core.WorldKey]: true} Set of world keys corresponding to objects pre_built on the current tick_played.
 local PrebuildPlayerState = class("things.PrebuildPlayerState")
 _G.PrebuildPlayerState = PrebuildPlayerState
 

@@ -35,9 +35,19 @@ _G.DEFINES_EVENTS_REVERSE_MAP = {
 
 ---@alias AnyFactorioBuildEventData EventData.script_raised_built|EventData.script_raised_revive|EventData.on_built_entity|EventData.on_robot_built_entity|EventData.on_entity_cloned|EventData.on_space_platform_built_entity
 
----Event raised representing a union of all Factorio's possible build events.
-_G.on_unified_build, _G.raise_unified_build = event(
-	"unified_build",
+---Event raised when a real entity is built (not a ghost).
+_G.on_built_real, _G.raise_built_real = event(
+	"built_real",
+	"AnyFactorioBuildEventData",
+	"LuaEntity",
+	"Tags",
+	"LuaPlayer",
+	"nil"
+)
+
+---Event raised when a ghost entity is built.
+_G.on_built_ghost, _G.raise_built_ghost = event(
+	"built_ghost",
 	"AnyFactorioBuildEventData",
 	"LuaEntity",
 	"Tags",
@@ -177,3 +187,9 @@ _G.on_entity_settings_pasted, _G.raise_entity_settings_pasted = event(
 
 _G.on_thing_lifecycle, _G.raise_thing_lifecycle =
 	event("thing_lifecycle", "things.Thing", "string", "string", "nil", "nil")
+
+---Event raised when the tags of a Thing change.
+---* Arg 1 - `things.Thing` - The Thing whose tags changed.
+---* Arg 2 - `Tags` - The previous tags of the Thing.
+_G.on_thing_tags_changed, _G.raise_thing_tags_changed =
+	event("thing_tags_changed", "things.Thing", "Tags", "nil", "nil", "nil")

@@ -97,17 +97,31 @@ function Thing:set_unit_number(unit_number)
 	if unit_number then storage.things_by_unit_number[unit_number] = self end
 end
 
----Set a tag on this Thing without firing any events.
----@param key string
----@param value Tags|boolean|number|string|nil
-function Thing:raw_set_tag(key, value)
-	self.tags[key] = value
-	local entity = self.entity
-	if entity and entity.valid and entity.type == "entity-ghost" then
-		local tags = entity.tags or {}
-		tags[key] = value
-		entity.tags = tags
-	end
+---Thing was built as a tagged ghost, likely from a BP.
+---@param ghost LuaEntity A *valid* ghost.
+---@param tags Tags The tags on the ghost.
+function Thing:built_as_tagged_ghost(ghost, tags)
+	local local_id = tags["@i"]
+	self.entity = ghost
+	if tags["@t"] then self.tags = tags["@t"] end
+	-- Re-tag ghost with Thing global ID.
+	tags["@t"] = nil
+	tags["@i"] = nil
+	tags["@ig"] = self.id
+	ghost.tags = tags
+	self:set_unit_number(ghost.unit_number)
+	self:set_state("ghost_blueprint")
+end
+
+---Thing was built as a tagged real entity, probably from a BP in cheat mode.
+---@param entity LuaEntity A *valid* real entity.
+---@param tags Tags The tags on the entity.
+function Thing:built_as_tagged_real(entity, tags)
+	local local_id = tags["@i"]
+	self.entity = entity
+	if tags["@t"] then self.tags = tags["@t"] end
+	self:set_unit_number(entity.unit_number)
+	self:set_state("alive_blueprint")
 end
 
 ---Called when this Thing's entity dies, leaving a ghost behind.
@@ -115,17 +129,16 @@ end
 function Thing:died_leaving_ghost(ghost)
 	self.entity = ghost
 	self:set_unit_number(ghost.unit_number)
-	if self.tags then ghost.tags = self.tags end
+	ghost.tags = { ["@ig"] = self.id }
 	self:set_state("ghost_dead")
 end
 
 ---Called when this Thing is revived from a ghost.
 ---@param revived_entity LuaEntity
----@param tags Tags?
+---@param tags Tags? The tags on the revived entity.
 function Thing:revived_from_ghost(revived_entity, tags)
 	self.entity = revived_entity
 	self:set_unit_number(revived_entity.unit_number)
-	if tags then self.tags = tags end
 	self:set_state("alive_revived")
 end
 
@@ -204,6 +217,18 @@ function Thing:destroy()
 	storage.things[self.id] = nil
 end
 
+---@param tags Tags
+function Thing:set_tags(tags)
+	local previous_tags = self.tags
+	self.tags = tags
+	raise_thing_tags_changed(self, previous_tags)
+	script.raise_event("things-on_tags_changed", {
+		thing_id = self.id,
+		previous_tags = previous_tags,
+		new_tags = tags,
+	})
+end
+
 function Thing:on_changed_state(new_state, old_state)
 	raise_thing_lifecycle(self, new_state, old_state --[[@as string]])
 	script.raise_event("things-on_thing_lifecycle", {
@@ -235,7 +260,9 @@ function _G.thingify_entity(entity)
 	if thing then return false, thing end
 	thing = Thing:new()
 	thing.entity = entity
-	thing:raw_set_tag("@ig", thing.id)
+	if entity.type == "entity-ghost" then
+		entities.ghost_set_tag(entity, "@ig", thing.id)
+	end
 	thing:set_unit_number(entity.unit_number)
 	if entity.type == "entity-ghost" then
 		thing:set_state("ghost_initial")

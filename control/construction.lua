@@ -1,49 +1,42 @@
-local tlib = require("lib.core.table")
 local world_state = require("lib.core.world-state")
 
 local make_key = world_state.make_world_key
 local get_world_key = world_state.get_world_key
 
--- Synthesis of construction events
+on_blueprint_extract(
+	---@param bp Core.Blueprintish
+	function(event, player, bp)
+		debug_log("on_blueprint_extract", event)
+		local lazy_bp_to_world = event.mapping
+		if not lazy_bp_to_world or not lazy_bp_to_world.valid then
+			debug_log("on_blueprint_extract: no mapping")
+			return
+		end
+		local bp_to_world = lazy_bp_to_world.get() --[[@as { [integer]: LuaEntity }|nil ]]
+		if not bp_to_world then
+			debug_log("on_blueprint_extract: empty mapping")
+			return
+		end
 
-on_blueprint_extract(function(event, player, bp)
-	debug_log("on_blueprint_extract", event)
-	local lazy_bp_to_world = event.mapping
-	if not lazy_bp_to_world or not lazy_bp_to_world.valid then
-		debug_log("on_blueprint_extract: no mapping")
-		return
+		local extraction = Extraction:new(bp, bp_to_world)
+		extraction:map_things()
+		-- TODO: Thing-Thing relationships
+		extraction:map_entities()
+
+		extraction:destroy()
 	end
-	local bp_to_world = lazy_bp_to_world.get() --[[@as { [integer]: LuaEntity }|nil ]]
-	if not bp_to_world then
-		debug_log("on_blueprint_extract: empty mapping")
-		return
+)
+
+on_blueprint_apply(
+	---@param bp Core.Blueprintish
+	function(player, bp, surface, event)
+		debug_log("on_blueprint_apply", player, bp, surface, event)
+		-- Create application record
+		local application = Application:new(player, bp, surface, event)
+		application:apply_overlapping_tags()
+		application:destroy()
 	end
-
-	local extraction = Extraction:new()
-
-	-- Assign internal IDs to entities in the blueprint we know about
-	for idx, entity in pairs(bp_to_world) do
-		if (not entity.valid) or not entity.unit_number then goto continue end
-		local thing = get_thing_by_unit_number(entity.unit_number)
-		if not thing then goto continue end
-		debug_log("on_blueprint_extract: known entity in blueprint", thing, entity)
-		local local_id = extraction:map(thing)
-		local tags = tlib.assign({}, thing.tags)
-		tags["@i"] = local_id
-		tags["@ig"] = nil
-		bp.set_blueprint_entity_tags(idx, tags)
-		::continue::
-	end
-	-- Remap parent/child relationships
-	-- Store graph relationships
-
-	extraction:destroy()
-end)
-
-on_blueprint_apply(function(player, blueprint, surface, event)
-	debug_log("on_blueprint_apply", player, blueprint, surface, event)
-	-- Create application record
-end)
+)
 
 on_pre_build_entity(function(event, player, entity_prototype, quality, surface)
 	debug_log(
@@ -64,7 +57,7 @@ end)
 ---@param ghost LuaEntity
 ---@param tags? Tags
 ---@param player? LuaPlayer
-local function built_ghost(event, ghost, tags, player)
+on_built_ghost(function(event, ghost, tags, player)
 	debug_log("built_ghost", event, ghost, tags, player)
 
 	-- Check for undo operation. (owned by player, no
@@ -83,21 +76,8 @@ local function built_ghost(event, ghost, tags, player)
 
 	-- Ghost is a tagged bplib object from a blueprint
 	if tags and tags["@i"] then
-		local local_id = tags["@i"] --[[@as int]]
-		debug_log(
-			"built_ghost: ghost from a bplib blueprint with local_id",
-			local_id
-		)
-		-- Start a file on it
-		local erec = Thing:new()
-		erec.entity = ghost
-		erec.local_id = local_id
-		-- Remove the tag
-		tags["@i"] = nil
-		tags["@ig"] = erec.id
-		ghost.tags = tags
-		erec.tags = tags
-		erec:set_state("ghost_initial")
+		local thing = Thing:new()
+		thing:built_as_tagged_ghost(ghost, tags)
 		return
 	end
 
@@ -108,13 +88,13 @@ local function built_ghost(event, ghost, tags, player)
 		prototype_name = ghost.ghost_name,
 		prototype_type = ghost.ghost_type,
 	})
-end
+end)
 
 ---@param event AnyFactorioBuildEventData
 ---@param entity LuaEntity
 ---@param tags? Tags
 ---@param player? LuaPlayer
-local function built_real(event, entity, tags, player)
+on_built_real(function(event, entity, tags, player)
 	debug_log("built_real", event, entity, tags)
 
 	-- Check for undo operation. (owned by player, no
@@ -134,19 +114,11 @@ local function built_real(event, entity, tags, player)
 	-- Real is a tagged bplib object from a blueprint.
 	-- (It must've been built via cheat/editor because it skipped ghost state)
 	if tags and tags["@i"] then
-		local local_id = tags["@i"]
-		debug_log("built_real: real from a bplib blueprint with local_id", local_id)
-		-- Start a file on it
 		local thing = Thing:new()
-		thing.entity = entity
-		thing.local_id = local_id
-		-- Remove the tag
-		tags["@i"] = nil
-		tags["@ig"] = thing.id
-		thing.tags = tags
-		thing:set_state("alive_initial")
+		thing:built_as_tagged_real(entity, tags)
 		return
 	end
+
 	-- Real is a revived ghost thing
 	if tags and tags["@ig"] then
 		local thing_id = tags["@ig"]
@@ -156,12 +128,13 @@ local function built_real(event, entity, tags, player)
 			thing:revived_from_ghost(entity, tags)
 		else
 			debug_log(
-				"built_real: real is a revived ghost thing but we don't know about it",
+				"built_real: real is a revived ghost Thing but we don't know about it (bad news)",
 				thing_id
 			)
 		end
 		return
 	end
+
 	-- Real is an unthing
 	debug_log("built_real: real is a new unthing")
 	script.raise_event("things-on_unthing_built", {
@@ -169,27 +142,6 @@ local function built_real(event, entity, tags, player)
 		prototype_name = entity.name,
 		prototype_type = entity.type,
 	})
-end
-
-on_unified_build(function(event, entity, tags, player)
-	debug_log("on_unified_build", event, entity, tags, player)
-	-- debug_log(
-	-- 	"n/t sdxn/dxn/mirroring: ",
-	-- 	entity.name,
-	-- 	entity.type,
-	-- 	entity.supports_direction,
-	-- 	entity.direction,
-	-- 	entity.mirroring
-	-- )
-
-	-- XXX: debug
-	if player then debug_undo_stack(player) end
-
-	if entity.type == "entity-ghost" then
-		built_ghost(event, entity, tags, player)
-	else
-		built_real(event, entity, tags, player)
-	end
 end)
 
 on_entity_cloned(function(event) debug_log("on_entity_cloned", event) end)

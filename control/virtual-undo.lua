@@ -66,8 +66,8 @@ local make_world_key = world_state.make_world_key
 -- a decision on whether a build is an undo during `on_build`. We can't wait
 -- for an `on_undo_applied` that may never come. So we maintain a "top set"
 -- of world keys that are on the top of either the undo or redo stack, plus
--- all outstanding unreconciled keys. A build is an undo if its world key
--- matches any of those.
+-- all outstanding unreconciled keys. A build is an undo if (1) it had no
+-- corresponding `pre_build` event and (2) its world key is in the top set.
 --
 -- What this all amounts to is we basically have to virtualize a big chunk
 -- of the undo system in Lua and perform a bunch of very expensive bookkeeping
@@ -325,9 +325,7 @@ function VirtualUndoPlayerState:perform_reconcile()
 
 	-- update tops set
 	-- TODO: optimize by checking if top indices changed
-	self.top_marker_set = {}
-	get_tops(self, undo_view, self.top_marker_set)
-	get_tops(self, redo_view, self.top_marker_set)
+	self:recompute_top_set()
 
 	-- TODO: Garbage collection is required here. Theoretically, anything lower
 	-- than the rock bottom of the two stacks can be GC'd.
@@ -344,6 +342,17 @@ function VirtualUndoPlayerState:perform_reconcile()
 		"top markers:",
 		self.top_marker_set
 	)
+end
+
+---Recompute the top marker set from the current undo/redo stacks.
+---Needs to be done whenever the stacks change.
+function VirtualUndoPlayerState:recompute_top_set()
+	local player = game.get_player(self.player_index)
+	if not player or not player.valid then return end
+	local urs = player.undo_redo_stack
+	self.top_marker_set = {}
+	get_tops(self, urs_lib.make_undo_stack_view(urs), self.top_marker_set)
+	get_tops(self, urs_lib.make_redo_stack_view(urs), self.top_marker_set)
 end
 
 ---@param action UndoRedoAction
@@ -403,12 +412,14 @@ end
 ---@param actions UndoRedoAction[]
 function VirtualUndoPlayerState:on_undo_applied(actions)
 	apply_undo_actions(actions, self.unreconciled_markers)
+	self:recompute_top_set()
 end
 
 ---Apply a redo operation.
 ---@param actions UndoRedoAction[]
 function VirtualUndoPlayerState:on_redo_applied(actions)
 	apply_undo_actions(actions, self.unreconciled_markers)
+	self:recompute_top_set()
 end
 
 ---Get the VirtualUndoPlayerState for a player index, creating it if needed.
