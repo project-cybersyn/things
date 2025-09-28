@@ -48,7 +48,6 @@ end
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 ---@return Tags? tags The tags of the Thing, or `nil` if the Thing doesn't exist.
 function remote_interface.get_tags(thing_identification)
-	debug_log("remote::get_tags", thing_identification)
 	local thing = nil
 	if type(thing_identification) ~= "number" then
 		if
@@ -81,7 +80,6 @@ function remote_interface.set_tags(thing_identification, tags)
 		thing = get_thing(thing_identification --[[@as int]])
 	end
 	if not thing then return NOT_A_THING end
-	debug_log("remote::set_tags", thing_identification, tags)
 	thing:set_tags(tags)
 	return nil
 end

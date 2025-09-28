@@ -88,7 +88,7 @@ function Application:new(player, bp, surface, event)
 		if overlapping then
 			local thing = get_thing_by_unit_number(overlapping.unit_number)
 			if thing then
-				table.insert(self.overlaps, { thing = thing, bp_entity = bp_entity })
+				table.insert(obj.overlaps, { thing = thing, bp_entity = bp_entity })
 			end
 		end
 		::continue::
