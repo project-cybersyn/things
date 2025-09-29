@@ -353,6 +353,9 @@ function Thing:graph_get_edges(graph_name)
 	return graph:get_edges(self.id)
 end
 
+---Determine if this Thing has any edges in any graph.
+function Thing:has_edges() return self.graph_set and next(self.graph_set) ~= nil end
+
 function Thing:on_changed_state(new_state, old_state)
 	raise_thing_status(self, new_state, old_state --[[@as string]])
 	script.raise_event("things-on_status_changed", {

@@ -46,4 +46,34 @@ function Extraction:map_entities()
 	self.next_entity_id = #self.entities + 1
 end
 
+---Map graph edges into the blueprint. Must be called after `map_things`.
+function Extraction:map_edges()
+	for eid, entity in pairs(self.eid_to_world) do
+		if (not entity.valid) or not entity.unit_number then
+			goto continue_entity
+		end
+		local thing = self.eid_to_thing[eid]
+		if (not thing) or (not thing:has_edges()) then goto continue_entity end
+		local edge_tags = {}
+		for graph_name in pairs(thing.graph_set) do
+			local edges = thing:graph_get_edges(graph_name)
+			edge_tags[graph_name] = edge_tags[graph_name] or {}
+			local edges_tags = edge_tags[graph_name]
+			for to, edge in pairs(edges) do
+				-- Only add edge for which we are the lower id, to avoid duplicates.
+				if thing.id ~= edge.first then goto continue_edge end
+				local local_to = self.thing_id_to_eid[to]
+				if local_to then
+					edges_tags[local_to] = edge.data and edge.data or true
+				end
+				::continue_edge::
+			end
+		end
+		if next(edge_tags) then
+			self.bp.set_blueprint_entity_tag(eid, "@edges", edge_tags)
+		end
+		::continue_entity::
+	end
+end
+
 function Extraction:destroy() storage.extractions[self.id] = nil end

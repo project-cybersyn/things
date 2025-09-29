@@ -20,7 +20,8 @@ on_blueprint_extract(
 
 		local extraction = Extraction:new(bp, bp_to_world)
 		extraction:map_things()
-		-- TODO: Thing-Thing relationships
+		extraction:map_edges()
+		-- TODO: thing-thing relationships
 		extraction:map_entities()
 
 		extraction:destroy()
