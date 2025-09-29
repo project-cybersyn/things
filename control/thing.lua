@@ -3,6 +3,8 @@ local counters = require("lib.core.counters")
 local StateMachine = require("lib.core.state-machine")
 local entities = require("lib.core.entities")
 
+local EMPTY = setmetatable({}, { __newindex = function() end })
+
 ---@enum things.ThingManagementFlags
 local ThingManagementFlags = {
 	--- Force this entity to be destroyed when its parent is.
@@ -23,14 +25,14 @@ local ThingManagementFlags = {
 
 ---@enum things.ThingState
 local ThingState = {
+	---Thing is in an unknown state.
+	unknown = "unknown",
 	---Thing is a ghost that was manually thingified.
 	ghost_initial = "ghost_initial",
 	---Thing is ghost built from a blueprint.
 	ghost_blueprint = "ghost_blueprint",
 	---Thing is a ghost after its real entity died.
 	ghost_died = "ghost_died",
-	---Thing is a ghost that may be from undo.
-	ghost_maybe_undo = "ghost_maybe_undo",
 	---Thing is a ghost that was determined to be from undo
 	ghost_undo = "ghost_undo",
 	---Thing is an alive entity that was manually thingified
@@ -55,8 +57,10 @@ local ThingState = {
 ---in an undo buffer), then rebuilt by an undo command. (entity #5). All of
 ---these entities are different LuaEntity objects, but they all represent
 ---the same ultimate `Thing`
----@class things.Thing: StateMachine
+---@class (exact) things.Thing: StateMachine
 ---@field public id int Unique gamewide id for this Thing.
+---@field public state things.Status|"uninitialized" Current lifecycle state of this Thing.
+---@field public state_cause? things.StatusCause The cause of the last status change, if known.
 ---@field public unit_number? uint The last-known-good `unit_number` for this Thing. May be `nil` or invalid.
 ---@field public local_id? int If this Thing came from a blueprint, its local id within that blueprint.
 ---@field public entity LuaEntity? Current entity representing the thing. Due to potential for lifecycle leaks, must be checked for validity each time used.
@@ -64,13 +68,14 @@ local ThingState = {
 ---@field public tags Tags The tags associated with this Thing.
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity, if any.
 ---@field public n_undo_markers uint The number of undo markers currently associated with this Thing.
+---@field public graph_set? {[string]: true} Set of graph names this Thing is a member of. If `nil`, the Thing is not a member of any graphs.
 local Thing = class("things.Thing", StateMachine)
 _G.Thing = Thing
 
 ---@return things.Thing
 function Thing:new()
 	local id = counters.next("entity")
-	local obj = StateMachine.new(self, "unknown")
+	local obj = StateMachine.new(self, "uninitialized")
 	obj.id = id
 	obj.tags = {}
 	obj.n_undo_markers = 0
@@ -101,72 +106,100 @@ end
 ---@param ghost LuaEntity A *valid* ghost.
 ---@param tags Tags The tags on the ghost.
 function Thing:built_as_tagged_ghost(ghost, tags)
-	local local_id = tags["@i"]
+	if self.state ~= "uninitialized" then
+		debug_crash(
+			"Thing:built_as_tagged_ghost: unexpected state",
+			self.id,
+			self.state
+		)
+	end
 	self.entity = ghost
-	if tags["@t"] then self.tags = tags["@t"] end
+	if tags["@t"] then
+		self.tags = tags["@t"] --[[@as Tags]]
+	end
 	-- Re-tag ghost with Thing global ID.
 	tags["@t"] = nil
 	tags["@i"] = nil
 	tags["@ig"] = self.id
 	ghost.tags = tags
 	self:set_unit_number(ghost.unit_number)
-	self:set_state("ghost_blueprint")
+	self.state_cause = "blueprint"
+	self:set_state("ghost")
 end
 
 ---Thing was built as a tagged real entity, probably from a BP in cheat mode.
 ---@param entity LuaEntity A *valid* real entity.
 ---@param tags Tags The tags on the entity.
 function Thing:built_as_tagged_real(entity, tags)
+	if self.state ~= "uninitialized" then
+		debug_crash(
+			"Thing:built_as_tagged_real: unexpected state",
+			self.id,
+			self.state
+		)
+	end
 	local local_id = tags["@i"]
 	self.entity = entity
-	if tags["@t"] then self.tags = tags["@t"] end
+	if tags["@t"] then
+		self.tags = tags["@t"] --[[@as Tags]]
+	end
 	self:set_unit_number(entity.unit_number)
-	self:set_state("alive_blueprint")
+	self.state_cause = "blueprint"
+	self:set_state("real")
 end
 
 ---Called when this Thing's entity dies, leaving a ghost behind.
 ---@param ghost LuaEntity
 function Thing:died_leaving_ghost(ghost)
+	-- Must be in alive state
+	if self.state ~= "real" then
+		debug_crash(
+			"Thing:died_leaving_ghost: unexpected state",
+			self.id,
+			self.state
+		)
+	end
 	self.entity = ghost
 	self:set_unit_number(ghost.unit_number)
 	ghost.tags = { ["@ig"] = self.id }
-	self:set_state("ghost_dead")
+	self.state_cause = "died"
+	self:set_state("ghost")
 end
 
 ---Called when this Thing is revived from a ghost.
 ---@param revived_entity LuaEntity
 ---@param tags Tags? The tags on the revived entity.
 function Thing:revived_from_ghost(revived_entity, tags)
+	if self.state ~= "ghost" then
+		error(
+			serpent.line(
+				{ "Thing:revived_from_ghost: unexpected state", self.id, self.state },
+				{ nocode = true }
+			)
+		)
+	end
 	self.entity = revived_entity
 	self:set_unit_number(revived_entity.unit_number)
-	self:set_state("alive_revived")
+	self.state_cause = "revived"
+	self:set_state("real")
 end
 
 ---Try to resurrect a potentially tombstoned entity that was revived via
 ---an undo operation. `entity` is previously calculated by the undo
 ---subsystem to be a suitably overlapping entity.
 ---@param entity LuaEntity A *valid* entity.
+---@return boolean undoable `true` if entity matches a known tombstone.
 function Thing:undo_with(entity)
 	if self.state ~= "tombstone" then return false end
 	self.entity = entity
 	self:set_unit_number(entity.unit_number)
+	self.state_cause = "undo"
 	if entity.type == "entity-ghost" then
 		entities.ghost_set_tag(entity, "@ig", self.id)
-		self:set_state("ghost_undo")
+		self:set_state("ghost")
 	else
-		self:set_state("alive_undo")
+		self:set_state("real")
 	end
-	return true
-end
-
----Convert this Thing to an undo ghost.
----@param ghost LuaEntity A *valid ghost* entity.
-function Thing:to_undo_ghost(ghost)
-	if self.state ~= "tombstone" then return false end
-	self.entity = ghost
-	entities.ghost_set_tag(ghost, "@ig", self.id)
-	self:set_unit_number(ghost.unit_number)
-	self:set_state("ghost_undo")
 	return true
 end
 
@@ -182,8 +215,8 @@ function Thing:entity_destroyed(entity)
 	-- Expect `entity` to match our own opinion of what our entity is.
 	-- TODO: remove after stability/edgecase verifications
 	if (not self.entity) or not self.entity.valid or (self.entity ~= entity) then
-		debug_log(
-			"Thing:entity_destroyed: entity mismatch, ignoring",
+		debug_crash(
+			"Thing:entity_destroyed: thing's notion of its entity didn't match reality",
 			self.id,
 			self.entity,
 			entity
@@ -193,6 +226,7 @@ function Thing:entity_destroyed(entity)
 	self.last_known_position = entity.position
 	self.entity = nil
 	self:set_unit_number(nil)
+	self.state_cause = "died"
 	if self.n_undo_markers > 0 then
 		self:set_state("tombstone")
 	else
@@ -206,11 +240,12 @@ function Thing:destroy()
 	if self.entity and self.entity.valid then
 		self.last_known_position = self.entity.position
 	end
+	-- Disconnect graph edges
+	self:graph_disconnect_all()
 	-- TODO: force destroy entity if needed
 	self.entity = nil
 	-- Remove from registry
 	storage.things_by_unit_number[self.unit_number or ""] = nil
-	--storage.tombstones[self.tombstone_key or ""] = nil
 	-- Give downstream a last bite at the apple
 	self:set_state("destroyed")
 	-- Remove from global registry
@@ -229,13 +264,127 @@ function Thing:set_tags(tags)
 	})
 end
 
+---Create an edge from this Thing to another in the given Thing graph.
+---@param graph_name string
+---@param other things.Thing
+---@param data? Tags Optional user data to associate with the edge.
+---@return boolean created True if the edge was created, false if it already existed.
+function Thing:graph_connect(graph_name, other, data)
+	local graph = get_or_create_graph(graph_name)
+	local created, edge = graph:add_edge(self.id, other.id)
+	if created then
+		if data then edge.data = data end
+		if not self.graph_set then self.graph_set = {} end
+		self.graph_set[graph_name] = true
+		script.raise_event("things-on_edges_changed", {
+			graph_name = graph_name,
+			change = "created",
+			nodes = { [self.id] = true, [other.id] = true },
+			edges = { edge },
+		})
+		return true
+	end
+	return false
+end
+
+---Remove an edge from this Thing to another in the given Thing graph.
+---@param graph_name string
+---@param other things.Thing
+function Thing:graph_disconnect(graph_name, other)
+	local graph = get_graph(graph_name)
+	if not graph then return end
+	local edge, isolated_1, isolated_2 = graph:remove_edge(self.id, other.id)
+	if edge then
+		if isolated_1 and self.graph_set then self.graph_set[graph_name] = nil end
+		if isolated_2 and other.graph_set then other.graph_set[graph_name] = nil end
+		script.raise_event("things-on_edges_changed", {
+			graph_name = graph_name,
+			change = "deleted",
+			nodes = { [self.id] = true, [other.id] = true },
+			edges = { edge },
+		})
+	end
+end
+
+---Remove this Thing from all graphs it is a member of.
+function Thing:graph_disconnect_all()
+	for graph_name in pairs(self.graph_set or EMPTY) do
+		local graph = get_graph(graph_name)
+		if not graph then goto continue end
+		local edges = graph:get_edges(self.id)
+		local node_set = { [self.id] = true }
+		local edge_list = {}
+		for other_id, edge in pairs(edges) do
+			local other = get_thing(other_id)
+			local edge_removed, isolated_1, isolated_2 =
+				graph:remove_edge(self.id, other_id)
+			if isolated_2 and other and other.graph_set then
+				other.graph_set[graph_name] = nil
+			end
+			table.insert(edge_list, edge)
+			node_set[other_id] = true
+		end
+		self.graph_set[graph_name] = nil
+		script.raise_event("things-on_edges_changed", {
+			graph_name = graph_name,
+			change = "deleted",
+			nodes = node_set,
+			edges = edge_list,
+		})
+		::continue::
+	end
+end
+
+---Check for an edge in the given Thing graph.
+---@param graph_name string
+---@param other things.Thing
+function Thing:graph_get_edge(graph_name, other)
+	local graph = get_graph(graph_name)
+	if not graph then return nil end
+	return graph:get_edge(self.id, other.id)
+end
+
+---Get all edges in the given Thing graph that this Thing is a member of.
+---@param graph_name string
+---@return {[int]: things.GraphEdge}
+function Thing:graph_get_edges(graph_name)
+	local graph = get_graph(graph_name)
+	if not graph then return EMPTY end
+	return graph:get_edges(self.id)
+end
+
 function Thing:on_changed_state(new_state, old_state)
-	raise_thing_lifecycle(self, new_state, old_state --[[@as string]])
-	script.raise_event("things-on_thing_lifecycle", {
+	raise_thing_status(self, new_state, old_state --[[@as string]])
+	script.raise_event("things-on_status_changed", {
 		thing_id = self.id,
-		new_state = new_state,
-		old_state = old_state,
+		entity = self.entity,
+		new_status = new_state,
+		old_status = old_state,
+		cause = self.state_cause,
 	})
+	-- Create on_edges_changed events
+	-- For destroyed Things, skip the status_changed event in favor of the
+	-- delete event.
+	if new_state == "destroyed" then return end
+	for graph_name in pairs(self.graph_set or EMPTY) do
+		local graph = get_graph(graph_name)
+		if not graph then goto continue end
+		local edges = graph:get_edges(self.id)
+		local edge_list = {}
+		local node_set = {}
+		node_set[self.id] = true
+		for other_id, edge in pairs(edges) do
+			table.insert(edge_list, edge)
+			node_set[other_id] = true
+		end
+		script.raise_event("things-on_edges_changed", {
+			graph_name = graph_name,
+			change = "status_changed",
+			nodes = node_set,
+			edges = edge_list,
+		})
+		::continue::
+	end
 end
 
 ---Get a Thing by its thing_id.
@@ -260,14 +409,13 @@ function _G.thingify_entity(entity)
 	if thing then return false, thing end
 	thing = Thing:new()
 	thing.entity = entity
+	thing:set_unit_number(entity.unit_number)
+	thing.state_cause = "created"
 	if entity.type == "entity-ghost" then
 		entities.ghost_set_tag(entity, "@ig", thing.id)
-	end
-	thing:set_unit_number(entity.unit_number)
-	if entity.type == "entity-ghost" then
-		thing:set_state("ghost_initial")
+		thing:set_state("ghost")
 	else
-		thing:set_state("alive_initial")
+		thing:set_state("real")
 	end
 	return true, thing
 end

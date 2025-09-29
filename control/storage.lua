@@ -5,6 +5,7 @@
 ---@field public extractions {[uint]: things.Extraction} Data for blueprints being extracted, indexed by extraction id
 ---@field public applications {[uint]: things.Application} Data for blueprints being applied, indexed by application id
 ---@field public player_prebuild {[uint]: things.PrebuildPlayerState} Data for prebuild operations.
+---@field public graphs {[string]: things.Graph} Graphs by graph name.
 storage = {}
 
 local function init_storage_key(key, value)
@@ -19,6 +20,7 @@ function _G.init_storage()
 	init_storage_key("applications")
 	init_storage_key("player_undo")
 	init_storage_key("player_prebuild")
+	init_storage_key("graphs")
 end
 
 -- TODO: eliminate for release

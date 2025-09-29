@@ -1,0 +1,49 @@
+-- Public types and enums for the Things API.
+
+---General statuses of a Thing.
+---`real` means the Thing has a valid real entity.
+---`ghost` means the Thing has a valid ghost entity.
+---`tombstone` means the Thing has no entity, but still exists on the undo stack and could potentially be brought back via undo operations.
+---`destroyed` means the Thing is irrevocably gone. Destroyed things will be garbage-collected and cannot be used for any purpose.
+---@alias things.Status "real"|"ghost"|"tombstone"|"destroyed"
+
+---Causes of the last status change.
+---`created` means the Thing was created from nothing.
+---`blueprint` means the Thing changed status due to blueprint application or extraction.
+---`undo` means the Thing changed status due to an undo operation.
+---`died` means the Thing changed status because its real entity died.
+---`revived` means the Thing changed status because its ghost entity was revived into a real entity.
+---@alias things.StatusCause "created"|"blueprint"|"undo"|"died"|"revived"
+
+---Representation of an edge in a graph of Things.
+---@class things.GraphEdge
+---@field public first int First Thing ID connected to this edge. (In undirected graphs, the lower id.)
+---@field public second int Second Thing ID connected to this edge.
+---@field public data? Tags Optional user data associated with this edge.
+
+---@class things.EventData.on_unthing_built
+---@field public entity LuaEntity The entity that was built. May be a ghost or real entity.
+---@field public prototype_name string The resolved `name` or `ghost_name` of the entity.
+---@field public prototype_type string The resolved `type` or `ghost_type` of the entity.
+
+---@class things.EventData.on_status_changed
+---@field public thing_id int The id of the Thing whose status changed.
+---@field public entity LuaEntity? The current entity of the Thing, if it has one.
+---@field public new_status things.Status The new status of the Thing.
+---@field public old_status things.Status The previous status of the Thing.
+---@field public cause things.StatusCause The cause of the status change.
+
+---Event parameters for when Thing tags change. Note that for performance
+---reasons, Things does not deep compare tags, so this event may be raised
+---in certain cases even when tags haven't meaningfully changed.
+---@class things.EventData.on_tags_changed
+---@field public thing_id int The id of the Thing whose tags changed.
+---@field public entity LuaEntity? The current entity of the Thing, if it has one.
+---@field public new_tags Tags The new tags of the Thing.
+---@field public previous_tags Tags The previous tags of the Thing.
+
+---@class things.EventData.on_edges_changed
+---@field public change "created"|"deleted"|"data_changed"|"status_changed" The type of change that occurred.
+---@field public graph_name string The name of the graph whose edges changed.
+---@field public nodes {[int]: true} Set of Thing ids whose edges were changed.
+---@field public edges things.GraphEdge[] List of edges that were changed.

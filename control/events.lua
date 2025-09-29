@@ -185,8 +185,9 @@ _G.on_entity_settings_pasted, _G.raise_entity_settings_pasted = event(
 	"nil"
 )
 
-_G.on_thing_lifecycle, _G.raise_thing_lifecycle =
-	event("thing_lifecycle", "things.Thing", "string", "string", "nil", "nil")
+---Event raised when the status of a Thing changes.
+_G.on_thing_status, _G.raise_thing_status =
+	event("thing_status", "things.Thing", "string", "string", "nil", "nil")
 
 ---Event raised when the tags of a Thing change.
 ---* Arg 1 - `things.Thing` - The Thing whose tags changed.

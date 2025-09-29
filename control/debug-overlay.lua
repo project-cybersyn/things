@@ -61,7 +61,7 @@ on_mod_settings_changed(function()
 	end
 end)
 
-on_thing_lifecycle(function(thing, new_state, old_state)
+on_thing_status(function(thing, new_state, old_state)
 	if mod_settings.debug then rebuild_overlay(thing) end
 end)
 

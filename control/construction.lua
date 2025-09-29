@@ -101,7 +101,7 @@ on_built_real(function(event, entity, tags, player)
 	-- corresponding pre-build event)
 	if player then
 		local prebuild = get_prebuild_player_state(player.index)
-		local key = world_state.get_world_key(entity)
+		local key = get_world_key(entity)
 		if not prebuild:was_key_prebuilt(key) then
 			-- Likely an undo/redo ghost
 			if maybe_undo(entity, key, player) then
@@ -127,9 +127,11 @@ on_built_real(function(event, entity, tags, player)
 		if thing then
 			thing:revived_from_ghost(entity, tags)
 		else
-			debug_log(
-				"built_real: real is a revived ghost Thing but we don't know about it (bad news)",
-				thing_id
+			debug_crash(
+				"built_real: object claims to be a revived Thing but we don't know about it; referential integrity failure",
+				thing_id,
+				entity,
+				tags
 			)
 		end
 		return
@@ -144,15 +146,12 @@ on_built_real(function(event, entity, tags, player)
 	})
 end)
 
-on_entity_cloned(function(event) debug_log("on_entity_cloned", event) end)
+on_entity_cloned(function(event)
+	debug_log("on_entity_cloned", event)
+	-- TODO: impl. if original is a thing, make a new thing. respect ghostiness
+end)
 
 on_undo_applied(function(event)
-	local player = game.get_player(event.player_index)
-	if not player then return end
-	local urs = player.undo_redo_stack
-	if urs.get_undo_item_count() > 0 then
-		debug_log("undo_applied. Top undo item is:", urs.get_undo_item(1))
-	end
 	local vups = get_undo_player_state(event.player_index)
 	if not vups then return end
 	vups:on_undo_applied(event.actions)
@@ -192,8 +191,8 @@ on_unified_destroy(function(event, entity, player, leave_tombstone)
 	-- immediate tombstone for it.
 	if player and leave_tombstone then
 		--- XXX: UNDOABLE ACTION - Player mines entity.
-		debug_log("thing destroyed by undoable player action, leaving tombstone")
-		debug_undo_stack(player)
+		-- debug_log("thing destroyed by undoable player action, leaving tombstone")
+		-- debug_undo_stack(player)
 		local vups = get_undo_player_state(player.index)
 		if vups then
 			vups:reconcile_if_needed()

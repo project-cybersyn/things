@@ -7,21 +7,8 @@ local scheduler = require("lib.core.scheduler")
 local events = require("lib.core.events")
 local actual = require("lib.core.blueprint.actual")
 
-local function debug_log(...)
-	local x = table.pack(...)
-	x.n = nil
-	if #x == 1 then x = x[1] end
-	local line = serpent.line(x, { nocode = true })
-	if game then
-		game.print(line, {
-			skip = defines.print_skip.never,
-			sound = defines.print_sound.never,
-			game_state = false,
-		})
-	end
-	log(line)
-end
-_G.debug_log = debug_log
+require("lib.core.debug-log")
+set_print_debug_log(true)
 
 -- Early init
 require("control.events")
@@ -29,6 +16,7 @@ require("control.storage")
 require("control.settings")
 -- Late init
 require("control.thing")
+require("control.graph")
 require("control.prebuild")
 require("control.virtual-undo")
 require("control.extraction")
