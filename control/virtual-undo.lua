@@ -447,7 +447,7 @@ function _G.maybe_undo(entity, key, player)
 		return nil
 	end
 	local thing = get_thing(marker.thing_id)
-	if thing and thing:undo_with(entity) then return thing end
+	if thing and thing:undo_with(entity, key) then return thing end
 end
 
 function _G.debug_undo_stack(player, player_index)

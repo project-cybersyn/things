@@ -1,7 +1,11 @@
 local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
 local StateMachine = require("lib.core.state-machine")
-local entities = require("lib.core.entities")
+local ws_lib = require("lib.core.world-state")
+local entity_lib = require("lib.core.entities")
+
+local get_world_key = ws_lib.get_world_key
+local true_prototype_name = entity_lib.true_prototype_name
 
 local EMPTY = setmetatable({}, { __newindex = function() end })
 
@@ -83,6 +87,15 @@ function Thing:new()
 	return obj
 end
 
+---Get the registered prototype name for this Thing.
+function Thing:get_prototype_name()
+	-- TODO: store and use actual registration data.
+	if self.entity and self.entity.valid then
+		return true_prototype_name(self.entity)
+	end
+	return nil
+end
+
 function Thing:undo_ref() self.n_undo_markers = self.n_undo_markers + 1 end
 
 function Thing:undo_deref()
@@ -105,7 +118,8 @@ end
 ---Thing was built as a tagged ghost, likely from a BP.
 ---@param ghost LuaEntity A *valid* ghost.
 ---@param tags Tags The tags on the ghost.
-function Thing:built_as_tagged_ghost(ghost, tags)
+---@param key Core.WorldKey The world key of the ghost.
+function Thing:built_as_tagged_ghost(ghost, tags, key)
 	if self.state ~= "uninitialized" then
 		debug_crash(
 			"Thing:built_as_tagged_ghost: unexpected state",
@@ -117,11 +131,8 @@ function Thing:built_as_tagged_ghost(ghost, tags)
 	if tags["@t"] then
 		self.tags = tags["@t"] --[[@as Tags]]
 	end
-	-- Re-tag ghost with Thing global ID.
-	tags["@t"] = nil
-	tags["@i"] = nil
-	tags["@ig"] = self.id
-	ghost.tags = tags
+	-- Tag ghost with Thing global ID.
+	store_thing_ghost(key, self)
 	self:set_unit_number(ghost.unit_number)
 	self.state_cause = "blueprint"
 	self:set_state("ghost")
@@ -168,7 +179,7 @@ function Thing:died_leaving_ghost(ghost)
 	end
 	self.entity = ghost
 	self:set_unit_number(ghost.unit_number)
-	storage.ghost_to_thing_id[ghost.unit_number] = self.id
+	store_thing_ghost(get_world_key(ghost), self)
 	self.state_cause = "died"
 	self:set_state("ghost")
 end
@@ -195,14 +206,15 @@ end
 ---an undo operation. `entity` is previously calculated by the undo
 ---subsystem to be a suitably overlapping entity.
 ---@param entity LuaEntity A *valid* entity.
+---@param key Core.WorldKey The world key of the entity.
 ---@return boolean undoable `true` if entity matches a known tombstone.
-function Thing:undo_with(entity)
+function Thing:undo_with(entity, key)
 	if self.state ~= "tombstone" then return false end
 	self.entity = entity
 	self:set_unit_number(entity.unit_number)
 	self.state_cause = "undo"
 	if entity.type == "entity-ghost" then
-		entities.ghost_set_tag(entity, "@ig", self.id)
+		store_thing_ghost(key, self)
 		self:set_state("ghost")
 	else
 		self:set_state("real")
@@ -411,9 +423,10 @@ function _G.get_thing_by_unit_number(unit_number)
 end
 
 ---@param entity LuaEntity A *valid* LuaEntity with a `unit_number`
+---@param key Core.WorldKey The world key of the entity.
 ---@return boolean was_created True if a new Thing was created, false if the entity was already a Thing.
 ---@return things.Thing?
-function _G.thingify_entity(entity)
+function _G.thingify_entity(entity, key)
 	local thing = get_thing_by_unit_number(entity.unit_number)
 	if thing then return false, thing end
 	thing = Thing:new()
@@ -421,7 +434,7 @@ function _G.thingify_entity(entity)
 	thing:set_unit_number(entity.unit_number)
 	thing.state_cause = "created"
 	if entity.type == "entity-ghost" then
-		entities.ghost_set_tag(entity, "@ig", thing.id)
+		store_thing_ghost(key, thing)
 		thing:set_state("ghost")
 	else
 		thing:set_state("real")
@@ -432,3 +445,30 @@ function _G.thingify_entity(entity)
 	)
 	return true, thing
 end
+
+---Mark a Thing ghost in the world by world key.
+---@param key Core.WorldKey
+---@param thing things.Thing
+function _G.store_thing_ghost(key, thing)
+	local tg = storage.thing_ghosts
+	if tg[key] then
+		local previous_thing = get_thing(tg[key])
+		local pt_id = previous_thing and previous_thing.id or "UNKNOWN"
+		local pt_entity_name = (
+			previous_thing and previous_thing:get_prototype_name()
+		) or "UNKNOWN"
+		game.print({
+			"things-messages.duplicate-ghost-warning",
+			key,
+			pt_id,
+			pt_entity_name,
+			thing.id,
+			thing:get_prototype_name() or "UNKNOWN",
+		})
+	end
+	tg[key] = thing.id
+end
+
+---Removed a marked Thing ghost from storage.
+---@param key Core.WorldKey
+function _G.clear_thing_ghost(key) storage.thing_ghosts[key] = nil end

@@ -69,11 +69,12 @@ on_built_ghost(function(event, ghost, tags, player)
 
 	debug_log("built_ghost", event, ghost, tags, player)
 
+	local key = get_world_key(ghost)
+
 	-- Check for undo operation. (owned by player, no
 	-- corresponding pre-build event)
 	if player then
 		local prebuild = get_prebuild_player_state(player.index)
-		local key = world_state.get_world_key(ghost)
 		if not prebuild:was_key_prebuilt(key) then
 			-- Likely an undo/redo ghost
 			if maybe_undo(ghost, key, player) then
@@ -88,15 +89,15 @@ on_built_ghost(function(event, ghost, tags, player)
 		local local_id = tags["@i"]
 		if local_id then
 			local thing = Thing:new()
-			thing:built_as_tagged_ghost(ghost, tags)
-			map_local_id_to_thing_id(local_id, get_world_key(ghost), thing.id)
+			thing:built_as_tagged_ghost(ghost, tags, key)
+			map_local_id_to_thing_id(local_id, key, thing.id)
 			return
 		end
 	end
 
 	-- Ghost is a new specimen of this Thing type.
 	debug_log("built_ghost: ghost is a new Thing")
-	thingify_entity(ghost)
+	thingify_entity(ghost, key)
 end)
 
 ---@param event AnyFactorioBuildEventData
@@ -109,11 +110,12 @@ on_built_real(function(event, entity, tags, player)
 
 	debug_log("built_real", event, entity, tags)
 
+	local key = get_world_key(entity)
+
 	-- Check for undo operation. (owned by player, no
 	-- corresponding pre-build event)
 	if player then
 		local prebuild = get_prebuild_player_state(player.index)
-		local key = get_world_key(entity)
 		if not prebuild:was_key_prebuilt(key) then
 			-- Likely an undo/redo ghost
 			if maybe_undo(entity, key, player) then
@@ -123,38 +125,38 @@ on_built_real(function(event, entity, tags, player)
 		end
 	end
 
-	if tags then
-		-- Revived from a ghost with a global ID
-		local global_id = tags["@ig"]
-		if global_id then
-			debug_log("built_real: real is a revived ghost with Thing id", global_id)
-			local thing = get_thing(global_id)
-			if thing then
-				thing:revived_from_ghost(entity, tags)
-			else
-				debug_crash(
-					"built_real: object claims to be a revived Thing but we don't know about it; referential integrity failure",
-					global_id,
-					entity,
-					tags
-				)
-			end
-			return
+	local revived_ghost_id = storage.thing_ghosts[key]
+	if revived_ghost_id then
+		clear_thing_ghost(key)
+		debug_log("built_real: real is a revived ghost")
+		local thing = get_thing(revived_ghost_id)
+		if thing then
+			thing:revived_from_ghost(entity, nil)
+		else
+			debug_crash(
+				"built_real: referential integrity failure: no Thing matching revived ghost id",
+				revived_ghost_id,
+				entity,
+				tags
+			)
 		end
+		return
+	end
 
+	if tags then
 		-- Built directly from a blueprint with a local ID
 		local local_id = tags["@i"]
 		if local_id then
 			local thing = Thing:new()
 			thing:built_as_tagged_real(entity, tags)
-			map_local_id_to_thing_id(local_id, get_world_key(entity), thing.id)
+			map_local_id_to_thing_id(local_id, key, thing.id)
 			return
 		end
 	end
 
 	-- Real is a new Thing
 	debug_log("built_real: real is a new Thing")
-	thingify_entity(entity)
+	thingify_entity(entity, key)
 end)
 
 on_entity_cloned(function(event)
@@ -196,6 +198,11 @@ end)
 on_unified_destroy(function(event, entity, player, leave_tombstone)
 	local un = entity.unit_number
 	if not un then return end
+	-- If marked ghost, clear its world key mapping
+	if entity.type == "entity-ghost" then
+		local key = get_world_key(entity)
+		clear_thing_ghost(key)
+	end
 	local thing = get_thing_by_unit_number(un)
 	if not thing then return end
 	-- If the thing was destroyed by an undoable player action, create an
