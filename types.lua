@@ -15,6 +15,13 @@
 ---`revived` means the Thing changed status because its ghost entity was revived into a real entity.
 ---@alias things.StatusCause "created"|"blueprint"|"undo"|"died"|"revived"
 
+---Registration options for a type of Thing.
+---@class (exact) things.ThingRegistration
+
+---Registration options for a graph of Things.
+---@class (exact) things.GraphRegistration
+---@field public directed? boolean Whether the graph is directed (default: false).
+
 ---Representation of an edge in a graph of Things.
 ---@class things.GraphEdge
 ---@field public first int First Thing ID connected to this edge. (In undirected graphs, the lower id.)
@@ -23,11 +30,6 @@
 
 ---@class things.NamedGraphEdge: things.GraphEdge
 ---@field public name string The name of the graph this edge belongs to.
-
----@class things.EventData.on_unthing_built
----@field public entity LuaEntity The entity that was built. May be a ghost or real entity.
----@field public prototype_name string The resolved `name` or `ghost_name` of the entity.
----@field public prototype_type string The resolved `type` or `ghost_type` of the entity.
 
 ---Event fired when a Thing with a new ID is generated in the world.
 ---Does not apply to undo, revival, etc of pre-existing Things.

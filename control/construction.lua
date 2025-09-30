@@ -42,6 +42,9 @@ on_blueprint_apply(
 )
 
 on_pre_build_entity(function(event, player, entity_prototype, quality, surface)
+	-- Filter out non-Things.
+	if not get_thing_registration(entity_prototype.name) then return end
+
 	debug_log(
 		"on_pre_build_entity",
 		event,
@@ -61,6 +64,9 @@ end)
 ---@param tags? Tags
 ---@param player? LuaPlayer
 on_built_ghost(function(event, ghost, tags, player)
+	-- Filter out non-Things.
+	if not get_thing_registration(ghost.ghost_name) then return end
+
 	debug_log("built_ghost", event, ghost, tags, player)
 
 	-- Check for undo operation. (owned by player, no
@@ -88,13 +94,9 @@ on_built_ghost(function(event, ghost, tags, player)
 		end
 	end
 
-	-- Ghost is a new unthing
-	debug_log("built_ghost: ghost is a new unthing")
-	script.raise_event("things-on_unthing_built", {
-		entity = ghost,
-		prototype_name = ghost.ghost_name,
-		prototype_type = ghost.ghost_type,
-	})
+	-- Ghost is a new specimen of this Thing type.
+	debug_log("built_ghost: ghost is a new Thing")
+	thingify_entity(ghost)
 end)
 
 ---@param event AnyFactorioBuildEventData
@@ -102,6 +104,9 @@ end)
 ---@param tags? Tags
 ---@param player? LuaPlayer
 on_built_real(function(event, entity, tags, player)
+	-- Filter out non-Things.
+	if not get_thing_registration(entity.name) then return end
+
 	debug_log("built_real", event, entity, tags)
 
 	-- Check for undo operation. (owned by player, no
@@ -147,13 +152,9 @@ on_built_real(function(event, entity, tags, player)
 		end
 	end
 
-	-- Real is an unthing
-	debug_log("built_real: real is a new unthing")
-	script.raise_event("things-on_unthing_built", {
-		entity = entity,
-		prototype_name = entity.name,
-		prototype_type = entity.type,
-	})
+	-- Real is a new Thing
+	debug_log("built_real: real is a new Thing")
+	thingify_entity(entity)
 end)
 
 on_entity_cloned(function(event)

@@ -12,6 +12,7 @@ set_print_debug_log(true)
 
 -- Early init
 require("control.events")
+require("control.mod-data")
 require("control.storage")
 require("control.settings")
 -- Late init
