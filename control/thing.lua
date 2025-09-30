@@ -118,7 +118,10 @@ function Thing:built_as_tagged_ghost(ghost, tags)
 		self.tags = tags["@t"] --[[@as Tags]]
 	end
 	-- Re-tag ghost with Thing global ID.
-	storage.ghost_to_thing_id[ghost.unit_number] = self.id
+	tags["@t"] = nil
+	tags["@i"] = nil
+	tags["@ig"] = self.id
+	ghost.tags = tags
 	self:set_unit_number(ghost.unit_number)
 	self.state_cause = "blueprint"
 	self:set_state("ghost")
