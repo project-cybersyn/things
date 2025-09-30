@@ -118,13 +118,14 @@ function Thing:built_as_tagged_ghost(ghost, tags)
 		self.tags = tags["@t"] --[[@as Tags]]
 	end
 	-- Re-tag ghost with Thing global ID.
-	tags["@t"] = nil
-	tags["@i"] = nil
-	tags["@ig"] = self.id
-	ghost.tags = tags
+	storage.ghost_to_thing_id[ghost.unit_number] = self.id
 	self:set_unit_number(ghost.unit_number)
 	self.state_cause = "blueprint"
 	self:set_state("ghost")
+	script.raise_event(
+		"things-on_initialized",
+		{ thing_id = self.id, entity = self.entity, status = self.state }
+	)
 end
 
 ---Thing was built as a tagged real entity, probably from a BP in cheat mode.
@@ -138,7 +139,6 @@ function Thing:built_as_tagged_real(entity, tags)
 			self.state
 		)
 	end
-	local local_id = tags["@i"]
 	self.entity = entity
 	if tags["@t"] then
 		self.tags = tags["@t"] --[[@as Tags]]
@@ -146,6 +146,10 @@ function Thing:built_as_tagged_real(entity, tags)
 	self:set_unit_number(entity.unit_number)
 	self.state_cause = "blueprint"
 	self:set_state("real")
+	script.raise_event(
+		"things-on_initialized",
+		{ thing_id = self.id, entity = self.entity, status = self.state }
+	)
 end
 
 ---Called when this Thing's entity dies, leaving a ghost behind.
@@ -161,7 +165,7 @@ function Thing:died_leaving_ghost(ghost)
 	end
 	self.entity = ghost
 	self:set_unit_number(ghost.unit_number)
-	ghost.tags = { ["@ig"] = self.id }
+	storage.ghost_to_thing_id[ghost.unit_number] = self.id
 	self.state_cause = "died"
 	self:set_state("ghost")
 end
@@ -276,6 +280,8 @@ function Thing:graph_connect(graph_name, other, data)
 		if data then edge.data = data end
 		if not self.graph_set then self.graph_set = {} end
 		self.graph_set[graph_name] = true
+		if not other.graph_set then other.graph_set = {} end
+		other.graph_set[graph_name] = true
 		script.raise_event("things-on_edges_changed", {
 			graph_name = graph_name,
 			change = "created",
@@ -405,9 +411,6 @@ end
 ---@return boolean was_created True if a new Thing was created, false if the entity was already a Thing.
 ---@return things.Thing?
 function _G.thingify_entity(entity)
-	-- TODO: a maybe_undo_ghost can't be thingified on the same frame as it
-	-- became an undo ghost.
-
 	local thing = get_thing_by_unit_number(entity.unit_number)
 	if thing then return false, thing end
 	thing = Thing:new()
@@ -420,5 +423,9 @@ function _G.thingify_entity(entity)
 	else
 		thing:set_state("real")
 	end
+	script.raise_event(
+		"things-on_initialized",
+		{ thing_id = thing.id, entity = thing.entity, status = thing.state }
+	)
 	return true, thing
 end

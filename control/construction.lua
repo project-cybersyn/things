@@ -32,10 +32,12 @@ on_blueprint_apply(
 	---@param bp Core.Blueprintish
 	function(player, bp, surface, event)
 		debug_log("on_blueprint_apply", player, bp, surface, event)
+		-- GC old blueprint application records
+		garbage_collect_applications()
 		-- Create application record
 		local application = Application:new(player, bp, surface, event)
 		application:apply_overlapping_tags()
-		application:destroy()
+		application:map_overlapping_local_ids()
 	end
 )
 
@@ -76,10 +78,14 @@ on_built_ghost(function(event, ghost, tags, player)
 	end
 
 	-- Ghost is a tagged bplib object from a blueprint
-	if tags and tags["@i"] then
-		local thing = Thing:new()
-		thing:built_as_tagged_ghost(ghost, tags)
-		return
+	if tags then
+		local local_id = tags["@i"]
+		if local_id then
+			local thing = Thing:new()
+			thing:built_as_tagged_ghost(ghost, tags)
+			map_local_id_to_thing_id(local_id, get_world_key(ghost), thing.id)
+			return
+		end
 	end
 
 	-- Ghost is a new unthing
@@ -112,30 +118,33 @@ on_built_real(function(event, entity, tags, player)
 		end
 	end
 
-	-- Real is a tagged bplib object from a blueprint.
-	-- (It must've been built via cheat/editor because it skipped ghost state)
-	if tags and tags["@i"] then
-		local thing = Thing:new()
-		thing:built_as_tagged_real(entity, tags)
-		return
-	end
-
-	-- Real is a revived ghost thing
-	if tags and tags["@ig"] then
-		local thing_id = tags["@ig"]
-		debug_log("built_real: real is a revived ghost thing with id", thing_id)
-		local thing = get_thing(thing_id)
-		if thing then
-			thing:revived_from_ghost(entity, tags)
-		else
-			debug_crash(
-				"built_real: object claims to be a revived Thing but we don't know about it; referential integrity failure",
-				thing_id,
-				entity,
-				tags
-			)
+	if tags then
+		-- Revived from a ghost with a global ID
+		local global_id = tags["@ig"]
+		if global_id then
+			debug_log("built_real: real is a revived ghost with Thing id", global_id)
+			local thing = get_thing(global_id)
+			if thing then
+				thing:revived_from_ghost(entity, tags)
+			else
+				debug_crash(
+					"built_real: object claims to be a revived Thing but we don't know about it; referential integrity failure",
+					global_id,
+					entity,
+					tags
+				)
+			end
+			return
 		end
-		return
+
+		-- Built directly from a blueprint with a local ID
+		local local_id = tags["@i"]
+		if local_id then
+			local thing = Thing:new()
+			thing:built_as_tagged_real(entity, tags)
+			map_local_id_to_thing_id(local_id, get_world_key(entity), thing.id)
+			return
+		end
 	end
 
 	-- Real is an unthing

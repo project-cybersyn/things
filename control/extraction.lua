@@ -57,8 +57,12 @@ function Extraction:map_edges()
 		local edge_tags = {}
 		for graph_name in pairs(thing.graph_set) do
 			local edges = thing:graph_get_edges(graph_name)
-			edge_tags[graph_name] = edge_tags[graph_name] or {}
-			local edges_tags = edge_tags[graph_name]
+			local edges_tags = {}
+			debug_log(
+				"Extraction:map_edges: mapping edges for Thing",
+				thing.id,
+				edges
+			)
 			for to, edge in pairs(edges) do
 				-- Only add edge for which we are the lower id, to avoid duplicates.
 				if thing.id ~= edge.first then goto continue_edge end
@@ -68,6 +72,7 @@ function Extraction:map_edges()
 				end
 				::continue_edge::
 			end
+			if next(edges_tags) then edge_tags[graph_name] = edges_tags end
 		end
 		if next(edge_tags) then
 			self.bp.set_blueprint_entity_tag(eid, "@edges", edge_tags)

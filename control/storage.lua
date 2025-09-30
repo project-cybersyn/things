@@ -6,6 +6,7 @@
 ---@field public applications {[uint]: things.Application} Data for blueprints being applied, indexed by application id
 ---@field public player_prebuild {[uint]: things.PrebuildPlayerState} Data for prebuild operations.
 ---@field public graphs {[string]: things.Graph} Graphs by graph name.
+---@field public ghost_to_thing_id {[uint]: int} Map of ghost entity unit_number to Thing id they will revive into.
 storage = {}
 
 local function init_storage_key(key, value)
@@ -21,6 +22,7 @@ function _G.init_storage()
 	init_storage_key("player_undo")
 	init_storage_key("player_prebuild")
 	init_storage_key("graphs")
+	init_storage_key("ghost_to_thing_id")
 end
 
 -- TODO: eliminate for release

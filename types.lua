@@ -21,10 +21,20 @@
 ---@field public second int Second Thing ID connected to this edge.
 ---@field public data? Tags Optional user data associated with this edge.
 
+---@class things.NamedGraphEdge: things.GraphEdge
+---@field public name string The name of the graph this edge belongs to.
+
 ---@class things.EventData.on_unthing_built
 ---@field public entity LuaEntity The entity that was built. May be a ghost or real entity.
 ---@field public prototype_name string The resolved `name` or `ghost_name` of the entity.
 ---@field public prototype_type string The resolved `type` or `ghost_type` of the entity.
+
+---Event fired when a Thing with a new ID is generated in the world.
+---Does not apply to undo, revival, etc of pre-existing Things.
+---@class things.EventData.on_initialized
+---@field public thing_id int The id of the Thing that was initialized.
+---@field public entity LuaEntity? The current entity of the Thing, if it has one.
+---@field public status things.Status The current status of the Thing.
 
 ---@class things.EventData.on_status_changed
 ---@field public thing_id int The id of the Thing whose status changed.
