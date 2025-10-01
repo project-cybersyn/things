@@ -50,10 +50,14 @@ end
 function Extraction:map_edges()
 	for eid, entity in pairs(self.eid_to_world) do
 		if (not entity.valid) or not entity.unit_number then
+			self.bp.set_blueprint_entity_tag(eid, "@edges", nil)
 			goto continue_entity
 		end
 		local thing = self.eid_to_thing[eid]
-		if (not thing) or (not thing:has_edges()) then goto continue_entity end
+		if (not thing) or (not thing:has_edges()) then
+			self.bp.set_blueprint_entity_tag(eid, "@edges", nil)
+			goto continue_entity
+		end
 		local edge_tags = {}
 		for graph_name in pairs(thing.graph_set) do
 			local edges = thing:graph_get_edges(graph_name)
@@ -76,6 +80,8 @@ function Extraction:map_edges()
 		end
 		if next(edge_tags) then
 			self.bp.set_blueprint_entity_tag(eid, "@edges", edge_tags)
+		else
+			self.bp.set_blueprint_entity_tag(eid, "@edges", nil)
 		end
 		::continue_entity::
 	end
