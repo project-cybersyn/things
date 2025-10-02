@@ -1,4 +1,5 @@
 local MultiLineTextOverlay = require("lib.core.overlay").MultiLineTextOverlay
+local bind = require("control.events").bind
 
 ---@param thing things.Thing
 local function update_overlay(thing)
@@ -53,7 +54,7 @@ end
 -- EVENTS
 --------------------------------------------------------------------------------
 
-on_mod_settings_changed(function()
+bind("mod_settings_changed", function()
 	if mod_settings.debug then
 		rebuild_overlays()
 	else
@@ -61,10 +62,10 @@ on_mod_settings_changed(function()
 	end
 end)
 
-on_thing_status(function(thing, new_state, old_state)
+bind("thing_status", function(thing, new_state, old_state)
 	if mod_settings.debug then rebuild_overlay(thing) end
 end)
 
-on_thing_tags_changed(function(thing, previous_tags)
+bind("thing_tags_changed", function(thing, previous_tags)
 	if mod_settings.debug then update_overlay(thing) end
 end)

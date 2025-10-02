@@ -1,3 +1,5 @@
+local event = require("lib.core.event")
+
 ---@class (exact) things.Storage
 ---@field public things {[uint]: things.Thing} Things by thing id.
 ---@field public things_by_unit_number {[uint]: things.Thing} Things by unit_number of reified entity, if it exists.
@@ -29,8 +31,8 @@ end
 commands.add_command(
 	"things-debug-init-storage",
 	"Re-initialize Things storage (may lose data!)",
-	function(event) init_storage() end
+	function(ev) init_storage() end
 )
 
 -- Initialize storage on startup
-on_startup(init_storage, true)
+event.bind("on_startup", init_storage, true)

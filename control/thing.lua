@@ -4,6 +4,8 @@ local StateMachine = require("lib.core.state-machine")
 local ws_lib = require("lib.core.world-state")
 local entity_lib = require("lib.core.entities")
 
+local raise = require("control.events").raise
+
 local get_world_key = ws_lib.get_world_key
 local true_prototype_name = entity_lib.true_prototype_name
 
@@ -275,7 +277,7 @@ end
 function Thing:set_tags(tags)
 	local previous_tags = self.tags
 	self.tags = tags
-	raise_thing_tags_changed(self, previous_tags)
+	raise("thing_tags_changed", self, previous_tags)
 	script.raise_event("things-on_tags_changed", {
 		thing_id = self.id,
 		previous_tags = previous_tags,
@@ -378,7 +380,7 @@ end
 function Thing:has_edges() return self.graph_set and next(self.graph_set) ~= nil end
 
 function Thing:on_changed_state(new_state, old_state)
-	raise_thing_status(self, new_state, old_state --[[@as string]])
+	raise("thing_status", self, new_state, old_state --[[@as string]])
 	script.raise_event("things-on_status_changed", {
 		thing_id = self.id,
 		entity = self.entity,

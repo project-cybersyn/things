@@ -1,196 +1,47 @@
-local event = require("lib.core.events").create_event
+local event = require("lib.core.event")
 
-_G.on_init, _G.raise_init = event("init", "nil", "nil", "nil", "nil", "nil")
-
-_G.on_load, _G.raise_load = event("load", "nil", "nil", "nil", "nil", "nil")
-
-_G.on_configuration_changed, _G.raise_configuration_changed =
-	event("configuration_changed", "nil", "nil", "nil", "nil", "nil")
-
-_G.on_mod_settings_changed, _G.raise_mod_settings_changed =
-	event("mod_settings_changed", "nil", "nil", "nil", "nil", "nil")
-
----Information relating to resetting stored game state.
----@class things.ResetData
-
----Event raised on startup or after clearing the global state.
----* Arg 1 - `things.ResetData` - The reset data object. May contain handoff
----information if called after a reset.
-_G.on_startup, _G.raise_startup =
-	event("startup", "things.ResetData", "nil", "nil", "nil", "nil")
-
----String event names for debugging.
-_G.DEFINES_EVENTS_REVERSE_MAP = {
-	[defines.events.on_built_entity] = "on_built_entity",
-	[defines.events.on_robot_built_entity] = "on_robot_built_entity",
-	[defines.events.on_space_platform_built_entity] = "on_space_platform_built_entity",
-	[defines.events.script_raised_revive] = "script_raised_revive",
-	[defines.events.on_entity_cloned] = "on_entity_cloned",
-	[defines.events.script_raised_built] = "script_raised_built",
-	[defines.events.on_player_mined_entity] = "on_player_mined_entity",
-	[defines.events.on_robot_mined_entity] = "on_robot_mined_entity",
-	[defines.events.on_space_platform_mined_entity] = "on_space_platform_mined_entity",
-	[defines.events.script_raised_destroy] = "script_raised_destroy",
-}
+local lib = {}
 
 ---@alias AnyFactorioBuildEventData EventData.script_raised_built|EventData.script_raised_revive|EventData.on_built_entity|EventData.on_robot_built_entity|EventData.on_entity_cloned|EventData.on_space_platform_built_entity
 
----Event raised when a real entity is built (not a ghost).
-_G.on_built_real, _G.raise_built_real = event(
-	"built_real",
-	"AnyFactorioBuildEventData",
-	"LuaEntity",
-	"Tags",
-	"LuaPlayer",
-	"nil"
-)
-
----Event raised when a ghost entity is built.
-_G.on_built_ghost, _G.raise_built_ghost = event(
-	"built_ghost",
-	"AnyFactorioBuildEventData",
-	"LuaEntity",
-	"Tags",
-	"LuaPlayer",
-	"nil"
-)
-
----Event raised when a player extracts a blueprint.
-_G.on_blueprint_extract, _G.raise_blueprint_extract = event(
-	"blueprint_extract",
-	"EventData.on_player_setup_blueprint",
-	"LuaPlayer",
-	"Core.Blueprintish",
-	"nil",
-	"nil"
-)
-
----Event raised when a player pre-builds a blueprint.
-_G.on_blueprint_apply, _G.raise_blueprint_apply = event(
-	"blueprint_apply",
-	"LuaPlayer",
-	"Core.Blueprintish",
-	"LuaSurface",
-	"EventData.on_pre_build",
-	"nil"
-)
-
----Player pre-builds something from a non-blueprint item.
-_G.on_pre_build_entity, _G.raise_pre_build_entity = event(
-	"pre_build_entity",
-	"EventData.on_pre_build",
-	"LuaPlayer",
-	"LuaEntityPrototype",
-	"LuaQualityPrototype",
-	"LuaSurface"
-)
-
-_G.on_entity_cloned, _G.raise_entity_cloned = event(
-	"entity_cloned",
-	"EventData.on_entity_cloned",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
-
-_G.on_entity_marked, _G.raise_entity_marked = event(
-	"entity_marked",
-	"EventData.on_marked_for_deconstruction",
-	"LuaEntity",
-	"LuaPlayer",
-	"nil",
-	"nil"
-)
-
-_G.on_entity_unmarked, _G.raise_entity_unmarked = event(
-	"entity_unmarked",
-	"EventData.on_cancelled_deconstruction",
-	"LuaEntity",
-	"LuaPlayer",
-	"nil",
-	"nil"
-)
-
-_G.on_pre_ghost_deconstructed, _G.raise_pre_ghost_deconstructed = event(
-	"pre_ghost_deconstructed",
-	"EventData.on_pre_ghost_deconstructed",
-	"LuaEntity",
-	"nil",
-	"nil",
-	"nil"
-)
-
 ---@alias AnyFactorioPreDestroyEventData EventData.on_pre_player_mined_item|EventData.on_robot_pre_mined|EventData.on_space_platform_pre_mined|EventData.on_pre_ghost_deconstructed
-
-_G.on_unified_pre_destroy, _G.raise_unified_pre_destroy = event(
-	"unified_pre_destroy",
-	"AnyFactorioPreDestroyEventData",
-	"LuaEntity",
-	"LuaPlayer",
-	"nil",
-	"nil"
-)
 
 ---@alias AnyFactorioDestroyEventData EventData.on_player_mined_entity|EventData.on_robot_mined_entity|EventData.on_space_platform_mined_entity|EventData.script_raised_destroy
 
-_G.on_unified_destroy, _G.raise_unified_destroy = event(
-	"unified_destroy",
-	"AnyFactorioDestroyEventData",
-	"LuaEntity",
-	"LuaPlayer",
-	"boolean",
-	"nil"
-)
+---@overload fun(name: "mod_settings_changed")
+---@overload fun(name: "built_real", ev: AnyFactorioBuildEventData, entity: LuaEntity, tags: Tags, player: LuaPlayer|nil)
+---@overload fun(name: "built_ghost", ev: AnyFactorioBuildEventData, ghost: LuaEntity, tags: Tags, player: LuaPlayer|nil)
+---@overload fun(name: "blueprint_extract", ev: EventData.on_player_setup_blueprint, player: LuaPlayer, bp: Core.Blueprintish)
+---@overload fun(name: "blueprint_apply", player: LuaPlayer, bp: Core.Blueprintish, surface: LuaSurface, event: EventData.on_pre_build)
+---@overload fun(name: "pre_build_entity", event: EventData.on_pre_build, player: LuaPlayer, entity_prototype: LuaEntityPrototype, quality: LuaQualityPrototype, surface: LuaSurface)
+---@overload fun(name: "unified_pre_destroy", ev: AnyFactorioPreDestroyEventData, entity: LuaEntity, player: LuaPlayer|nil)
+---@overload fun(name: "unified_destroy", ev: AnyFactorioDestroyEventData, entity: LuaEntity, player: LuaPlayer|nil, leave_undo_marker: boolean)
+---@overload fun(name: "entity_cloned", ev: EventData.on_entity_cloned)
+---@overload fun(name: "entity_marked", ev: EventData.on_marked_for_deconstruction, entity: LuaEntity, player: LuaPlayer)
+---@overload fun(name: "entity_unmarked", ev: EventData.on_cancelled_deconstruction, entity: LuaEntity, player: LuaPlayer)
+---@overload fun(name: "entity_died", ev: EventData.on_post_entity_died)
+---@overload fun(name: "undo_applied", ev: EventData.on_undo_applied)
+---@overload fun(name: "redo_applied", ev: EventData.on_redo_applied)
+---@overload fun(name: "thing_status", thing: things.Thing, new_status: string, old_status: string)
+---@overload fun(name: "thing_tags_changed", thing: things.Thing, old_tags: Tags)
+lib.raise = event.raise
 
-_G.on_entity_died, _G.raise_entity_died = event(
-	"entity_died",
-	"EventData.on_post_entity_died",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
+---@overload fun(name: "mod_settings_changed", handler: fun(), first?: boolean)
+---@overload fun(name: "built_real", handler: fun(ev: AnyFactorioBuildEventData, entity: LuaEntity, tags: Tags, player: LuaPlayer|nil), first?: boolean)
+---@overload fun(name: "built_ghost", handler: fun(ev: AnyFactorioBuildEventData, ghost: LuaEntity, tags: Tags, player: LuaPlayer|nil), first?: boolean)
+---@overload fun(name: "blueprint_extract", handler: fun(ev: EventData.on_player_setup_blueprint, player: LuaPlayer, bp: Core.Blueprintish), first?: boolean)
+---@overload fun(name: "blueprint_apply", handler: fun(player: LuaPlayer, bp: Core.Blueprintish, surface: LuaSurface, event: EventData.on_pre_build), first?: boolean)
+---@overload fun(name: "pre_build_entity", handler: fun(event: EventData.on_pre_build, player: LuaPlayer, entity_prototype: LuaEntityPrototype, quality: LuaQualityPrototype, surface: LuaSurface), first?: boolean)
+---@overload fun(name: "unified_pre_destroy", handler: fun(ev: AnyFactorioPreDestroyEventData, entity: LuaEntity, player: LuaPlayer|nil), first?: boolean)
+---@overload fun(name: "unified_destroy", handler: fun(ev: AnyFactorioDestroyEventData, entity: LuaEntity, player: LuaPlayer|nil, leave_undo_marker: boolean), first?: boolean)
+---@overload fun(name: "entity_cloned", handler: fun(ev: EventData.on_entity_cloned), first?: boolean)
+---@overload fun(name: "entity_marked", handler: fun(ev: EventData.on_marked_for_deconstruction, entity: LuaEntity, player: LuaPlayer), first?: boolean)
+---@overload fun(name: "entity_unmarked", handler: fun(ev: EventData.on_cancelled_deconstruction, entity: LuaEntity, player: LuaPlayer), first?: boolean)
+---@overload fun(name: "entity_died", handler: fun(ev: EventData.on_post_entity_died), first?: boolean)
+---@overload fun(name: "undo_applied", handler: fun(ev: EventData.on_undo_applied), first?: boolean)
+---@overload fun(name: "redo_applied", handler: fun(ev: EventData.on_redo_applied), first?: boolean)
+---@overload fun(name: "thing_status", handler: fun(thing: things.Thing, new_status: string, old_status: string), first?: boolean)
+---@overload fun(name: "thing_tags_changed", handler: fun(thing: things.Thing, old_tags: Tags), first?: boolean)
+lib.bind = event.bind
 
-_G.on_undo_applied, _G.raise_undo_applied =
-	event("undo_applied", "EventData.on_undo_applied", "nil", "nil", "nil", "nil")
-
-_G.on_redo_applied, _G.raise_redo_applied =
-	event("redo_applied", "EventData.on_redo_applied", "nil", "nil", "nil", "nil")
-
-_G.on_player_flipped_entity, _G.raise_player_flipped_entity = event(
-	"player_flipped_entity",
-	"EventData.on_player_flipped_entity",
-	"LuaEntity",
-	"nil",
-	"nil",
-	"nil"
-)
-
-_G.on_player_rotated_entity, _G.raise_player_rotated_entity = event(
-	"player_rotated_entity",
-	"EventData.on_player_rotated_entity",
-	"LuaEntity",
-	"nil",
-	"nil",
-	"nil"
-)
-
-_G.on_entity_settings_pasted, _G.raise_entity_settings_pasted = event(
-	"entity_settings_pasted",
-	"EventData.on_entity_settings_pasted",
-	"LuaEntity",
-	"LuaEntity",
-	"nil",
-	"nil"
-)
-
----Event raised when the status of a Thing changes.
-_G.on_thing_status, _G.raise_thing_status =
-	event("thing_status", "things.Thing", "string", "string", "nil", "nil")
-
----Event raised when the tags of a Thing change.
----* Arg 1 - `things.Thing` - The Thing whose tags changed.
----* Arg 2 - `Tags` - The previous tags of the Thing.
-_G.on_thing_tags_changed, _G.raise_thing_tags_changed =
-	event("thing_tags_changed", "things.Thing", "Tags", "nil", "nil", "nil")
+return lib

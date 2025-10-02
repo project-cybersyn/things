@@ -1,3 +1,5 @@
+local event = require("lib.core.event")
+
 ---@class (exact) things.ModSettings
 ---@field public debug boolean Enable debug mode.
 ---@field public work_period uint Number of ticks between work cycles.
@@ -14,4 +16,4 @@ end
 _G.update_mod_settings = update_mod_settings
 
 update_mod_settings()
-on_startup(function() raise_mod_settings_changed() end)
+event.bind("on_startup", function() event.raise("on_mod_settings_changed") end)
