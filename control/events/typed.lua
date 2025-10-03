@@ -1,3 +1,5 @@
+-- Type definitions for events.
+
 local event = require("lib.core.event")
 
 local lib = {}
@@ -22,7 +24,7 @@ local lib = {}
 ---@overload fun(name: "entity_died", ev: EventData.on_post_entity_died)
 ---@overload fun(name: "undo_applied", ev: EventData.on_undo_applied)
 ---@overload fun(name: "redo_applied", ev: EventData.on_redo_applied)
----@overload fun(name: "thing_status", thing: things.Thing, new_status: string, old_status: string)
+---@overload fun(name: "thing_status", thing: things.Thing, old_status: string)
 ---@overload fun(name: "thing_tags_changed", thing: things.Thing, old_tags: Tags)
 lib.raise = event.raise
 
@@ -40,7 +42,7 @@ lib.raise = event.raise
 ---@overload fun(name: "entity_died", handler: fun(ev: EventData.on_post_entity_died), first?: boolean)
 ---@overload fun(name: "undo_applied", handler: fun(ev: EventData.on_undo_applied), first?: boolean)
 ---@overload fun(name: "redo_applied", handler: fun(ev: EventData.on_redo_applied), first?: boolean)
----@overload fun(name: "thing_status", handler: fun(thing: things.Thing, new_status: string, old_status: string), first?: boolean)
+---@overload fun(name: "thing_status", handler: fun(thing: things.Thing, old_status: string), first?: boolean)
 ---@overload fun(name: "thing_tags_changed", handler: fun(thing: things.Thing, old_tags: Tags), first?: boolean)
 lib.bind = event.bind
 

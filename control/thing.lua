@@ -4,7 +4,7 @@ local StateMachine = require("lib.core.state-machine")
 local ws_lib = require("lib.core.world-state")
 local entity_lib = require("lib.core.entities")
 
-local raise = require("control.events").raise
+local raise = require("control.events.typed").raise
 
 local get_world_key = ws_lib.get_world_key
 local true_prototype_name = entity_lib.true_prototype_name
@@ -75,6 +75,9 @@ local ThingState = {
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity, if any.
 ---@field public n_undo_markers uint The number of undo markers currently associated with this Thing.
 ---@field public graph_set? {[string]: true} Set of graph names this Thing is a member of. If `nil`, the Thing is not a member of any graphs.
+---@field public parent_id? int The id of this Thing's parent Thing, if any.
+---@field public child_key_in_parent? int|string The key this Thing is registered under in its parent's `children` map, if any.
+---@field public children? {[int|string]: int} Map from child names (which may be numbers or strings) to child Thing ids.
 local Thing = class("things.Thing", StateMachine)
 _G.Thing = Thing
 
@@ -379,8 +382,37 @@ end
 ---Determine if this Thing has any edges in any graph.
 function Thing:has_edges() return self.graph_set and next(self.graph_set) ~= nil end
 
+---@param key string|int
+---@param child things.Thing
+function Thing:add_child(key, child)
+	if not self.children then self.children = {} end
+	if self.children[key] then
+		error(
+			string.format(
+				"Thing %d.add_child: Duplicate child key: key=%s already assigned to child Thing %d",
+				self.id,
+				tostring(key),
+				self.children[key]
+			)
+		)
+	end
+	if child.parent_id then
+		error(
+			string.format(
+				"Thing %d.add_child: Thing %d is already a child of Thing %d",
+				self.id,
+				child.id,
+				child.parent_id
+			)
+		)
+	end
+	self.children[key] = child.id
+	child.parent_id = self.id
+	child.child_key_in_parent = key
+end
+
 function Thing:on_changed_state(new_state, old_state)
-	raise("thing_status", self, new_state, old_state --[[@as string]])
+	raise("thing_status", self, old_state --[[@as string]])
 	script.raise_event("things-on_status_changed", {
 		thing_id = self.id,
 		entity = self.entity,
@@ -466,7 +498,7 @@ function _G.store_thing_ghost(key, thing)
 			pt_entity_name,
 			thing.id,
 			thing:get_prototype_name() or "UNKNOWN",
-		})
+		}, { skip = defines.print_skip.never, sound = defines.print_sound.always })
 	end
 	tg[key] = thing.id
 end

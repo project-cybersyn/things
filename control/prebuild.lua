@@ -20,6 +20,7 @@ end
 ---Mark a world key as prebuilt this tick.
 ---@param key Core.WorldKey The world key to mark.
 function PrebuildPlayerState:mark_key_as_prebuilt(key)
+	-- Garbage-collect keys from prior ticks.
 	local n = game.ticks_played
 	if self.last_ticks_played < n then
 		self.prebuilt_key_set = {}
