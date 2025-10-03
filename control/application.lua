@@ -164,7 +164,7 @@ function Application:apply_overlapping_tags()
 		local bp_entity = entry.bp_entity
 		local new_tags = (bp_entity.tags or EMPTY)["@t"]
 		if new_tags then
-			thing:set_tags(new_tags)
+			thing:set_tags(new_tags --[[@as Tags]])
 			debug_log(
 				"Application:apply_overlapping_tags: applied tags to Thing",
 				thing.id,
@@ -205,8 +205,11 @@ function Application:resolve_graph_edges(local_id)
 	if not thing_id then return end
 	local thing = get_thing(thing_id)
 	if not thing then return end
+	local unresolved_thing_edges = 0
+	local resolved_thing_edges = 0
 	for edge in pairs(self.unresolved_edge_set) do
 		if edge.first ~= local_id and edge.second ~= local_id then goto continue end
+		unresolved_thing_edges = unresolved_thing_edges + 1
 		local other_local_id = (edge.first == local_id) and edge.second
 			or edge.first
 		local other_thing_id = self.local_id_to_thing_id[other_local_id]
@@ -215,6 +218,8 @@ function Application:resolve_graph_edges(local_id)
 		if other_thing then
 			self.unresolved_edge_set[edge] = nil
 			thing:graph_connect(edge.name, other_thing, edge.data)
+			resolved_thing_edges = resolved_thing_edges + 1
+			unresolved_thing_edges = unresolved_thing_edges - 1
 			debug_log(
 				"Application:resolve_graph_edges: connected",
 				thing.id,

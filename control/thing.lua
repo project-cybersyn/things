@@ -141,10 +141,7 @@ function Thing:built_as_tagged_ghost(ghost, tags, key)
 	self:set_unit_number(ghost.unit_number)
 	self.state_cause = "blueprint"
 	self:set_state("ghost")
-	script.raise_event(
-		"things-on_initialized",
-		{ thing_id = self.id, entity = self.entity, status = self.state }
-	)
+	raise("thing_initialized", self)
 end
 
 ---Thing was built as a tagged real entity, probably from a BP in cheat mode.
@@ -165,10 +162,7 @@ function Thing:built_as_tagged_real(entity, tags)
 	self:set_unit_number(entity.unit_number)
 	self.state_cause = "blueprint"
 	self:set_state("real")
-	script.raise_event(
-		"things-on_initialized",
-		{ thing_id = self.id, entity = self.entity, status = self.state }
-	)
+	raise("thing_initialized", self)
 end
 
 ---Called when this Thing's entity dies, leaving a ghost behind.
@@ -281,11 +275,6 @@ function Thing:set_tags(tags)
 	local previous_tags = self.tags
 	self.tags = tags
 	raise("thing_tags_changed", self, previous_tags)
-	script.raise_event("things-on_tags_changed", {
-		thing_id = self.id,
-		previous_tags = previous_tags,
-		new_tags = tags,
-	})
 end
 
 ---Create an edge from this Thing to another in the given Thing graph.
@@ -302,12 +291,14 @@ function Thing:graph_connect(graph_name, other, data)
 		self.graph_set[graph_name] = true
 		if not other.graph_set then other.graph_set = {} end
 		other.graph_set[graph_name] = true
-		script.raise_event("things-on_edges_changed", {
-			graph_name = graph_name,
-			change = "created",
-			nodes = { [self.id] = true, [other.id] = true },
-			edges = { edge },
-		})
+		raise(
+			"thing_edges_changed",
+			self,
+			graph_name,
+			"created",
+			{ [self.id] = true, [other.id] = true },
+			{ edge }
+		)
 		return true
 	end
 	return false
@@ -323,12 +314,14 @@ function Thing:graph_disconnect(graph_name, other)
 	if edge then
 		if isolated_1 and self.graph_set then self.graph_set[graph_name] = nil end
 		if isolated_2 and other.graph_set then other.graph_set[graph_name] = nil end
-		script.raise_event("things-on_edges_changed", {
-			graph_name = graph_name,
-			change = "deleted",
-			nodes = { [self.id] = true, [other.id] = true },
-			edges = { edge },
-		})
+		raise(
+			"thing_edges_changed",
+			self,
+			graph_name,
+			"deleted",
+			{ [self.id] = true, [other.id] = true },
+			{ edge }
+		)
 	end
 end
 
@@ -351,12 +344,14 @@ function Thing:graph_disconnect_all()
 			node_set[other_id] = true
 		end
 		self.graph_set[graph_name] = nil
-		script.raise_event("things-on_edges_changed", {
-			graph_name = graph_name,
-			change = "deleted",
-			nodes = node_set,
-			edges = edge_list,
-		})
+		raise(
+			"thing_edges_changed",
+			self,
+			graph_name,
+			"deleted",
+			node_set,
+			edge_list
+		)
 		::continue::
 	end
 end
@@ -413,17 +408,10 @@ end
 
 function Thing:on_changed_state(new_state, old_state)
 	raise("thing_status", self, old_state --[[@as string]])
-	script.raise_event("things-on_status_changed", {
-		thing_id = self.id,
-		entity = self.entity,
-		new_status = new_state,
-		old_status = old_state,
-		cause = self.state_cause,
-	})
-	-- Create on_edges_changed events
 	-- For destroyed Things, skip the status_changed event in favor of the
 	-- delete event.
 	if new_state == "destroyed" then return end
+	-- Create on_edges_changed events
 	for graph_name in pairs(self.graph_set or EMPTY) do
 		local graph = get_graph(graph_name)
 		if not graph then goto continue end
@@ -435,12 +423,14 @@ function Thing:on_changed_state(new_state, old_state)
 			table.insert(edge_list, edge)
 			node_set[other_id] = true
 		end
-		script.raise_event("things-on_edges_changed", {
-			graph_name = graph_name,
-			change = "status_changed",
-			nodes = node_set,
-			edges = edge_list,
-		})
+		raise(
+			"thing_edges_changed",
+			self,
+			graph_name,
+			"status_changed",
+			node_set,
+			edge_list
+		)
 		::continue::
 	end
 end
@@ -473,10 +463,7 @@ function _G.thingify_entity(entity, key)
 	else
 		thing:set_state("real")
 	end
-	script.raise_event(
-		"things-on_initialized",
-		{ thing_id = thing.id, entity = thing.entity, status = thing.state }
-	)
+	raise("thing_initialized", thing)
 	return true, thing
 end
 

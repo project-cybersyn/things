@@ -24,8 +24,10 @@ local lib = {}
 ---@overload fun(name: "entity_died", ev: EventData.on_post_entity_died)
 ---@overload fun(name: "undo_applied", ev: EventData.on_undo_applied)
 ---@overload fun(name: "redo_applied", ev: EventData.on_redo_applied)
+---@overload fun(name: "thing_initialized", thing: things.Thing)
 ---@overload fun(name: "thing_status", thing: things.Thing, old_status: string)
 ---@overload fun(name: "thing_tags_changed", thing: things.Thing, old_tags: Tags)
+---@overload fun(name: "thing_edges_changed", thing: things.Thing, graph_name: string, change: "created"|"deleted"|"data_changed"|"status_changed", nodes: {[int]: true}, edges: things.GraphEdge[])
 lib.raise = event.raise
 
 ---@overload fun(name: "mod_settings_changed", handler: fun(), first?: boolean)
@@ -42,8 +44,10 @@ lib.raise = event.raise
 ---@overload fun(name: "entity_died", handler: fun(ev: EventData.on_post_entity_died), first?: boolean)
 ---@overload fun(name: "undo_applied", handler: fun(ev: EventData.on_undo_applied), first?: boolean)
 ---@overload fun(name: "redo_applied", handler: fun(ev: EventData.on_redo_applied), first?: boolean)
+---@overload fun(name: "thing_initialized", handler: fun(thing: things.Thing), first?: boolean)
 ---@overload fun(name: "thing_status", handler: fun(thing: things.Thing, old_status: string), first?: boolean)
 ---@overload fun(name: "thing_tags_changed", handler: fun(thing: things.Thing, old_tags: Tags), first?: boolean)
+---@overload fun(name: "thing_edges_changed", handler: fun(thing: things.Thing, graph_name: string, change: "created"|"deleted"|"data_changed"|"status_changed", nodes: {[int]: true}, edges: things.GraphEdge[]), first?: boolean)
 lib.bind = event.bind
 
 return lib
