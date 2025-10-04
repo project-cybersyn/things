@@ -247,19 +247,10 @@ end
 
 function Application:on_subtick()
 	-- TODO: impl
+	self:destroy()
 end
 
 function Application:destroy() storage.applications[self.id] = nil end
-
-function _G.garbage_collect_applications()
-	local t = game.ticks_played
-	for id, app in pairs(storage.applications) do
-		if t > app.tick_played then
-			debug_log("Garbage collecting application", id)
-			app:destroy()
-		end
-	end
-end
 
 ---Invoked when we receive the build event for a blueprinted Thing.
 ---Check active application states to see if any are waiting on this local id.
@@ -267,12 +258,8 @@ end
 ---@param world_key Core.WorldKey
 ---@param thing_id int
 function _G.map_local_id_to_thing_id(local_id, world_key, thing_id)
-	local t = game.ticks_played
 	for _, app in pairs(storage.applications) do
-		if
-			t == app.tick_played
-			and app.world_key_to_local_id[world_key] == local_id
-		then
+		if app.world_key_to_local_id[world_key] == local_id then
 			app:map_local_id_to_thing_id(local_id, thing_id)
 		end
 	end

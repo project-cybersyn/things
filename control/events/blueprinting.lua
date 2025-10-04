@@ -27,14 +27,9 @@ bind("blueprint_extract", function(ev, player, bp)
 end)
 
 -- Narrow-phase blueprint application event. Creates an `Application` object that
--- serves as manager for the overall operation. Unlike extractions, applications
--- have to be memory managed and garbage collected, because the associated
--- construction events will fire after the application event with no bookend
--- for overall operation completion.
+-- serves as manager for the overall operation.
 bind("blueprint_apply", function(player, bp, surface, event)
 	debug_log("on_blueprint_apply", player, bp, surface, event)
-	-- GC old blueprint application records
-	garbage_collect_applications()
 	-- Create application record
 	local application = Application:new(player, bp, surface, event)
 	application:apply_overlapping_tags()
