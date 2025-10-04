@@ -6,11 +6,21 @@ local world_state = require("lib.core.world-state")
 local bp_bbox = require("lib.core.blueprint.bbox")
 local bp_pos = require("lib.core.blueprint.pos")
 local tlib = require("lib.core.table")
+local event = require("lib.core.event")
+
+local raise = require("control.events.typed").raise
 
 local make_world_key = world_state.make_world_key
 local get_world_key = world_state.get_world_key
 
 local EMPTY = setmetatable({}, { __newindex = function() end })
+
+-- Subtick handling
+event.register_dynamic_handler(
+	"application_subtick",
+	---@param data things.Application
+	function(_, data) data:on_subtick() end
+)
 
 ---@class (exact) things.ApplicationOverlapEntry
 ---@field public thing things.Thing The Thing that was overlapped.
@@ -33,9 +43,9 @@ _G.Application = Application
 ---@param player LuaPlayer
 ---@param bp Core.Blueprintish
 ---@param surface LuaSurface
----@param event EventData.on_pre_build
+---@param ev EventData.on_pre_build
 ---@return things.Application
-function Application:new(player, bp, surface, event)
+function Application:new(player, bp, surface, ev)
 	local id = counters.next("application")
 	local obj = setmetatable({
 		id = id,
@@ -65,10 +75,10 @@ function Application:new(player, bp, surface, event)
 		nil,
 		bbox,
 		snap_index,
-		event.position,
-		event.direction,
-		event.flip_horizontal,
-		event.flip_vertical,
+		ev.position,
+		ev.direction,
+		ev.flip_horizontal,
+		ev.flip_vertical,
 		snap_absolute and snap or nil,
 		snap_offset,
 		mod_settings.debug and surface or nil
@@ -151,6 +161,9 @@ function Application:new(player, bp, surface, event)
 		::continue::
 	end
 
+	-- Trigger subtick event. This is basically a virtual "on_blueprint_finished_building" event.
+	event.dynamic_subtick_trigger("application_subtick", "subtick", obj)
+
 	debug_log("Application:new: created application", obj)
 	for k, v in pairs(obj.unresolved_edge_set) do
 		debug_log("  unresolved edge:", k)
@@ -230,6 +243,10 @@ function Application:resolve_graph_edges(local_id)
 		end
 		::continue::
 	end
+end
+
+function Application:on_subtick()
+	-- TODO: impl
 end
 
 function Application:destroy() storage.applications[self.id] = nil end

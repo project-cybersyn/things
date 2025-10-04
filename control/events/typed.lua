@@ -28,6 +28,8 @@ local lib = {}
 ---@overload fun(name: "thing_status", thing: things.Thing, old_status: string)
 ---@overload fun(name: "thing_tags_changed", thing: things.Thing, old_tags: Tags)
 ---@overload fun(name: "thing_edges_changed", thing: things.Thing, graph_name: string, change: "created"|"deleted"|"data_changed"|"status_changed", nodes: {[int]: true}, edges: things.GraphEdge[])
+---@overload fun(name: "thing_children_changed", thing: things.Thing, added: int[], removed: int[])
+---@overload fun(name: "thing_parent_changed", thing: things.Thing, old_parent_id: int|nil)
 lib.raise = event.raise
 
 ---@overload fun(name: "mod_settings_changed", handler: fun(), first?: boolean)
@@ -48,6 +50,8 @@ lib.raise = event.raise
 ---@overload fun(name: "thing_status", handler: fun(thing: things.Thing, old_status: string), first?: boolean)
 ---@overload fun(name: "thing_tags_changed", handler: fun(thing: things.Thing, old_tags: Tags), first?: boolean)
 ---@overload fun(name: "thing_edges_changed", handler: fun(thing: things.Thing, graph_name: string, change: "created"|"deleted"|"data_changed"|"status_changed", nodes: {[int]: true}, edges: things.GraphEdge[]), first?: boolean)
+---@overload fun(name: "thing_children_changed", handler: fun(thing: things.Thing, added: int[], removed: int[]), first?: boolean)
+---@overload fun(name: "thing_parent_changed", handler: fun(thing: things.Thing, old_parent_id: int|nil), first?: boolean)
 lib.bind = event.bind
 
 return lib
