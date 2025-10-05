@@ -87,4 +87,29 @@ function Extraction:map_edges()
 	end
 end
 
+function Extraction:map_children()
+	for eid, entity in pairs(self.eid_to_world) do
+		if (not entity.valid) or not entity.unit_number then
+			self.bp.set_blueprint_entity_tag(eid, "@children", nil)
+			goto continue
+		end
+		local thing = self.eid_to_thing[eid]
+		if (not thing) or not thing.children then
+			self.bp.set_blueprint_entity_tag(eid, "@children", nil)
+			goto continue
+		end
+		local child_tags = {}
+		for key, child in pairs(thing.children) do
+			local local_eid = self.thing_id_to_eid[child.id]
+			if local_eid then child_tags[key] = local_eid end
+		end
+		if next(child_tags) then
+			self.bp.set_blueprint_entity_tag(eid, "@children", child_tags)
+		else
+			self.bp.set_blueprint_entity_tag(eid, "@children", nil)
+		end
+		::continue::
+	end
+end
+
 function Extraction:destroy() storage.extractions[self.id] = nil end

@@ -5,6 +5,8 @@
 require("lib.core.debug-log")
 set_print_debug_log(true)
 
+local event = require("lib.core.event")
+
 require("control.mod-data")
 require("control.storage")
 require("control.settings")
@@ -22,6 +24,7 @@ require("control.remote")
 require("control.events.blueprinting")
 require("control.events.construction")
 require("control.events.broadphase")
+require("control.events.custom")
 
 -- Enable support for the Global Variable Viewer debugging mod, if it is
 -- installed.
@@ -53,3 +56,18 @@ commands.add_command(
 		debug_log("Top markers", vups.top_marker_set)
 	end
 )
+
+event.bind("things-click", function(ev)
+	local player = game.get_player(ev.player_index)
+	if not player then return end
+	if player.selected and player.selected.valid then
+		local thing = get_thing_by_unit_number(player.selected.unit_number)
+		if thing then
+			debug_log("Clicked Thing", thing.id, thing.entity, thing.state)
+		else
+			debug_log("Clicked entity is not a Thing", player.selected)
+		end
+	else
+		debug_log("Nothing selected")
+	end
+end)

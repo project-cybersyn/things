@@ -3,13 +3,14 @@ local counters = require("lib.core.counters")
 local StateMachine = require("lib.core.state-machine")
 local ws_lib = require("lib.core.world-state")
 local entity_lib = require("lib.core.entities")
+local tlib = require("lib.core.table")
 
 local raise = require("control.events.typed").raise
 
 local get_world_key = ws_lib.get_world_key
 local true_prototype_name = entity_lib.true_prototype_name
 
-local EMPTY = setmetatable({}, { __newindex = function() end })
+local EMPTY = tlib.EMPTY_STRICT
 
 ---@enum things.ThingManagementFlags
 local ThingManagementFlags = {
@@ -75,9 +76,9 @@ local ThingState = {
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity, if any.
 ---@field public n_undo_markers uint The number of undo markers currently associated with this Thing.
 ---@field public graph_set? {[string]: true} Set of graph names this Thing is a member of. If `nil`, the Thing is not a member of any graphs.
----@field public parent_id? int The id of this Thing's parent Thing, if any.
+---@field public parent? things.Thing Parent of this Thing, if any.
 ---@field public child_key_in_parent? int|string The key this Thing is registered under in its parent's `children` map, if any.
----@field public children? {[int|string]: int} Map from child names (which may be numbers or strings) to child Thing ids.
+---@field public children? {[int|string]: things.Thing} Map from child names (which may be numbers or strings) to child Things.
 local Thing = class("things.Thing", StateMachine)
 _G.Thing = Thing
 
@@ -260,6 +261,10 @@ function Thing:destroy()
 	end
 	-- Disconnect graph edges
 	self:graph_disconnect_all()
+	-- Destroy parent/child relationships
+	local removed = self:remove_children()
+	if self.parent then self.parent:remove_children(self) end
+	-- TODO: destroy former children if needed
 	-- TODO: force destroy entity if needed
 	self.entity = nil
 	-- Remove from registry
@@ -377,33 +382,57 @@ end
 ---Determine if this Thing has any edges in any graph.
 function Thing:has_edges() return self.graph_set and next(self.graph_set) ~= nil end
 
+---Add parent/child relationship between this Thing and `child`.
 ---@param key string|int
 ---@param child things.Thing
+---@return boolean success True if the child was added, false if the child had a duplicate key or an existing parent.
 function Thing:add_child(key, child)
 	if not self.children then self.children = {} end
-	if self.children[key] then
-		error(
-			string.format(
-				"Thing %d.add_child: Duplicate child key: key=%s already assigned to child Thing %d",
-				self.id,
-				tostring(key),
-				self.children[key]
-			)
-		)
+	if self.children[key] then return false end
+	if child.parent then return false end
+	self.children[key] = child
+	local old_parent = child.parent
+	child.parent = self
+	child.child_key_in_parent = key
+	raise("thing_children_changed", self, child, nil)
+	raise("thing_parent_changed", child, old_parent and old_parent.id or nil)
+	return true
+end
+
+---@param filter nil|string|int|things.Thing|fun(child: things.Thing, key: string|int): boolean Filter for children to remove. If `nil`, removes all children. If a string or number, interpreted as a key. If a Thing, interpreted as a specific child. If a function, called with each child and its key; should return true to remove the child.
+---@return things.Thing[]|nil removed_children
+function Thing:remove_children(filter)
+	local children = self.children
+	if not children then return nil end
+	-- Allow filtering by key or specific child.
+	local t_filter, val_filter = type(filter), filter
+	if t_filter == "string" or t_filter == "number" then
+		filter = function(_, key) return key == val_filter end
+	elseif t_filter == "table" then
+		filter = function(child) return child == val_filter end
 	end
-	if child.parent_id then
-		error(
-			string.format(
-				"Thing %d.add_child: Thing %d is already a child of Thing %d",
+	local removed = {}
+	for key, child in pairs(children) do
+		if filter and not filter(child, key) then goto continue end
+		if child.parent ~= self then
+			debug_crash(
+				"Thing:remove_children: child Thing has different parent, RI failure",
 				self.id,
 				child.id,
-				child.parent_id
+				child.parent and child.parent.id or nil
 			)
-		)
+			goto continue
+		end
+		child.parent = nil
+		child.child_key_in_parent = nil
+		children[key] = nil
+		removed[#removed + 1] = child
+		raise("thing_parent_changed", child, self.id)
+		::continue::
 	end
-	self.children[key] = child.id
-	child.parent_id = self.id
-	child.child_key_in_parent = key
+	if not next(children) then self.children = nil end
+	if #removed > 0 then raise("thing_children_changed", self, nil, removed) end
+	return removed
 end
 
 function Thing:on_changed_state(new_state, old_state)
@@ -411,6 +440,15 @@ function Thing:on_changed_state(new_state, old_state)
 	-- For destroyed Things, skip the status_changed event in favor of the
 	-- delete event.
 	if new_state == "destroyed" then return end
+	-- Parent/child status events
+	if self.parent then
+		raise("thing_child_status", self.parent, self, old_state --[[@as string]])
+	end
+	if self.children then
+		for _, child in pairs(self.children) do
+			raise("thing_parent_status", child, self, old_state --[[@as string]])
+		end
+	end
 	-- Create on_edges_changed events
 	for graph_name in pairs(self.graph_set or EMPTY) do
 		local graph = get_graph(graph_name)

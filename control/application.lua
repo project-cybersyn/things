@@ -36,7 +36,9 @@ event.register_dynamic_handler(
 ---@field public local_id_to_thing_id {[int]: int} Map of @i id in the blueprint to Thing id in the world.
 ---@field public world_key_to_local_id {[Core.WorldKey]: int} Map of world keys to @i id in the blueprint.
 ---@field public unresolved_edge_set {[things.NamedGraphEdge]: true} Set of local graph edges that could not be resolved because one or both Things were not known yet.
----@field public node_set {[int]: true} Set of Thing ids that are connected to edges.
+---@field public node_set {[int]: true} Set of local_ids that are connected to edges.
+---@field public parent_child_map {[int]: {[string|int]: int}} Map of parent local_id to map of child keys to child local_ids.
+---@field public child_parent_map {[int]: [string|int, int]} Map of child local_id to pairs { child_key_in_parent, parent_local_id }.
 local Application = class("things.Application")
 _G.Application = Application
 
@@ -57,7 +59,10 @@ function Application:new(player, bp, surface, ev)
 		unresolved_edge_set = {},
 		node_set = {},
 		world_key_to_local_id = {},
+		parent_child_map = {},
+		child_parent_map = {},
 	}, self)
+	---@cast obj things.Application
 	storage.applications[id] = obj
 
 	-- Get entities.
@@ -158,6 +163,25 @@ function Application:new(player, bp, surface, ev)
 				end
 			end
 		end
+
+		-- Catalogue unresolved parent-child relationships
+		local children_tags = (bp_entity.tags or EMPTY)["@children"]
+		if children_tags then
+			obj.parent_child_map[local_id] = children_tags
+			for child_key, child_local_id in pairs(children_tags) do
+				child_local_id = tonumber(child_local_id)
+				if not child_local_id then
+					debug_crash(
+						"Application:new: invalid @children tag in blueprint",
+						bp_entity,
+						key
+					)
+				end
+				---@cast child_local_id integer
+				obj.child_parent_map[child_local_id] = { child_key, local_id }
+			end
+		end
+
 		::continue::
 	end
 
@@ -204,6 +228,7 @@ function Application:map_local_id_to_thing_id(local_id, thing_id)
 	)
 	self.local_id_to_thing_id[local_id] = thing_id
 	self:resolve_graph_edges(local_id)
+	self:resolve_parent_child(local_id)
 end
 
 function Application:resolve_graph_edges(local_id)
@@ -242,6 +267,67 @@ function Application:resolve_graph_edges(local_id)
 			)
 		end
 		::continue::
+	end
+end
+
+function Application:resolve_parent_child(local_id)
+	debug_log(
+		"Application:resolve_parent_child: resolving parent-child for local id",
+		local_id,
+		self.parent_child_map,
+		self.child_parent_map
+	)
+	local thing_id = self.local_id_to_thing_id[local_id]
+	if not thing_id then return end
+	local thing = get_thing(thing_id)
+	if not thing then return end
+
+	-- Resolve child -> parent
+	local key_and_parent_id = self.child_parent_map[local_id]
+	if key_and_parent_id then
+		local child_key, parent_local_id =
+			key_and_parent_id[1], key_and_parent_id[2]
+		local parent_thing_id = self.local_id_to_thing_id[parent_local_id]
+		if parent_thing_id then
+			local parent_thing = get_thing(parent_thing_id)
+			if parent_thing then
+				local added = parent_thing:add_child(child_key, thing)
+				if added then
+					debug_log(
+						"Application:resolve_parent_child: added child",
+						thing.id,
+						"to parent",
+						parent_thing.id,
+						"with key",
+						child_key
+					)
+				end
+			end
+		end
+	end
+
+	-- Resolve parent -> children
+	local child_keys = self.parent_child_map[local_id]
+	if child_keys then
+		for child_key, child_local_id in pairs(child_keys) do
+			local child_thing_id = self.local_id_to_thing_id[child_local_id]
+			if not child_thing_id then goto continue end
+			local child_thing = get_thing(child_thing_id)
+			if child_thing then
+				local added = thing:add_child(child_key, child_thing)
+				if added then
+					debug_log(
+						"Application:resolve_parent_child: added child",
+						child_thing.id,
+						"to parent",
+						thing.id,
+						"with key",
+						child_key
+					)
+				end
+			end
+			::continue::
+		end
 	end
 end
 

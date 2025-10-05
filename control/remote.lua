@@ -1,6 +1,7 @@
 -- Things API.
 
 local type = _G.type
+local EMPTY = {}
 
 ---@class (exact) things.Error
 ---@field public code string Machine-readable error code.
@@ -130,4 +131,66 @@ function remote_interface.get_edges(graph_name, thing_identification)
 	if not graph then return nil, {} end
 	local edges = graph:get_edges(thing.id)
 	return nil, edges
+end
+
+---Adds a child Thing to a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_key string|int|nil The key to assign the child in the parent Thing. If `nil`, uses the smallest free numeric key as determined by the Lua `#` operator.
+---@param child_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The child Thing.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.add_child(
+	parent_identification,
+	child_key,
+	child_identification
+)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	local child, valid_child = resolve_identification(child_identification)
+	if not valid_parent or not valid_child then return CANT_BE_A_THING end
+	if not parent or not child then return NOT_A_THING end
+	if child_key == nil then child_key = #(parent.children or EMPTY) + 1 end
+	local added = parent:add_child(child_key, child)
+	if not added then
+		return {
+			code = "could_not_add_child",
+			message = "Could not add child; the child may already have a parent, or the key may already be in use.",
+		}
+	end
+	return nil
+end
+
+---Removes a child Thing from a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The child Thing.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.remove_child(
+	parent_identification,
+	child_identification
+)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	local child, valid_child = resolve_identification(child_identification)
+	if not valid_parent or not valid_child then return CANT_BE_A_THING end
+	if not parent or not child then return NOT_A_THING end
+	local removed = parent:remove_children(child)
+	if (not removed) or (#removed == 0) then
+		return {
+			code = "could_not_remove_child",
+			message = "Could not remove child; the specified Thing is not a child of the specified parent.",
+		}
+	end
+	return nil
+end
+
+---Gets all children of a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return {[string|int]: int}|nil children Map of child keys to child Thing ids. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no children.
+function remote_interface.get_children(parent_identification)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	if not valid_parent then return CANT_BE_A_THING end
+	if not parent then return NOT_A_THING end
+	local result = {}
+	for key, child in pairs(parent.children or EMPTY) do
+		result[key] = child.id
+	end
+	return nil, result
 end
