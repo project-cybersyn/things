@@ -1,9 +1,17 @@
 local world_state = require("lib.core.world-state")
 local bind = require("control.events.typed").bind
+local op_lib = require("control.infrastructure.operation")
+local mop_lib = require("control.infrastructure.mass-operation")
+local uop_lib = require("control.infrastructure.undo-application")
+local constants = require("control.constants")
 
+local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
+
+local ConstructionOperation = op_lib.ConstructionOperation
 local make_key = world_state.make_world_key
 local get_world_key = world_state.get_world_key
 
+-- Pre-build of a single entity that is not part of a blueprint.
 bind(
 	"pre_build_entity",
 	function(ev, player, entity_prototype, quality, surface)
@@ -11,13 +19,14 @@ bind(
 		if not get_thing_registration(entity_prototype.name) then return end
 
 		debug_log(
-			"on_pre_build_entity",
+			"on_pre_build_entity: Prebuilt a Thing",
 			ev,
 			player,
 			entity_prototype,
 			quality,
 			surface
 		)
+
 		-- Create prebuild record
 		local prebuild = get_prebuild_player_state(player.index)
 		local key = make_key(ev.position, surface.index, entity_prototype.name)
@@ -25,45 +34,24 @@ bind(
 	end
 )
 
----@param ev AnyFactorioBuildEventData
----@param ghost LuaEntity
----@param tags? Tags
----@param player? LuaPlayer
 bind("built_ghost", function(ev, ghost, tags, player)
 	-- Filter out non-Things.
 	if not get_thing_registration(ghost.ghost_name) then return end
-
 	debug_log("built_ghost", ev, ghost, tags, player)
 
-	local key = get_world_key(ghost)
+	local op = ConstructionOperation:new(ghost, tags, player)
 
-	-- Check for undo operation. (owned by player, no
-	-- corresponding pre-build event)
-	if player then
-		local prebuild = get_prebuild_player_state(player.index)
-		if not prebuild:was_key_prebuilt(key) then
-			-- Likely an undo/redo ghost
-			if maybe_undo(ghost, key, player) then
-				debug_log("built_ghost: ghost from undo/redo", key)
-				return
-			end
-		end
-	end
+	-- Try to associate this build with an existing mass operation.
+	-- If it is included in one, the MO will handle the rest of the logic.
+	if mop_lib.try_include_in_all(op, game.ticks_played) then return end
 
-	-- Ghost is a tagged bplib object from a blueprint
-	if tags then
-		local local_id = tags["@i"] --[[@as integer? ]]
-		if local_id then
-			local thing = Thing:new()
-			thing:built_as_tagged_ghost(ghost, tags, key)
-			map_local_id_to_thing_id(local_id, key, thing.id)
-			return
-		end
-	end
+	-- Try to generate a new Undo operation from this build.
+	local uop = uop_lib.maybe_begin_undo_operation(op)
+	if uop then return end
 
 	-- Ghost is a new specimen of this Thing type.
 	debug_log("built_ghost: ghost is a new Thing")
-	thingify_entity(ghost, key)
+	thingify_entity(ghost, op.key)
 end)
 
 ---@param ev AnyFactorioBuildEventData
@@ -73,56 +61,26 @@ end)
 bind("built_real", function(ev, entity, tags, player)
 	-- Filter out non-Things.
 	if not get_thing_registration(entity.name) then return end
-
 	debug_log("built_real", ev, entity, tags)
 
-	local key = get_world_key(entity)
+	local op = ConstructionOperation:new(entity, tags, player)
 
-	-- Check for undo operation. (owned by player, no
-	-- corresponding pre-build event)
-	if player then
-		local prebuild = get_prebuild_player_state(player.index)
-		if not prebuild:was_key_prebuilt(key) then
-			-- Likely an undo/redo ghost
-			if maybe_undo(entity, key, player) then
-				debug_log("built_real: real from undo/redo", key)
-				return
-			end
-		end
-	end
+	-- Ladder of possible cases:
+	-- 1) Thing was built as part of an existing mass operation
+	-- (undo, blueprint, c/p)
+	if mop_lib.try_include_in_all(op, game.ticks_played) then return end
 
-	local revived_ghost_id = storage.thing_ghosts[key]
-	if revived_ghost_id then
-		clear_thing_ghost(key)
-		debug_log("built_real: real is a revived ghost")
-		local thing = get_thing(revived_ghost_id)
-		if thing then
-			thing:revived_from_ghost(entity, nil)
-		else
-			debug_crash(
-				"built_real: referential integrity failure: no Thing matching revived ghost id",
-				revived_ghost_id,
-				entity,
-				tags
-			)
-		end
-		return
-	end
+	-- 2) Thing is beginning a new Undo operation, which we cannot detect
+	-- in advance due to lack of pre-undo event.
+	local uop = uop_lib.maybe_begin_undo_operation(op)
+	if uop then return end
 
-	if tags then
-		-- Built directly from a blueprint with a local ID
-		local local_id = tags["@i"] --[[@as integer? ]]
-		if local_id then
-			local thing = Thing:new()
-			thing:built_as_tagged_real(entity, tags)
-			map_local_id_to_thing_id(local_id, key, thing.id)
-			return
-		end
-	end
+	-- 3) Thing is the revival of a ghost Thing
+	if mark_revived_ghost(op) then return end
 
-	-- Real is a new Thing
+	-- 4) Thing is newly constructed
 	debug_log("built_real: real is a new Thing")
-	thingify_entity(entity, key)
+	thingify_entity(entity, op.key)
 end)
 
 bind("entity_cloned", function(event)
@@ -130,17 +88,18 @@ bind("entity_cloned", function(event)
 	-- TODO: impl. if original is a thing, make a new thing. respect ghostiness
 end)
 
-bind("undo_applied", function(event)
-	local vups = get_undo_player_state(event.player_index)
-	if not vups then return end
-	vups:on_undo_applied(event.actions)
-end)
+---@param event EventData.on_undo_applied|EventData.on_redo_applied
+local function undo_redo_applied(event)
+	local mop = mop_lib.find("undo", event.player_index, game.ticks_played) --[[@as things.UndoApplication?]]
+	if not mop then
+		debug_log("undo_applied: no UndoApplication found")
+		return
+	end
+	mop:complete(event.actions)
+end
 
-bind("redo_applied", function(event)
-	local vups = get_undo_player_state(event.player_index)
-	if not vups then return end
-	vups:on_redo_applied(event.actions)
-end)
+bind("undo_applied", undo_redo_applied)
+bind("redo_applied", undo_redo_applied)
 
 -- Death
 
@@ -196,10 +155,10 @@ bind("entity_died", function(event)
 	if not thing then return end
 	local ghost = event.ghost
 	if ghost then
-		debug_log("entity died leaving a ghost")
+		debug_log("Thing died leaving a ghost", thing.id)
 		thing:died_leaving_ghost(ghost)
 	else
-		debug_log("entity died leaving no ghost")
+		debug_log("Thing died leaving no ghost and will be destroyed", thing.id)
 		-- Died leaving no ghost; safe to destroy Thing altogether.
 		thing:destroy()
 	end

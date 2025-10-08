@@ -145,8 +145,30 @@ function remote_interface.add_child(
 )
 	local parent, valid_parent = resolve_identification(parent_identification)
 	local child, valid_child = resolve_identification(child_identification)
-	if not valid_parent or not valid_child then return CANT_BE_A_THING end
-	if not parent or not child then return NOT_A_THING end
+	if not valid_parent then
+		return {
+			code = "cant_be_a_thing",
+			message = "You may not use an entity that is nil, invalid, or didn't have a `unit_number` as a Thing or Thing identifier for the parent.",
+		}
+	end
+	if not parent then
+		return {
+			code = "not_a_thing",
+			message = "The specified parent Thing does not exist.",
+		}
+	end
+	if not valid_child then
+		return {
+			code = "cant_be_a_thing",
+			message = "You may not use an entity that is nil, invalid, or didn't have a `unit_number` as a Thing or Thing identifier for the child.",
+		}
+	end
+	if not child then
+		return {
+			code = "not_a_thing",
+			message = "The specified child Thing does not exist.",
+		}
+	end
 	if child_key == nil then child_key = #(parent.children or EMPTY) + 1 end
 	local added = parent:add_child(child_key, child)
 	if not added then

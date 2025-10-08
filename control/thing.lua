@@ -4,6 +4,9 @@ local StateMachine = require("lib.core.state-machine")
 local ws_lib = require("lib.core.world-state")
 local entity_lib = require("lib.core.entities")
 local tlib = require("lib.core.table")
+local constants = require("control.constants")
+
+local TAGS_TAG = constants.TAGS_TAG
 
 local raise = require("control.events.typed").raise
 
@@ -30,32 +33,6 @@ local ThingManagementFlags = {
 	ForceDestroyEntity = 64,
 }
 
----@enum things.ThingState
-local ThingState = {
-	---Thing is in an unknown state.
-	unknown = "unknown",
-	---Thing is a ghost that was manually thingified.
-	ghost_initial = "ghost_initial",
-	---Thing is ghost built from a blueprint.
-	ghost_blueprint = "ghost_blueprint",
-	---Thing is a ghost after its real entity died.
-	ghost_died = "ghost_died",
-	---Thing is a ghost that was determined to be from undo
-	ghost_undo = "ghost_undo",
-	---Thing is an alive entity that was manually thingified
-	alive_initial = "alive_initial",
-	---Thing was created alive from a blueprint (cheat mode)
-	alive_blueprint = "alive_blueprint",
-	---Thing was created alive from an undo operation (cheat mode)
-	alive_undo = "alive_undo",
-	---Thing was revived from a ghost
-	alive_revived = "alive_revived",
-	---Thing is destroyed but remaining as an undo tombstone.
-	tombstone = "tombstone",
-	---Thing has been destroyed and is no longer usable.
-	destroyed = "destroyed",
-}
-
 ---A `Thing` is the extended lifecycle of a collection of game entities that
 ---actually represent the same ultimate thing. For example, a thing could
 ---be constructed from a blueprint (entity #1: ghost), built by a bot (entity #2: real),
@@ -67,10 +44,12 @@ local ThingState = {
 ---@class (exact) things.Thing: StateMachine
 ---@field public id int Unique gamewide id for this Thing.
 ---@field public state things.Status|"uninitialized" Current lifecycle state of this Thing.
+---@field public is_silent? boolean If true, suppress events for this Thing.
 ---@field public state_cause? things.StatusCause The cause of the last status change, if known.
 ---@field public unit_number? uint The last-known-good `unit_number` for this Thing. May be `nil` or invalid.
 ---@field public local_id? int If this Thing came from a blueprint, its local id within that blueprint.
 ---@field public entity LuaEntity? Current entity representing the thing. Due to potential for lifecycle leaks, must be checked for validity each time used.
+---@field public key Core.WorldKey? The world key of this Thing's entity, if any. Only valid to the extent `entity` exists and is valid.
 ---@field public debug_overlay? Core.MultiLineTextOverlay Debug overlay for this Thing.
 ---@field public tags Tags The tags associated with this Thing.
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity, if any.
@@ -82,9 +61,10 @@ local ThingState = {
 local Thing = class("things.Thing", StateMachine)
 _G.Thing = Thing
 
+---Construct an uninitialized Thing.
 ---@return things.Thing
 function Thing:new()
-	local id = counters.next("entity")
+	local id = counters.next("thing")
 	local obj = StateMachine.new(self, "uninitialized")
 	obj.id = id
 	obj.tags = {}
@@ -92,6 +72,64 @@ function Thing:new()
 	storage.things[id] = obj
 	return obj
 end
+
+---Construct a Thing corresponding to a construction operation.
+---@param op things.Operation
+function Thing:new_from_operation(op)
+	local obj = Thing.new(self)
+	obj:set_entity(op.entity, op.key)
+	if op.tags and op.tags[TAGS_TAG] then
+		obj.tags = op.tags[TAGS_TAG] --[[@as Tags]]
+	end
+	return obj
+end
+
+---@param unit_number uint?
+local function internal_set_unit_number(self, unit_number)
+	if self.unit_number == unit_number then return end
+	storage.things_by_unit_number[self.unit_number or ""] = nil
+	self.unit_number = unit_number
+	if unit_number then storage.things_by_unit_number[unit_number] = self end
+end
+
+---@param entity LuaEntity?
+---@param key Core.WorldKey?
+function Thing:set_entity(entity, key)
+	debug_log("Thing:set_entity", self.id, key)
+	if self.state == "destroyed" then
+		debug_crash(
+			"Thing:set_entity: cannot set entity on destroyed Thing",
+			self.id,
+			entity,
+			key
+		)
+	end
+	if entity == self.entity then return end
+	if not entity or not entity.valid then
+		self.entity = nil
+		internal_set_unit_number(self, nil)
+		return
+	end
+	self.entity = entity
+	self.key = key
+	local unit_number = entity.unit_number
+	internal_set_unit_number(self, unit_number)
+	if entity.type == "entity-ghost" then
+		store_thing_ghost(key --[[@as Core.WorldKey]], self)
+	end
+end
+
+function Thing:apply_status()
+	if self.entity and self.entity.valid then
+		if self.entity.type == "entity-ghost" then
+			self:set_state("ghost")
+		else
+			self:set_state("real")
+		end
+	end
+end
+
+function Thing:initialize() raise("thing_initialized", self) end
 
 ---Get the registered prototype name for this Thing.
 function Thing:get_prototype_name()
@@ -111,15 +149,8 @@ function Thing:undo_deref()
 	end
 end
 
----Update the `unit_number` associated with this Thing, maintaining referential
----integrity.
----@param unit_number uint?
-function Thing:set_unit_number(unit_number)
-	if self.unit_number == unit_number then return end
-	storage.things_by_unit_number[self.unit_number or ""] = nil
-	self.unit_number = unit_number
-	if unit_number then storage.things_by_unit_number[unit_number] = self end
-end
+---@return boolean
+function Thing:is_tombstone() return self.state == "tombstone" end
 
 ---Thing was built as a tagged ghost, likely from a BP.
 ---@param ghost LuaEntity A *valid* ghost.
@@ -189,11 +220,10 @@ end
 ---@param tags Tags? The tags on the revived entity.
 function Thing:revived_from_ghost(revived_entity, tags)
 	if self.state ~= "ghost" then
-		error(
-			serpent.line(
-				{ "Thing:revived_from_ghost: unexpected state", self.id, self.state },
-				{ nocode = true }
-			)
+		debug_crash(
+			"Thing:revived_from_ghost: unexpected state",
+			self.id,
+			self.state
 		)
 	end
 	self.entity = revived_entity
@@ -243,8 +273,7 @@ function Thing:entity_destroyed(entity)
 		return
 	end
 	self.last_known_position = entity.position
-	self.entity = nil
-	self:set_unit_number(nil)
+	self:set_entity(nil, nil)
 	self.state_cause = "died"
 	if self.n_undo_markers > 0 then
 		self:set_state("tombstone")
@@ -436,10 +465,12 @@ function Thing:remove_children(filter)
 end
 
 function Thing:on_changed_state(new_state, old_state)
-	raise("thing_status", self, old_state --[[@as string]])
 	-- For destroyed Things, skip the status_changed event in favor of the
 	-- delete event.
 	if new_state == "destroyed" then return end
+	-- If silent, skip all events.
+	if self.is_silent then return end
+	raise("thing_status", self, old_state --[[@as string]])
 	-- Parent/child status events
 	if self.parent then
 		raise("thing_child_status", self.parent, self, old_state --[[@as string]])
@@ -492,16 +523,12 @@ function _G.thingify_entity(entity, key)
 	local thing = get_thing_by_unit_number(entity.unit_number)
 	if thing then return false, thing end
 	thing = Thing:new()
-	thing.entity = entity
-	thing:set_unit_number(entity.unit_number)
+	thing:set_entity(entity, key)
 	thing.state_cause = "created"
-	if entity.type == "entity-ghost" then
-		store_thing_ghost(key, thing)
-		thing:set_state("ghost")
-	else
-		thing:set_state("real")
-	end
-	raise("thing_initialized", thing)
+	thing.is_silent = true
+	thing:apply_status()
+	thing.is_silent = nil
+	thing:initialize()
 	return true, thing
 end
 
@@ -531,3 +558,26 @@ end
 ---Removed a marked Thing ghost from storage.
 ---@param key Core.WorldKey
 function _G.clear_thing_ghost(key) storage.thing_ghosts[key] = nil end
+
+---@param op things.ConstructionOperation
+---@return boolean #True if a ghost was revived, false otherwise.
+function _G.mark_revived_ghost(op)
+	local entity = op.entity
+	local key = op.key
+	local revived_ghost_id = storage.thing_ghosts[key]
+	if not revived_ghost_id then return false end
+
+	clear_thing_ghost(key)
+	debug_log("Revived Thing ghost at", key)
+	local thing = get_thing(revived_ghost_id)
+	if thing then
+		thing:revived_from_ghost(entity, nil)
+	else
+		debug_crash(
+			"built_real: referential integrity failure: no Thing matching revived ghost id",
+			revived_ghost_id,
+			entity
+		)
+	end
+	return true
+end

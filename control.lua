@@ -15,8 +15,6 @@ require("control.thing")
 require("control.graph")
 require("control.prebuild")
 require("control.virtual-undo")
-require("control.extraction")
-require("control.application")
 require("control.debug-overlay")
 require("control.remote")
 

@@ -17,6 +17,7 @@
 
 ---Registration options for a type of Thing.
 ---@class (exact) things.ThingRegistration
+---@field public merge_tags_on_overlap? boolean If true, when a Thing is overlapped by a blueprinted thing with tags, the tags will be shallow-merged instead of replaced. (default: false)
 
 ---Registration options for a graph of Things.
 ---@class (exact) things.GraphRegistration

@@ -32,6 +32,8 @@ local lib = {}
 ---@overload fun(name: "thing_parent_changed", thing: things.Thing, old_parent_id: int|nil)
 ---@overload fun(name: "thing_child_status", parent: things.Thing, child: things.Thing, old_status: string)
 ---@overload fun(name: "thing_parent_status", child: things.Thing, parent: things.Thing, old_status: string)
+---@overload fun(name: "blueprint_extraction_started", extraction: things.Extraction)
+---@overload fun(name: "blueprint_extraction_finished", extraction: things.Extraction)
 lib.raise = event.raise
 
 ---@overload fun(name: "mod_settings_changed", handler: fun(), first?: boolean)
@@ -56,6 +58,8 @@ lib.raise = event.raise
 ---@overload fun(name: "thing_parent_changed", handler: fun(thing: things.Thing, old_parent_id: int|nil), first?: boolean)
 ---@overload fun(name: "thing_child_status", handler: fun(parent: things.Thing, child: things.Thing, old_status: string), first?: boolean)
 ---@overload fun(name: "thing_parent_status", handler: fun(child: things.Thing, parent: things.Thing, old_status: string), first?: boolean)
+---@overload fun(name: "blueprint_extraction_started", handler: fun(extraction: things.Extraction), first?: boolean)
+---@overload fun(name: "blueprint_extraction_finished", handler: fun(extraction: things.Extraction), first?: boolean)
 lib.bind = event.bind
 
 return lib
