@@ -8,6 +8,7 @@ local bp_pos = require("lib.core.blueprint.pos")
 local tlib = require("lib.core.table")
 local event = require("lib.core.event")
 local constants = require("control.constants")
+local orientation_lib = require("lib.core.orientation.orientation")
 
 local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
 local TAGS_TAG = constants.TAGS_TAG
@@ -41,6 +42,7 @@ local lib = {}
 ---@class (exact) things.Application: things.MassOperation
 ---@field public bp Core.Blueprintish The blueprint being applied.
 ---@field public surface LuaSurface The surface the blueprint is being applied to.
+---@field public transform Core.Dihedral The dihedral transformation applied to the blueprint.
 ---@field public by_bp_index {[uint]: things.ApplicationThingInfo} Map of blueprint index to information about the Thing there.
 ---@field public by_world_key {[Core.WorldKey]: things.ApplicationThingInfo} Map of world key to information about the Thing there.
 ---@field public by_local_id {[int]: things.ApplicationThingInfo} Map of @i id in the blueprint to information about the Thing there.
@@ -95,6 +97,7 @@ function Application:new(player, bp, surface, ev)
 
 	-- Generate the MassOperation record.
 	local obj = mo_lib.MassOperation.new(self, "application") --[[@as things.Application]]
+	obj.transform = orientation_lib.get_blueprint_transform(ev)
 	obj.player_index = player.index
 	obj.bp = bp
 	obj.surface = surface
@@ -282,8 +285,10 @@ end
 local function really_include(self, info, operation)
 	if not operation.thing then
 		local thing = Thing:new_from_operation(operation)
+		thing:update_registration()
 		thing.is_silent = true
 		operation.thing = thing
+		thing:init_virtual_orientation(info.bp_entity, self.transform)
 		self.things_created[thing] = true
 	end
 	self:resolve_local_id(info.local_id, operation.thing, operation.entity)

@@ -20,6 +20,12 @@ local function update_overlay(thing)
 			string.format("C%s/%d", thing.child_key_in_parent, thing.parent.id)
 		)
 	end
+	if thing.tags and thing.tags["@o"] then
+		table.insert(
+			lines,
+			"O: " .. serpent.line(thing.tags["@o"], { nocode = true })
+		)
+	end
 	-- XXX: remove this
 	if thing.tags and thing.tags.clicker then
 		table.insert(lines, "Clicker: " .. thing.tags.clicker)

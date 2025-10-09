@@ -13,6 +13,8 @@ lib.BLUEPRINT_TAG_SET = {
 	["@p"] = true,
 	-- Graph edges
 	["@e"] = true,
+	-- Virtual orientation
+	["@o"] = true,
 }
 
 lib.LOCAL_ID_TAG = "@i"
@@ -20,5 +22,6 @@ lib.TAGS_TAG = "@t"
 lib.CHILDREN_TAG = "@c"
 lib.GRAPH_EDGES_TAG = "@e"
 lib.PARENT_TAG = "@p"
+lib.ORIENTATION_TAG = "@o"
 
 return lib

@@ -433,23 +433,6 @@ function _G.get_undo_player_state(player_index)
 	return res
 end
 
----Determine if an entity might be an undo over a decon marker.
----If so, attempt to restore its Thing identity.
----@param entity LuaEntity A *valid* entity.
----@param key Core.WorldKey The entity's world key.
----@param player LuaPlayer
----@return things.Thing?
-function _G.maybe_undo(entity, key, player)
-	local vups = get_undo_player_state(player.index)
-	if not vups then return nil end
-	local marker = vups:get_top_marker(key)
-	if (not marker) or (marker.marker_type ~= "deconstruction") then
-		return nil
-	end
-	local thing = get_thing(marker.thing_id)
-	if thing and thing:undo_with(entity, key) then return thing end
-end
-
 function _G.debug_undo_stack(player, player_index)
 	if not player then player = game.get_player(player_index) end
 	if not player or not player.valid then return end

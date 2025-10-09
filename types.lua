@@ -17,6 +17,7 @@
 
 ---Registration options for a type of Thing.
 ---@class (exact) things.ThingRegistration
+---@field public virtualize_orientation? boolean If true, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. (default: false)
 ---@field public merge_tags_on_overlap? boolean If true, when a Thing is overlapped by a blueprinted thing with tags, the tags will be shallow-merged instead of replaced. (default: false)
 
 ---Registration options for a graph of Things.

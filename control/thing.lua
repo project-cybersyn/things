@@ -5,8 +5,13 @@ local ws_lib = require("lib.core.world-state")
 local entity_lib = require("lib.core.entities")
 local tlib = require("lib.core.table")
 local constants = require("control.constants")
+local orientation_lib = require("lib.core.orientation.orientation")
+local oclass_lib = require("lib.core.orientation.orientation-class")
 
 local TAGS_TAG = constants.TAGS_TAG
+local ORIENTATION_TAG = constants.ORIENTATION_TAG
+local WORLD_ORIENTATION = oclass_lib.OrientationContext.World
+local OC_048CM_RF = oclass_lib.OrientationClass.OC_048CM_RF
 
 local raise = require("control.events.typed").raise
 
@@ -44,6 +49,7 @@ local ThingManagementFlags = {
 ---@class (exact) things.Thing: StateMachine
 ---@field public id int Unique gamewide id for this Thing.
 ---@field public state things.Status|"uninitialized" Current lifecycle state of this Thing.
+---@field public registration? things.ThingRegistration The registration data for this Thing's prototype, if any.
 ---@field public is_silent? boolean If true, suppress events for this Thing.
 ---@field public state_cause? things.StatusCause The cause of the last status change, if known.
 ---@field public unit_number? uint The last-known-good `unit_number` for this Thing. May be `nil` or invalid.
@@ -95,7 +101,7 @@ end
 ---@param entity LuaEntity?
 ---@param key Core.WorldKey?
 function Thing:set_entity(entity, key)
-	debug_log("Thing:set_entity", self.id, key)
+	-- debug_log("Thing:set_entity", self.id, key)
 	if self.state == "destroyed" then
 		debug_crash(
 			"Thing:set_entity: cannot set entity on destroyed Thing",
@@ -152,51 +158,6 @@ end
 ---@return boolean
 function Thing:is_tombstone() return self.state == "tombstone" end
 
----Thing was built as a tagged ghost, likely from a BP.
----@param ghost LuaEntity A *valid* ghost.
----@param tags Tags The tags on the ghost.
----@param key Core.WorldKey The world key of the ghost.
-function Thing:built_as_tagged_ghost(ghost, tags, key)
-	if self.state ~= "uninitialized" then
-		debug_crash(
-			"Thing:built_as_tagged_ghost: unexpected state",
-			self.id,
-			self.state
-		)
-	end
-	self.entity = ghost
-	if tags["@t"] then
-		self.tags = tags["@t"] --[[@as Tags]]
-	end
-	-- Tag ghost with Thing global ID.
-	store_thing_ghost(key, self)
-	self:set_unit_number(ghost.unit_number)
-	self.state_cause = "blueprint"
-	self:set_state("ghost")
-	raise("thing_initialized", self)
-end
-
----Thing was built as a tagged real entity, probably from a BP in cheat mode.
----@param entity LuaEntity A *valid* real entity.
----@param tags Tags The tags on the entity.
-function Thing:built_as_tagged_real(entity, tags)
-	if self.state ~= "uninitialized" then
-		debug_crash(
-			"Thing:built_as_tagged_real: unexpected state",
-			self.id,
-			self.state
-		)
-	end
-	self.entity = entity
-	if tags["@t"] then
-		self.tags = tags["@t"] --[[@as Tags]]
-	end
-	self:set_unit_number(entity.unit_number)
-	self.state_cause = "blueprint"
-	self:set_state("real")
-	raise("thing_initialized", self)
-end
-
 ---Called when this Thing's entity dies, leaving a ghost behind.
 ---@param ghost LuaEntity
 function Thing:died_leaving_ghost(ghost)
@@ -208,17 +169,15 @@ function Thing:died_leaving_ghost(ghost)
 			self.state
 		)
 	end
-	self.entity = ghost
-	self:set_unit_number(ghost.unit_number)
-	store_thing_ghost(get_world_key(ghost), self)
+	self:set_entity(ghost, get_world_key(ghost))
 	self.state_cause = "died"
 	self:set_state("ghost")
 end
 
 ---Called when this Thing is revived from a ghost.
 ---@param revived_entity LuaEntity
----@param tags Tags? The tags on the revived entity.
-function Thing:revived_from_ghost(revived_entity, tags)
+---@param key Core.WorldKey
+function Thing:revived_from_ghost(revived_entity, key)
 	if self.state ~= "ghost" then
 		debug_crash(
 			"Thing:revived_from_ghost: unexpected state",
@@ -226,30 +185,9 @@ function Thing:revived_from_ghost(revived_entity, tags)
 			self.state
 		)
 	end
-	self.entity = revived_entity
-	self:set_unit_number(revived_entity.unit_number)
+	self:set_entity(revived_entity, key)
 	self.state_cause = "revived"
 	self:set_state("real")
-end
-
----Try to resurrect a potentially tombstoned entity that was revived via
----an undo operation. `entity` is previously calculated by the undo
----subsystem to be a suitably overlapping entity.
----@param entity LuaEntity A *valid* entity.
----@param key Core.WorldKey The world key of the entity.
----@return boolean undoable `true` if entity matches a known tombstone.
-function Thing:undo_with(entity, key)
-	if self.state ~= "tombstone" then return false end
-	self.entity = entity
-	self:set_unit_number(entity.unit_number)
-	self.state_cause = "undo"
-	if entity.type == "entity-ghost" then
-		store_thing_ghost(key, self)
-		self:set_state("ghost")
-	else
-		self:set_state("real")
-	end
-	return true
 end
 
 function Thing:is_undo_ghost()
@@ -308,7 +246,18 @@ end
 function Thing:set_tags(tags)
 	local previous_tags = self.tags
 	self.tags = tags
-	raise("thing_tags_changed", self, previous_tags)
+	if not self.is_silent then
+		raise("thing_tags_changed", self, previous_tags)
+	end
+end
+
+---@param tag string
+---@param value AnyBasic
+function Thing:set_tag(tag, value)
+	self.tags[tag] = value
+	if not self.is_silent then
+		raise("thing_tags_changed", self, { [tag] = value })
+	end
 end
 
 ---Create an edge from this Thing to another in the given Thing graph.
@@ -504,6 +453,101 @@ function Thing:on_changed_state(new_state, old_state)
 	end
 end
 
+---Update a Thing's internal registration state. Should only be called in
+---code that is beginning a Thing's lifecycle.
+function Thing:update_registration()
+	self.registration = get_thing_registration(self:get_prototype_name())
+	if not self.registration then
+		debug_crash(
+			"Thing:update_registration: no Thing registration for thing id and entity",
+			self.id,
+			self.entity
+		)
+	end
+end
+
+---Initialize the Thing's virtual orientation, if applicable. This should be
+---called at the start of Thing lifecycle.
+---@param bp_entity? BlueprintEntity If this Thing was built from a blueprint, the blueprint entity data.
+---@param bp_transform? Core.Dihedral If this Thing was built from a blueprint, the blueprint's overall transformation.
+function Thing:init_virtual_orientation(bp_entity, bp_transform)
+	local reg = self.registration
+	if not reg or not reg.virtualize_orientation then return end
+	if bp_entity and bp_transform then
+		-- Blueprint case
+		-- Get base orientation within the BP
+		-- TODO: just using full D8 rotation class here, perhaps write some code
+		-- to get actual rotation class of a BP entity programatically.
+		local O = orientation_lib.Orientation:new(OC_048CM_RF)
+		O[3] = bp_entity.direction or 0
+		O[4] = bp_entity.mirror and 0 or 1
+		-- Apply BP transform
+		O:apply_blueprint_transform(bp_transform)
+		self:set_tag(ORIENTATION_TAG, O:to_data())
+	elseif self.entity and self.entity.valid then
+		-- Non-blueprint case
+		if self.tags[ORIENTATION_TAG] then
+			-- Already has virtual orientation, nothing to do.
+			-- TODO: orientation consistency check
+			return
+		end
+		local O = orientation_lib.extract_orientation(self.entity)
+		if not O then
+			debug_crash(
+				"Thing:init_virtual_orientation: could not extract orientation from entity",
+				self.id,
+				self.entity
+			)
+			return
+		end
+		self:set_tag(ORIENTATION_TAG, O:to_data())
+	end
+end
+
+---Rotate this thing's virtual orientation if enabled.
+---@param ccw boolean? If true, rotate counterclockwise; otherwise clockwise.
+function Thing:virtual_rotate(ccw)
+	if not self.registration or not self.registration.virtualize_orientation then
+		return
+	end
+	local odata = self.tags[ORIENTATION_TAG] --[[@as Core.OrientationData?]]
+	if not odata then return end
+	local O = orientation_lib.from_data(odata)
+	if not O then
+		debug_crash(
+			"Thing:virtual_rotate: could not extract orientation from tags",
+			self.id,
+			self.entity
+		)
+		return
+	end
+	local R = ccw and O:Rinv(WORLD_ORIENTATION) or O:R(WORLD_ORIENTATION)
+	O:apply(R)
+	self:set_tag(ORIENTATION_TAG, O:to_data())
+end
+
+---Flip this thing's virtual orientation if enabled.
+---@param horizontal boolean? If true, flip horizontally; otherwise vertically.
+function Thing:virtual_flip(horizontal)
+	if not self.registration or not self.registration.virtualize_orientation then
+		return
+	end
+	local odata = self.tags[ORIENTATION_TAG] --[[@as Core.OrientationData?]]
+	if not odata then return end
+	local O = orientation_lib.from_data(odata)
+	if not O then
+		debug_crash(
+			"Thing:virtual_flip: could not extract orientation from tags",
+			self.id,
+			self.entity
+		)
+		return
+	end
+	local F = horizontal and O:H(WORLD_ORIENTATION) or O:V(WORLD_ORIENTATION)
+	O:apply(F)
+	self:set_tag(ORIENTATION_TAG, O:to_data())
+end
+
 ---Get a Thing by its thing_id.
 ---@param id uint?
 ---@return things.Thing?
@@ -524,8 +568,10 @@ function _G.thingify_entity(entity, key)
 	if thing then return false, thing end
 	thing = Thing:new()
 	thing:set_entity(entity, key)
+	thing:update_registration()
 	thing.state_cause = "created"
 	thing.is_silent = true
+	thing:init_virtual_orientation()
 	thing:apply_status()
 	thing.is_silent = nil
 	thing:initialize()
@@ -571,7 +617,7 @@ function _G.mark_revived_ghost(op)
 	debug_log("Revived Thing ghost at", key)
 	local thing = get_thing(revived_ghost_id)
 	if thing then
-		thing:revived_from_ghost(entity, nil)
+		thing:revived_from_ghost(entity, key)
 	else
 		debug_crash(
 			"built_real: referential integrity failure: no Thing matching revived ghost id",
