@@ -39,6 +39,7 @@
 ---@field public thing_id int The id of the Thing that was initialized.
 ---@field public entity LuaEntity? The current entity of the Thing, if it has one.
 ---@field public status things.Status The current status of the Thing.
+---@field public virtual_orientation Core.OrientationData? The initial virtual orientation of the Thing, if it has one.
 
 ---@class things.EventData.on_status_changed
 ---@field public thing_id int The id of the Thing whose status changed.
@@ -61,3 +62,10 @@
 ---@field public graph_name string The name of the graph whose edges changed.
 ---@field public nodes {[int]: true} Set of Thing ids whose edges were changed.
 ---@field public edges things.GraphEdge[] List of edges that were changed.
+
+---Event raised when the virtual orientation of a Thing changes.
+---@class things.EventData.on_orientation_changed
+---@field public thing_id int The id of the Thing whose virtual orientation changed.
+---@field public entity LuaEntity? The current entity of the Thing, if it has one.
+---@field public old_orientation Core.OrientationData The previous virtual orientation of the Thing.
+---@field public new_orientation Core.OrientationData The new virtual orientation of the Thing.

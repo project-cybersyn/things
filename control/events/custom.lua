@@ -5,10 +5,13 @@ local bind = require("control.events.typed").bind
 bind(
 	"thing_initialized",
 	function(thing)
-		script.raise_event(
-			"things-on_initialized",
-			{ thing_id = thing.id, entity = thing.entity, status = thing.state }
-		)
+		script.raise_event("things-on_initialized", {
+			thing_id = thing.id,
+			entity = thing.entity,
+			status = thing.state,
+			virtual_orientation = thing.virtual_orientation
+				and thing.virtual_orientation:to_data(),
+		})
 	end
 )
 
@@ -45,6 +48,18 @@ bind(
 			graph_name = graph_name,
 			nodes = nodes,
 			edges = edges,
+		})
+	end
+)
+
+bind(
+	"thing_virtual_orientation_changed",
+	function(thing, old_orientation)
+		script.raise_event("things-on_orientation_changed", {
+			thing_id = thing.id,
+			entity = thing.entity,
+			old_orientation = old_orientation and old_orientation:to_data(),
+			new_orientation = thing.virtual_orientation:to_data(),
 		})
 	end
 )

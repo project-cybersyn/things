@@ -21,6 +21,7 @@ require("control.remote")
 -- Event handlers
 require("control.events.blueprinting")
 require("control.events.construction")
+require("control.events.orientation")
 require("control.events.broadphase")
 require("control.events.custom")
 

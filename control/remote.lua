@@ -51,11 +51,20 @@ _G.remote_interface = remote_interface
 ---@return int? thing_id The id of the Thing, or `nil` if the Thing doesn't exist.
 ---@return LuaEntity? entity The LuaEntity currently representing the Thing, or `nil` if no entity represents it.
 ---@return things.Status? status The status of the Thing.
+---@return Core.OrientationData? virtual_orientation The virtual orientation of the Thing, if it has one.
 function remote_interface.get_status(thing_identification)
 	local thing, valid_id = resolve_identification(thing_identification)
 	if not valid_id then return CANT_BE_A_THING end
 	if not thing then return nil, nil, nil end
-	return nil, thing.id, thing.entity, thing.state --[[@as things.Status]]
+
+	return nil,
+		thing.id,
+		thing.entity,
+		-- this is needed because StyLua brings the type cast comment past the
+		-- trailing comma...
+		---@diagnostic disable-next-line: return-type-mismatch
+		thing.state,
+		thing.virtual_orientation and thing.virtual_orientation:to_data()
 end
 
 ---Gets the tags of a Thing.

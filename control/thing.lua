@@ -50,6 +50,7 @@ local ThingManagementFlags = {
 ---@field public id int Unique gamewide id for this Thing.
 ---@field public state things.Status|"uninitialized" Current lifecycle state of this Thing.
 ---@field public registration? things.ThingRegistration The registration data for this Thing's prototype, if any.
+---@field public virtual_orientation? Core.Orientation If this class of Thing has virtual orientation, this is its current virtual orientation. This field is read-only.
 ---@field public is_silent? boolean If true, suppress events for this Thing.
 ---@field public state_cause? things.StatusCause The cause of the last status change, if known.
 ---@field public unit_number? uint The last-known-good `unit_number` for this Thing. May be `nil` or invalid.
@@ -475,77 +476,86 @@ function Thing:init_virtual_orientation(bp_entity, bp_transform)
 	if not reg or not reg.virtualize_orientation then return end
 	if bp_entity and bp_transform then
 		-- Blueprint case
-		-- Get base orientation within the BP
-		-- TODO: just using full D8 rotation class here, perhaps write some code
-		-- to get actual rotation class of a BP entity programatically.
-		local O = orientation_lib.Orientation:new(OC_048CM_RF)
-		O[3] = bp_entity.direction or 0
-		O[4] = bp_entity.mirror and 0 or 1
+		local O = nil
+		if self.tags[ORIENTATION_TAG] then
+			-- Already has virtual orientation
+			O = orientation_lib.from_data(
+				self.tags[ORIENTATION_TAG] --[[@as Core.OrientationData]]
+			)
+		else
+			-- Get base orientation within the BP
+			debug_log(
+				"Thing:init_virtual_orientation: probably should have had an orientation from tags, but we're synthesizing one from the BP entity",
+				self.id,
+				bp_entity
+			)
+			-- TODO: we could be smarter about this; look at name and type
+			O = orientation_lib.Orientation:new(OC_048CM_RF)
+			O[3] = bp_entity.direction or 0
+			O[4] = bp_entity.mirror and 0 or 1
+		end
+		---@cast O Core.Orientation
 		-- Apply BP transform
+		debug_log("pre_transform", O, bp_transform)
 		O:apply_blueprint_transform(bp_transform)
-		self:set_tag(ORIENTATION_TAG, O:to_data())
+		debug_log("post_transform", O)
+		self:set_virtual_orientation(O)
 	elseif self.entity and self.entity.valid then
 		-- Non-blueprint case
 		if self.tags[ORIENTATION_TAG] then
-			-- Already has virtual orientation, nothing to do.
+			-- Already has virtual orientation
 			-- TODO: orientation consistency check
-			return
-		end
-		local O = orientation_lib.extract_orientation(self.entity)
-		if not O then
-			debug_crash(
-				"Thing:init_virtual_orientation: could not extract orientation from entity",
-				self.id,
-				self.entity
+			local O = orientation_lib.from_data(
+				self.tags[ORIENTATION_TAG] --[[@as Core.OrientationData]]
 			)
+			self.virtual_orientation = O
 			return
+		else
+			local O = orientation_lib.extract_orientation(self.entity)
+			if not O then
+				debug_crash(
+					"Thing:init_virtual_orientation: could not extract orientation from entity",
+					self.id,
+					self.entity
+				)
+				return
+			end
+			debug_log("new entity with virtual orientation", self.id, O)
+			self:set_virtual_orientation(O)
 		end
-		self:set_tag(ORIENTATION_TAG, O:to_data())
 	end
+end
+
+---@param O Core.Orientation
+function Thing:set_virtual_orientation(O)
+	if not self.registration or not self.registration.virtualize_orientation then
+		return
+	end
+	self.virtual_orientation = O
+	self:set_tag(ORIENTATION_TAG, O:to_data())
 end
 
 ---Rotate this thing's virtual orientation if enabled.
 ---@param ccw boolean? If true, rotate counterclockwise; otherwise clockwise.
 function Thing:virtual_rotate(ccw)
-	if not self.registration or not self.registration.virtualize_orientation then
-		return
-	end
-	local odata = self.tags[ORIENTATION_TAG] --[[@as Core.OrientationData?]]
-	if not odata then return end
-	local O = orientation_lib.from_data(odata)
-	if not O then
-		debug_crash(
-			"Thing:virtual_rotate: could not extract orientation from tags",
-			self.id,
-			self.entity
-		)
-		return
-	end
+	if not self.virtual_orientation then return end
+	local O = self.virtual_orientation:clone()
+	if not O then return end
 	local R = ccw and O:Rinv(WORLD_ORIENTATION) or O:R(WORLD_ORIENTATION)
 	O:apply(R)
-	self:set_tag(ORIENTATION_TAG, O:to_data())
+	debug_log("virtual_rotate", self.id, self.virtual_orientation, R, O)
+	self:set_virtual_orientation(O)
 end
 
 ---Flip this thing's virtual orientation if enabled.
 ---@param horizontal boolean? If true, flip horizontally; otherwise vertically.
 function Thing:virtual_flip(horizontal)
-	if not self.registration or not self.registration.virtualize_orientation then
-		return
-	end
-	local odata = self.tags[ORIENTATION_TAG] --[[@as Core.OrientationData?]]
-	if not odata then return end
-	local O = orientation_lib.from_data(odata)
-	if not O then
-		debug_crash(
-			"Thing:virtual_flip: could not extract orientation from tags",
-			self.id,
-			self.entity
-		)
-		return
-	end
+	if not self.virtual_orientation then return end
+	local O = self.virtual_orientation:clone()
+	if not O then return end
 	local F = horizontal and O:H(WORLD_ORIENTATION) or O:V(WORLD_ORIENTATION)
 	O:apply(F)
-	self:set_tag(ORIENTATION_TAG, O:to_data())
+	self:set_virtual_orientation(O)
 end
 
 ---Get a Thing by its thing_id.
