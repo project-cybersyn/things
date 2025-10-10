@@ -19,6 +19,7 @@ local get_world_key = ws_lib.get_world_key
 local true_prototype_name = entity_lib.true_prototype_name
 
 local EMPTY = tlib.EMPTY_STRICT
+local NO_RAISE_DESTROY = { raise_destroy = false }
 
 ---@enum things.ThingManagementFlags
 local ThingManagementFlags = {
@@ -48,7 +49,7 @@ local ThingManagementFlags = {
 ---the same ultimate `Thing`
 ---@class (exact) things.Thing: StateMachine
 ---@field public id int Unique gamewide id for this Thing.
----@field public state things.Status|"uninitialized" Current lifecycle state of this Thing.
+---@field public state things.Status Current lifecycle state of this Thing.
 ---@field public registration? things.ThingRegistration The registration data for this Thing's prototype, if any.
 ---@field public virtual_orientation? Core.Orientation If this class of Thing has virtual orientation, this is its current virtual orientation. This field is read-only.
 ---@field public is_silent? boolean If true, suppress events for this Thing.
@@ -65,6 +66,7 @@ local ThingManagementFlags = {
 ---@field public parent? things.Thing Parent of this Thing, if any.
 ---@field public child_key_in_parent? int|string The key this Thing is registered under in its parent's `children` map, if any.
 ---@field public children? {[int|string]: things.Thing} Map from child names (which may be numbers or strings) to child Things.
+---@field public transient_data? Tags Custom transient data associated with this Thing. This will NOT be blueprinted.
 local Thing = class("things.Thing", StateMachine)
 _G.Thing = Thing
 
@@ -72,7 +74,7 @@ _G.Thing = Thing
 ---@return things.Thing
 function Thing:new()
 	local id = counters.next("thing")
-	local obj = StateMachine.new(self, "uninitialized")
+	local obj = StateMachine.new(self, "void")
 	obj.id = id
 	obj.tags = {}
 	obj.n_undo_markers = 0
@@ -116,8 +118,7 @@ end
 ---@param entity LuaEntity?
 ---@param key Core.WorldKey?
 function Thing:set_entity(entity, key)
-	-- debug_log("Thing:set_entity", self.id, key)
-	if self.state == "destroyed" then
+	if entity and self.state == "destroyed" then
 		debug_crash(
 			"Thing:set_entity: cannot set entity on destroyed Thing",
 			self.id,
@@ -128,6 +129,7 @@ function Thing:set_entity(entity, key)
 	if entity == self.entity then return end
 	if not entity or not entity.valid then
 		self.entity = nil
+		self.key = nil
 		internal_set_unit_number(self, nil)
 		return
 	end
@@ -205,7 +207,7 @@ function Thing:died_leaving_ghost(ghost)
 		)
 	end
 	self:set_entity(ghost, get_world_key(ghost))
-	self.state_cause = "died"
+	self.state_cause = "destroyed"
 	self:set_state("ghost")
 end
 
@@ -245,36 +247,78 @@ function Thing:entity_destroyed(entity)
 		)
 		return
 	end
+	-- If I am a child, void me.
+	if self.parent then return self:void(true) end
+	-- If not a child, tombstone or destroy as appropriate.
 	self.last_known_position = entity.position
 	self:set_entity(nil, nil)
-	self.state_cause = "died"
+	self.state_cause = "destroyed"
 	if self.n_undo_markers > 0 then
 		self:set_state("tombstone")
 	else
-		self:destroy()
+		self:destroy(false, true)
 	end
 end
 
 ---Destroy this Thing. This is a terminal state and the Thing may not be
 ---reused from here.
-function Thing:destroy()
+---@param skip_deparent boolean?
+---@param skip_destroy boolean? If true, do not destroy the underlying entity.
+function Thing:destroy(skip_deparent, skip_destroy)
 	if self.entity and self.entity.valid then
 		self.last_known_position = self.entity.position
 	end
 	-- Disconnect graph edges
 	self:graph_disconnect_all()
-	-- Destroy parent/child relationships
-	local removed = self:remove_children()
-	if self.parent then self.parent:remove_children(self) end
-	-- TODO: destroy former children if needed
-	-- TODO: force destroy entity if needed
-	self.entity = nil
-	-- Remove from registry
-	storage.things_by_unit_number[self.unit_number or ""] = nil
+	-- Remove from parent
+	if self.parent and not skip_deparent then
+		self.parent:remove_children(self)
+	end
+	-- Destroy children
+	for _, child in pairs(self.children or EMPTY) do
+		child:destroy(true)
+	end
 	-- Give downstream a last bite at the apple
 	self:set_state("destroyed")
+	local former_entity = self.entity
+	self:set_entity(nil, nil)
 	-- Remove from global registry
 	storage.things[self.id] = nil
+	-- Destroy underlying entity if needed
+	if not skip_destroy then
+		if former_entity and former_entity.valid then
+			former_entity.destroy(NO_RAISE_DESTROY)
+		end
+	end
+end
+
+---Void this Thing. This removes its associated entity without destroying
+---its internal state or relationships. Voiding is a non-terminal state and
+---an entity may be later reattached.
+---@param skip_destroy boolean? If true, do not destroy the underlying entity.
+function Thing:void(skip_destroy)
+	if self.entity and self.entity.valid then
+		self.last_known_position = self.entity.position
+	end
+	for _, child in pairs(self.children or EMPTY) do
+		child:void()
+	end
+	self:set_state("void")
+	local former_entity = self.entity
+	self:set_entity(nil, nil)
+	if not skip_destroy then
+		if former_entity and former_entity.valid then
+			former_entity.destroy(NO_RAISE_DESTROY)
+		end
+	end
+end
+
+---Devoid this Thing by attaching it to the given real or ghost entity.
+---@param entity LuaEntity A *valid* entity.
+---@param key? Core.WorldKey
+function Thing:devoid(entity, key)
+	self:set_entity(entity, key or get_world_key(entity))
+	self:apply_status()
 end
 
 ---@param tags Tags
@@ -292,6 +336,17 @@ function Thing:set_tag(tag, value)
 	self.tags[tag] = value
 	if not self.is_silent then
 		raise("thing_tags_changed", self, { [tag] = value })
+	end
+end
+
+---Set custom transient data on this Thing.
+---@param key string
+---@param value AnyBasic?
+function Thing:set_transient_data(key, value)
+	if value and not self.transient_data then self.transient_data = {} end
+	self.transient_data[key] = value
+	if self.transient_data and not next(self.transient_data) then
+		self.transient_data = nil
 	end
 end
 

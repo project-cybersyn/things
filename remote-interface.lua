@@ -206,4 +206,29 @@ function remote_interface.get_children(parent_identification)
 	return nil, result
 end
 
+---Get transient data associated with a Thing. This data is not preserved when
+---a thing is pasted, blueprinted, or overbuilt.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return Tags|nil transient_data The transient data associated with this Thing, if any.
+function remote_interface.get_transient_data(thing_identification)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	return nil, thing.transient_data
+end
+
+---Attach transient data to a Thing. This data is not preserved when
+---a thing is pasted, blueprinted, or overbuilt.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key string The key to set in the transient data.
+---@param value AnyBasic? The value to set in the transient data.
+function remote_interface.set_transient_data(thing_identification, key, value)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	thing:set_transient_data(key, value)
+	return nil
+end
+
 remote.add_interface("things", remote_interface)

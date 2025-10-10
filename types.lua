@@ -14,19 +14,20 @@
 ---@alias things.ThingIdentification int|LuaEntity
 
 ---General statuses of a Thing.
+---`void` means the Thing has no entity and is not on the undo stack. Different from `destroyed` in that it will not be garbage collected and may later be re-attached to an entity.
 ---`real` means the Thing has a valid real entity.
 ---`ghost` means the Thing has a valid ghost entity.
 ---`tombstone` means the Thing has no entity, but still exists on the undo stack and could potentially be brought back via undo operations.
 ---`destroyed` means the Thing is irrevocably gone. Destroyed things will be garbage-collected and cannot be used for any purpose.
----@alias things.Status "real"|"ghost"|"tombstone"|"destroyed"
+---@alias things.Status "void"|"real"|"ghost"|"tombstone"|"destroyed"
 
 ---Causes of the last status change.
 ---`created` means the Thing was created from nothing.
 ---`blueprint` means the Thing changed status due to blueprint application or extraction.
 ---`undo` means the Thing changed status due to an undo operation.
----`died` means the Thing changed status because its real entity died.
+---`destroyed` means the Thing changed status because its associated entity (real or ghost) was destroyed.
 ---`revived` means the Thing changed status because its ghost entity was revived into a real entity.
----@alias things.StatusCause "created"|"blueprint"|"undo"|"died"|"revived"
+---@alias things.StatusCause "created"|"blueprint"|"undo"|"destroyed"|"revived"
 
 ---Registration options for a type of Thing.
 ---@class (exact) things.ThingRegistration
