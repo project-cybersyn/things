@@ -32,6 +32,7 @@
 ---@class (exact) things.ThingRegistration
 ---@field public virtualize_orientation? boolean If true, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. (default: false)
 ---@field public merge_tags_on_overlap? boolean If true, when a Thing is overlapped by a blueprinted thing with tags, the tags will be shallow-merged instead of replaced. (default: false)
+---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
 
 ---Registration options for a graph of Things.
 ---@class (exact) things.GraphRegistration
@@ -63,6 +64,8 @@
 --------------------------------------------------------------------------------
 -- EVENTS
 --------------------------------------------------------------------------------
+
+---@alias things.EventName "on_initialized"|"on_status_changed"|"on_tags_changed"|"on_edges_changed"|"on_orientation_changed"
 
 ---Event fired when a Thing with a new ID is generated in the world.
 ---Does not apply to undo, revival, etc of pre-existing Things.

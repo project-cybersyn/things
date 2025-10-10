@@ -39,7 +39,10 @@ local function populate_undo_operation_info(op)
 end
 
 -- Thing is really part of this undo operation.
-local function really_include(self, op, vups, marker, thing)
+local function really_include(self, op)
+	local vups = op.vups
+	local marker = op.marker
+	local thing = op.thing
 	debug_log("UndoApplication", self.id, "reviving Thing", thing.id)
 	thing:set_entity(op.entity, op.key)
 	thing:apply_status()
@@ -49,12 +52,11 @@ end
 ---@param dry_run boolean?
 ---@return boolean
 function UndoApplication:include(op, dry_run)
-	if not populate_undo_operation_info(op) then return false end
 	-- Only include construction operations owned by this player.
 	if op.player_index ~= self.player_index then return false end
-	if not dry_run then
-		really_include(self, op, op.vups, op.undo_marker, op.thing)
-	end
+	if not populate_undo_operation_info(op) then return false end
+
+	if not dry_run then really_include(self, op) end
 	return true
 end
 
@@ -66,7 +68,14 @@ function UndoApplication:complete(actions) debug_log("UndoApplication complete")
 function lib.maybe_begin_undo_operation(op)
 	if not populate_undo_operation_info(op) then return nil end
 	local app = UndoApplication:new(op.player)
+	debug_log(
+		"maybe_begin_undo_operation: beginning mass_op",
+		app,
+		"from single_op",
+		op
+	)
 	really_include(app, op)
+	return app
 end
 
 return lib

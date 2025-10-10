@@ -48,10 +48,7 @@ commands.add_command(
 		if not player then return end
 		local vups = get_undo_player_state(player.index)
 		if not vups then return end
-		local urs = player.undo_redo_stack
-		if urs.get_undo_item_count() > 0 then
-			debug_log("Top undo item:", urs.get_undo_item(1))
-		end
+		debug_undo_stack(player)
 		debug_log("Top markers", vups.top_marker_set)
 	end
 )

@@ -250,8 +250,15 @@ local function reconcile_view(vups, view)
 		view.set_tag(i, 1, RECONCILE_ID_TAG, reconciliation.id)
 		-- Tag matching actions
 		for j = 1, #item do
+			debug_log(
+				"perform_reconcile: checking action",
+				i,
+				j,
+				#item,
+				item[j] or "EMPTY ITEM???"
+			)
 			local action = item[j]
-			if action.target and action.surface_index then
+			if action and action.target and action.surface_index then
 				local action_key = make_world_key(
 					action.target.position,
 					action.surface_index,
@@ -439,7 +446,10 @@ function _G.debug_undo_stack(player, player_index)
 	local urs = player.undo_redo_stack
 	local vups = get_undo_player_state(player.index)
 	if not vups then return end
-	if urs.get_undo_item_count() > 0 then
-		debug_log("Top undo item:", urs.get_undo_item(1))
+	local ct = urs.get_undo_item_count()
+	debug_log("Undo stack for player", player.index, "count", ct)
+	for i = 1, ct do
+		local entry = urs.get_undo_item(i)
+		debug_log("-- ", i, entry)
 	end
 end

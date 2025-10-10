@@ -161,6 +161,26 @@ function Thing:get_prototype_name()
 	return nil
 end
 
+---Update a Thing's internal registration state. Should only be called in
+---code that is beginning a Thing's lifecycle.
+function Thing:update_registration()
+	self.registration = get_thing_registration(self:get_prototype_name())
+	if not self.registration then
+		debug_crash(
+			"Thing:update_registration: no Thing registration for thing id and entity",
+			self.id,
+			self.entity
+		)
+	end
+end
+
+---Get the custom event prototype name for a given Things event name, if any.
+---@param thing_event_name things.EventName
+---@return string|nil
+function Thing:get_custom_event_name(thing_event_name)
+	return ((self.registration and self.registration.custom_events) or EMPTY)[thing_event_name]
+end
+
 function Thing:undo_ref() self.n_undo_markers = self.n_undo_markers + 1 end
 
 function Thing:undo_deref()
@@ -468,19 +488,6 @@ function Thing:on_changed_state(new_state, old_state)
 	end
 end
 
----Update a Thing's internal registration state. Should only be called in
----code that is beginning a Thing's lifecycle.
-function Thing:update_registration()
-	self.registration = get_thing_registration(self:get_prototype_name())
-	if not self.registration then
-		debug_crash(
-			"Thing:update_registration: no Thing registration for thing id and entity",
-			self.id,
-			self.entity
-		)
-	end
-end
-
 ---Initialize the Thing's virtual orientation, if applicable. This should be
 ---called at the start of Thing lifecycle.
 ---@param bp_entity? BlueprintEntity If this Thing was built from a blueprint, the blueprint entity data.
@@ -557,7 +564,7 @@ function Thing:virtual_rotate(ccw)
 	if not O then return end
 	local R = ccw and O:Rinv(WORLD_ORIENTATION) or O:R(WORLD_ORIENTATION)
 	O:apply(R)
-	debug_log("virtual_rotate", self.id, self.virtual_orientation, R, O)
+	-- debug_log("virtual_rotate", self.id, self.virtual_orientation, R, O)
 	self:set_virtual_orientation(O)
 end
 
