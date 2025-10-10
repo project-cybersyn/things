@@ -1,7 +1,9 @@
 -- Convert internal events into custom Factorio events as appropriate.
 
 local bind = require("control.events.typed").bind
-local EMPTY = require("lib.core.table").EMPTY_STRICT
+local tlib = require("lib.core.table")
+
+local EMPTY = tlib.EMPTY_STRICT
 
 bind("thing_initialized", function(thing)
 	local cevp = thing:get_custom_event_name("on_initialized")
@@ -63,6 +65,58 @@ bind("thing_virtual_orientation_changed", function(thing, old_orientation)
 		thing = summary,
 		old_orientation = old_orientation and old_orientation:to_data(),
 		new_orientation = summary.virtual_orientation,
+	}
+	script.raise_event(cevp, ev)
+end)
+
+bind("thing_children_changed", function(thing, added, removed)
+	local cevp = thing:get_custom_event_name("on_children_changed")
+	if not cevp then return end
+
+	---@type things.EventData.on_children_changed
+	local ev = {
+		thing = thing:summarize(),
+		added = added and added:summarize(),
+		removed = removed
+			and tlib.map(removed, function(c) return c:summarize() end),
+	}
+	script.raise_event(cevp, ev)
+end)
+
+bind("thing_parent_changed", function(thing, old_parent_id)
+	local cevp = thing:get_custom_event_name("on_parent_changed")
+	if not cevp then return end
+
+	---@type things.EventData.on_parent_changed
+	local ev = {
+		thing = thing:summarize(),
+		old_parent_id = old_parent_id,
+	}
+	script.raise_event(cevp, ev)
+end)
+
+bind("thing_child_status", function(parent, child, old_status)
+	local cevp = parent:get_custom_event_name("on_child_status")
+	if not cevp then return end
+
+	---@type things.EventData.on_child_status
+	local ev = {
+		thing = parent:summarize(),
+		child = child:summarize(),
+		old_status = old_status,
+	}
+	script.raise_event(cevp, ev)
+end)
+
+bind("thing_parent_status", function(thing, parent, old_status)
+	local cevp = thing:get_custom_event_name("on_parent_status")
+	if not cevp then return end
+
+	---@type things.EventData.on_parent_status
+	local ev = {
+		thing = thing:summarize(),
+		parent = parent:summarize(),
+		old_status = old_status,
 	}
 	script.raise_event(cevp, ev)
 end)

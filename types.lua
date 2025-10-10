@@ -9,12 +9,15 @@
 ---@field public code string Machine-readable error code.
 ---@field public message LocalisedString Human-readable error message.
 
+---Unique identifier for a Thing.
+---@alias things.Id int64
+
 ---Thing identifier consumed by the Things API.
 ---Either the id of a Thing, or the LuaEntity currently representing it.
----@alias things.ThingIdentification int|LuaEntity
+---@alias things.ThingIdentification things.Id|LuaEntity
 
 ---General statuses of a Thing.
----`void` means the Thing has no entity and is not on the undo stack. Different from `destroyed` in that it will not be garbage collected and may later be re-attached to an entity.
+---`void` means the Thing has no entity. Different from `destroyed` in that it will not be garbage collected and may later be re-attached to an entity.
 ---`real` means the Thing has a valid real entity.
 ---`ghost` means the Thing has a valid ghost entity.
 ---`tombstone` means the Thing has no entity, but still exists on the undo stack and could potentially be brought back via undo operations.
@@ -55,18 +58,21 @@
 ---@alias things.ThingChildrenSummary {[string|int]: things.ThingSummary}
 
 ---@class (exact) things.ThingSummary
----@field public id int The id of the Thing.
+---@field public id things.Id The id of the Thing.
 ---@field public entity LuaEntity? The current entity of the Thing, if it has one.
 ---@field public status things.Status The current status of the Thing.
 ---@field public virtual_orientation Core.OrientationData? The current virtual orientation of the Thing, if it has one.
 ---@field public tags Tags The current tags of the Thing.
 ---@field public graph_set things.GraphSet? Set of graph names this Thing belongs to. `nil` if the Thing belongs to no graphs.
+---@field public parent_id? things.Id The id of the Thing's parent, if it has one.
+---@field public child_key_in_parent? string|int The key under which this Thing is registered in its parent's children, if it has a parent.
 
 --------------------------------------------------------------------------------
 -- EVENTS
 --------------------------------------------------------------------------------
 
----@alias things.EventName "on_initialized"|"on_status_changed"|"on_tags_changed"|"on_edges_changed"|"on_orientation_changed"
+---Thing event names that can be rebroadcasted as Factorio custom events.
+---@alias things.EventName "on_initialized"|"on_status_changed"|"on_tags_changed"|"on_edges_changed"|"on_orientation_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"
 
 ---Event fired when a Thing with a new ID is generated in the world.
 ---Does not apply to undo, revival, etc of pre-existing Things.
@@ -97,3 +103,26 @@
 ---@field public thing things.ThingSummary Summary of the Thing whose virtual orientation changed.
 ---@field public old_orientation? Core.OrientationData The previous virtual orientation of the Thing.
 ---@field public new_orientation Core.OrientationData The new virtual orientation of the Thing.
+
+---Event raised when the composition of a Thing's children changes.
+---@class things.EventData.on_children_changed
+---@field public thing things.ThingSummary Summary of the Thing whose children changed.
+---@field public added things.ThingSummary|nil If a child was added, its summary.
+---@field public removed things.ThingSummary[]|nil Summary of the removed children.
+
+---Event raised when a Thing's parent changes.
+---@class things.EventData.on_parent_changed
+---@field public thing things.ThingSummary Summary of the Thing whose parent changed.
+---@field public old_parent_id int64? The id of the Thing's old parent, if it had one.
+
+---Event raised when a Thing's child changes status.
+---@class things.EventData.on_child_status
+---@field public thing things.ThingSummary Summary of the Thing whose children's status changed.
+---@field public child things.ThingSummary Summary of the child whose status changed.
+---@field public old_status things.Status The previous status of the child.
+
+---Event raised when a Thing's parent changes status.
+---@class things.EventData.on_parent_status
+---@field public thing things.ThingSummary Summary of the Thing whose parent's status changed.
+---@field public parent things.ThingSummary Summary of the parent whose status changed.
+---@field public old_status things.Status The previous status of the parent.

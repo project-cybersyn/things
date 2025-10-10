@@ -223,11 +223,58 @@ end
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@param key string The key to set in the transient data.
 ---@param value AnyBasic? The value to set in the transient data.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 function remote_interface.set_transient_data(thing_identification, key, value)
 	local thing, valid = resolve_identification(thing_identification)
 	if not valid then return CANT_BE_A_THING end
 	if not thing then return NOT_A_THING end
 	thing:set_transient_data(key, value)
+	return nil
+end
+
+---Forcefully destroy a Thing and its underlying entity, if any.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param dont_destroy_entity boolean? If true, destroy the Thing but do not destroy the underlying entity.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.force_destroy(
+	thing_identification,
+	dont_destroy_entity
+)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	thing:destroy(false, dont_destroy_entity)
+	return nil
+end
+
+---Void a Thing, destroying its underlying entity but preserving its data and
+---relationships for possible future reuse.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param skip_destroy boolean? If true, do not destroy the underlying entity. Use with caution.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.void(thing_identification, skip_destroy)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	if thing.state == "void" then return nil end
+	thing:void(skip_destroy)
+	return nil
+end
+
+---Devoid a Thing by attaching it to the given real or ghost entity. Thing must
+---be in `void` state or the operation will fail.
+---@param thing_id int64 The id of the Thing to devoid.
+---@param entity LuaEntity A *valid* entity to attach to the Thing.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.devoid(thing_id, entity)
+	local thing = get_thing(thing_id)
+	if not thing then return NOT_A_THING end
+	if not entity or not entity.valid then
+		return { code = "invalid_entity", message = "Invalid entity provided" }
+	end
+	if not thing:devoid(entity) then
+		return { code = "devoid_failed", message = "Failed to devoid Thing" }
+	end
 	return nil
 end
 

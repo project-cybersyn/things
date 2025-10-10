@@ -104,6 +104,8 @@ function Thing:summarize()
 			and self.virtual_orientation:to_data(),
 		tags = self.tags,
 		graph_set = self.graph_set,
+		parent_id = self.parent and self.parent.id,
+		child_key_in_parent = self.child_key_in_parent,
 	}
 end
 
@@ -316,9 +318,12 @@ end
 ---Devoid this Thing by attaching it to the given real or ghost entity.
 ---@param entity LuaEntity A *valid* entity.
 ---@param key? Core.WorldKey
+---@return boolean devoided True if the Thing was devoided, false if not. Always false if the Thing was not in `void` state.
 function Thing:devoid(entity, key)
+	if self.state ~= "void" then return false end
 	self:set_entity(entity, key or get_world_key(entity))
 	self:apply_status()
+	return true
 end
 
 ---@param tags Tags
@@ -504,9 +509,6 @@ function Thing:remove_children(filter)
 end
 
 function Thing:on_changed_state(new_state, old_state)
-	-- For destroyed Things, skip the status_changed event in favor of the
-	-- delete event.
-	if new_state == "destroyed" then return end
 	-- If silent, skip all events.
 	if self.is_silent then return end
 	raise("thing_status", self, old_state --[[@as string]])
