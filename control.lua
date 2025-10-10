@@ -16,7 +16,6 @@ require("control.graph")
 require("control.prebuild")
 require("control.virtual-undo")
 require("control.debug-overlay")
-require("control.remote")
 
 -- Event handlers
 require("control.events.blueprinting")
@@ -24,6 +23,9 @@ require("control.events.construction")
 require("control.events.orientation")
 require("control.events.broadphase")
 require("control.events.custom")
+
+-- Remote interface
+require("remote-interface")
 
 -- Enable support for the Global Variable Viewer debugging mod, if it is
 -- installed.
@@ -34,8 +36,6 @@ if script.active_mods["gvv"] then require("__gvv__.gvv")() end
 --------------------------------------------------------------------------------
 
 -- API
-
-remote.add_interface("things", _G.remote_interface)
 
 -- Commands
 

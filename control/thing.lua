@@ -91,6 +91,20 @@ function Thing:new_from_operation(op)
 	return obj
 end
 
+---Summarizes a Thing for remote interface output.
+---@return things.ThingSummary
+function Thing:summarize()
+	return {
+		id = self.id,
+		entity = self.entity,
+		status = self.state,
+		virtual_orientation = self.virtual_orientation
+			and self.virtual_orientation:to_data(),
+		tags = self.tags,
+		graph_set = self.graph_set,
+	}
+end
+
 ---@param unit_number uint?
 local function internal_set_unit_number(self, unit_number)
 	if self.unit_number == unit_number then return end

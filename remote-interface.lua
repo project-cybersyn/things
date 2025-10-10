@@ -3,13 +3,6 @@
 local type = _G.type
 local EMPTY = {}
 
----@class (exact) things.Error
----@field public code string Machine-readable error code.
----@field public message LocalisedString Human-readable error message.
-
----Either the id of a Thing, or the LuaEntity currently representing it.
----@alias things.ThingIdentification int|LuaEntity
-
 ---@param identification things.ThingIdentification
 ---@return things.Thing? thing
 ---@return boolean valid_id
@@ -43,39 +36,19 @@ local UNKNOWN = {
 }
 
 local remote_interface = {}
-_G.remote_interface = remote_interface
 
----Gets basic status information about a Thing.
+---Gets basic information about a Thing.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return int? thing_id The id of the Thing, or `nil` if the Thing doesn't exist.
----@return LuaEntity? entity The LuaEntity currently representing the Thing, or `nil` if no entity represents it.
----@return things.Status? status The status of the Thing.
----@return Core.OrientationData? virtual_orientation The virtual orientation of the Thing, if it has one.
-function remote_interface.get_status(thing_identification)
+---@return things.ThingSummary? summary Summary of the Thing, or `nil` if the Thing doesn't exist.
+function remote_interface.get(thing_identification)
 	local thing, valid_id = resolve_identification(thing_identification)
 	if not valid_id then return CANT_BE_A_THING end
-	if not thing then return nil, nil, nil end
-
-	return nil,
-		thing.id,
-		thing.entity,
-		-- this is needed because StyLua brings the type cast comment past the
-		-- trailing comma...
-		---@diagnostic disable-next-line: return-type-mismatch
-		thing.state,
-		thing.virtual_orientation and thing.virtual_orientation:to_data()
-end
-
----Gets the tags of a Thing.
----@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return Tags? tags The tags of the Thing, or `nil` if the Thing doesn't exist.
-function remote_interface.get_tags(thing_identification)
-	local thing, valid_id = resolve_identification(thing_identification)
-	if not valid_id then return CANT_BE_A_THING end
-	if not thing then return nil, nil end
-	return nil, thing.tags
+	if thing then
+		return nil, thing:summarize()
+	else
+		return nil, nil
+	end
 end
 
 ---Sets the tags of a Thing.
@@ -96,6 +69,7 @@ end
 ---@param thing_2 things.ThingIdentification The other side of the edge.
 ---@param operation "create"|"delete"|"toggle"|"set-data"|nil The operation to perform on the edge. Defaults to "create".
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return boolean? toggle_result If `operation` is "toggle", this will be `true` if the edge was created, or `false` if it was deleted. `nil` otherwise.
 function remote_interface.modify_edge(
 	graph_name,
 	thing_1,
@@ -109,16 +83,22 @@ function remote_interface.modify_edge(
 	if not thing1 or not thing2 then return NOT_A_THING end
 	local edge = thing1:graph_get_edge(graph_name, thing2)
 	if operation == "create" then
-		if edge then return nil end
+		if edge then
+			return { code = "edge_exists", message = "Edge already exists." }
+		end
 		thing1:graph_connect(graph_name, thing2)
 	elseif operation == "delete" then
-		if not edge then return nil end
+		if not edge then
+			return { code = "edge_does_not_exist", message = "Edge does not exist." }
+		end
 		thing1:graph_disconnect(graph_name, thing2)
 	elseif operation == "toggle" then
 		if edge then
 			thing1:graph_disconnect(graph_name, thing2)
+			return nil, false
 		else
 			thing1:graph_connect(graph_name, thing2)
+			return nil, true
 		end
 	elseif operation == "set-data" then
 		if not edge then return nil end
@@ -214,14 +194,16 @@ end
 ---Gets all children of a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return {[string|int]: int}|nil children Map of child keys to child Thing ids. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no children.
+---@return things.ThingChildrenSummary|nil children Map of child keys to child Thing summaries. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no children.
 function remote_interface.get_children(parent_identification)
 	local parent, valid_parent = resolve_identification(parent_identification)
 	if not valid_parent then return CANT_BE_A_THING end
 	if not parent then return NOT_A_THING end
 	local result = {}
 	for key, child in pairs(parent.children or EMPTY) do
-		result[key] = child.id
+		result[key] = child:summarize()
 	end
 	return nil, result
 end
+
+remote.add_interface("things", remote_interface)
