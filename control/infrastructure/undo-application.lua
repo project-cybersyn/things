@@ -61,7 +61,10 @@ function UndoApplication:include(op, dry_run)
 end
 
 ---@param actions UndoRedoAction[]
-function UndoApplication:complete(actions) debug_log("UndoApplication complete") end
+function UndoApplication:complete(actions)
+	debug_log("UndoApplication complete")
+	self.undo_state:recompute_top_set()
+end
 
 ---@param op things.ConstructionOperation
 ---@return things.UndoApplication?

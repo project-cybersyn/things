@@ -24,6 +24,8 @@ require("control.events.orientation")
 require("control.events.broadphase")
 require("control.events.custom")
 
+require("control.undo-stack-debugger")
+
 -- Remote interface
 require("remote-interface")
 

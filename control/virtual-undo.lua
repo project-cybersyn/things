@@ -5,6 +5,7 @@ local urs_lib = require("lib.core.undo-redo-stack")
 local counters = require("lib.core.counters")
 local mconst = require("lib.core.math.constants")
 local tlib = require("lib.core.table")
+local event = require("lib.core.event")
 
 local INF = mconst.BIG_INT
 local NINF = mconst.BIG_NEG_INT
@@ -191,6 +192,7 @@ function VirtualUndoPlayerState:add_marker(marker)
 	-- Already exists
 	if self.unreconciled_markers[key] then return end
 	self.unreconciled_markers[key] = marker
+	event.raise("undo_top_markers_changed", self, self.player_index)
 end
 
 ---Reconcile if needed based on the paused tick
@@ -360,6 +362,7 @@ function VirtualUndoPlayerState:recompute_top_set()
 	self.top_marker_set = {}
 	get_tops(self, urs_lib.make_undo_stack_view(urs), self.top_marker_set)
 	get_tops(self, urs_lib.make_redo_stack_view(urs), self.top_marker_set)
+	event.raise("undo_top_markers_changed", self, self.player_index)
 end
 
 ---@param action UndoRedoAction
@@ -418,14 +421,14 @@ end
 ---Apply an undo operation.
 ---@param actions UndoRedoAction[]
 function VirtualUndoPlayerState:on_undo_applied(actions)
-	apply_undo_actions(actions, self.unreconciled_markers)
+	-- apply_undo_actions(actions, self.unreconciled_markers)
 	self:recompute_top_set()
 end
 
 ---Apply a redo operation.
 ---@param actions UndoRedoAction[]
 function VirtualUndoPlayerState:on_redo_applied(actions)
-	apply_undo_actions(actions, self.unreconciled_markers)
+	-- apply_undo_actions(actions, self.unreconciled_markers)
 	self:recompute_top_set()
 end
 
