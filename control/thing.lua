@@ -53,7 +53,6 @@ local ThingManagementFlags = {
 ---@field public registration? things.ThingRegistration The registration data for this Thing's prototype, if any.
 ---@field public virtual_orientation? Core.Orientation If this class of Thing has virtual orientation, this is its current virtual orientation. This field is read-only.
 ---@field public is_silent? boolean If true, suppress events for this Thing.
----@field public state_cause? things.StatusCause The cause of the last status change, if known.
 ---@field public unit_number? uint The last-known-good `unit_number` for this Thing. May be `nil` or invalid.
 ---@field public local_id? int If this Thing came from a blueprint, its local id within that blueprint.
 ---@field public entity LuaEntity? Current entity representing the thing. Due to potential for lifecycle leaks, must be checked for validity each time used.
@@ -98,6 +97,7 @@ end
 function Thing:summarize()
 	return {
 		id = self.id,
+		name = self.registration and self.registration.name,
 		entity = self.entity,
 		status = self.state,
 		virtual_orientation = self.virtual_orientation
@@ -209,7 +209,6 @@ function Thing:died_leaving_ghost(ghost)
 		)
 	end
 	self:set_entity(ghost, get_world_key(ghost))
-	self.state_cause = "destroyed"
 	self:set_state("ghost")
 end
 
@@ -225,7 +224,6 @@ function Thing:revived_from_ghost(revived_entity, key)
 		)
 	end
 	self:set_entity(revived_entity, key)
-	self.state_cause = "revived"
 	self:set_state("real")
 end
 
@@ -254,7 +252,6 @@ function Thing:entity_destroyed(entity)
 	-- If not a child, tombstone or destroy as appropriate.
 	self.last_known_position = entity.position
 	self:set_entity(nil, nil)
-	self.state_cause = "destroyed"
 	if self.n_undo_markers > 0 then
 		self:set_state("tombstone")
 	else
@@ -511,17 +508,19 @@ end
 function Thing:on_changed_state(new_state, old_state)
 	-- If silent, skip all events.
 	if self.is_silent then return end
-	raise("thing_status", self, old_state --[[@as string]])
-	-- Parent/child status events
-	if self.parent then
-		raise("thing_child_status", self.parent, self, old_state --[[@as string]])
-	end
+	-- Notify children first.
 	if self.children then
 		for _, child in pairs(self.children) do
 			raise("thing_parent_status", child, self, old_state --[[@as string]])
 		end
 	end
-	-- Create on_edges_changed events
+	-- Notify self
+	raise("thing_status", self, old_state --[[@as string]])
+	-- Notify parent
+	if self.parent then
+		raise("thing_child_status", self.parent, self, old_state --[[@as string]])
+	end
+	-- Notify graph peers
 	for graph_name in pairs(self.graph_set or EMPTY) do
 		local graph = get_graph(graph_name)
 		if not graph then goto continue end
@@ -657,7 +656,6 @@ function _G.thingify_entity(entity, key)
 	thing = Thing:new()
 	thing:set_entity(entity, key)
 	thing:update_registration()
-	thing.state_cause = "created"
 	thing.is_silent = true
 	thing:init_virtual_orientation()
 	thing:apply_status()

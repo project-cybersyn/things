@@ -15,15 +15,13 @@ bind("thing_initialized", function(thing)
 end)
 
 bind("thing_status", function(thing, old_status)
-	local cevp = thing:get_custom_event_name("on_status_changed")
+	local cevp = thing:get_custom_event_name("on_status")
 	if not cevp then return end
 
-	---@type things.EventData.on_status_changed
+	---@type things.EventData.on_status
 	local ev = {
 		thing = thing:summarize(),
-		new_status = thing.state --[[@as things.Status]],
 		old_status = old_status,
-		cause = thing.state_cause,
 	}
 	script.raise_event(cevp, ev)
 end)

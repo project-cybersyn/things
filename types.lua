@@ -34,6 +34,7 @@
 
 ---Registration options for a type of Thing.
 ---@class (exact) things.ThingRegistration
+---@field public name string Name of the registered Thing type. This should generally match the prototype name of the entity used by this Thing type, but it does not have to.
 ---@field public virtualize_orientation? boolean If true, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. (default: false)
 ---@field public merge_tags_on_overlap? boolean If true, when a Thing is overlapped by a blueprinted thing with tags, the tags will be shallow-merged instead of replaced. (default: false)
 ---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
@@ -59,6 +60,7 @@
 
 ---@class (exact) things.ThingSummary
 ---@field public id things.Id The id of the Thing.
+---@field public name? string The name of the Thing's registration. If the Thing was dynamically generated without registration, this will be nil.
 ---@field public entity LuaEntity? The current entity of the Thing, if it has one.
 ---@field public status things.Status The current status of the Thing.
 ---@field public virtual_orientation Core.OrientationData? The current virtual orientation of the Thing, if it has one.
@@ -72,17 +74,15 @@
 --------------------------------------------------------------------------------
 
 ---Thing event names that can be rebroadcasted as Factorio custom events.
----@alias things.EventName "on_initialized"|"on_status_changed"|"on_tags_changed"|"on_edges_changed"|"on_orientation_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"
+---@alias things.EventName "on_initialized"|"on_status"|"on_tags_changed"|"on_edges_changed"|"on_orientation_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"
 
 ---Event fired when a Thing with a new ID is generated in the world.
 ---Does not apply to undo, revival, etc of pre-existing Things.
 ---@class (exact) things.EventData.on_initialized: things.ThingSummary
 
----@class (exact) things.EventData.on_status_changed
+---@class (exact) things.EventData.on_status
 ---@field public thing things.ThingSummary Summary of the Thing whose status changed.
----@field public new_status things.Status The new status of the Thing.
 ---@field public old_status things.Status The previous status of the Thing.
----@field public cause things.StatusCause The cause of the status change.
 
 ---Event parameters for when Thing tags change. Note that for performance
 ---reasons, Things does not deep compare tags, so this event may be raised
