@@ -1,6 +1,7 @@
 local event = require("lib.core.event")
 
 ---@class (exact) things.Storage
+---@field public players {[uint]: things.PlayerState} Player states by player index.
 ---@field public things {[uint]: things.Thing} Things by thing id.
 ---@field public things_by_unit_number {[uint]: things.Thing} Things by unit_number of reified entity, if it exists.
 ---@field public thing_ghosts {[Core.WorldKey]: int} Map from ghost entity world keys to corresponding Thing IDs.
@@ -17,6 +18,7 @@ local function init_storage_key(key, value)
 end
 
 function _G.init_storage()
+	init_storage_key("players")
 	init_storage_key("things")
 	init_storage_key("things_by_unit_number")
 	init_storage_key("thing_ghosts")

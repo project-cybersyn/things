@@ -11,6 +11,8 @@ require("control.mod-data")
 require("control.storage")
 require("control.settings")
 
+require("control.state.player")
+
 require("control.thing")
 require("control.graph")
 require("control.prebuild")

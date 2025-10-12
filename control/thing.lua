@@ -250,12 +250,30 @@ function Thing:entity_destroyed(entity)
 	-- If I am a child, void me.
 	if self.parent then return self:void(true) end
 	-- If not a child, tombstone or destroy as appropriate.
-	self.last_known_position = entity.position
-	self:set_entity(nil, nil)
 	if self.n_undo_markers > 0 then
-		self:set_state("tombstone")
+		self:tombstone(true)
 	else
 		self:destroy(false, true)
+	end
+end
+
+---Tombstone this Thing. This represents a Thing which is somewhere on the
+---undo stack and could conceivably be revived later.
+---@param skip_destroy boolean? If true, do not destroy the underlying entity.
+function Thing:tombstone(skip_destroy)
+	if self.entity and self.entity.valid then
+		self.last_known_position = self.entity.position
+	end
+	for _, child in pairs(self.children or EMPTY) do
+		child:void()
+	end
+	self:set_state("tombstone")
+	local former_entity = self.entity
+	self:set_entity(nil, nil)
+	if not skip_destroy then
+		if former_entity and former_entity.valid then
+			former_entity.destroy(NO_RAISE_DESTROY)
+		end
 	end
 end
 

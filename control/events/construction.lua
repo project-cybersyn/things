@@ -5,8 +5,6 @@ local mop_lib = require("control.infrastructure.mass-operation")
 local uop_lib = require("control.infrastructure.undo-application")
 local constants = require("control.constants")
 
-local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
-
 local ConstructionOperation = op_lib.ConstructionOperation
 local make_key = world_state.make_world_key
 local get_world_key = world_state.get_world_key
