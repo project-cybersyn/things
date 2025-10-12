@@ -1,4 +1,4 @@
-local class = require("lib.core.class")
+local class = require("lib.core.class").class
 local event = require("lib.core.event")
 
 local PlayerUndoState = require("control.state.undo").PlayerUndoState

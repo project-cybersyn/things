@@ -1,6 +1,7 @@
 local class = require("lib.core.class").class
 local ws_lib = require("lib.core.world-state")
 local constants = require("control.constants")
+local events = require("lib.core.event")
 
 local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
 
@@ -60,7 +61,17 @@ function ConstructionOperation:new(entity, tags, player)
 		obj.tags = tags --[[@as Tags]]
 		obj.local_id = tags[LOCAL_ID_TAG] --[[@as integer? ]]
 	end
+	events.dynamic_subtick_trigger(
+		"construction_subtick",
+		"construction_subtick",
+		obj
+	)
 	return obj
 end
+
+events.register_dynamic_handler(
+	"construction_subtick",
+	function(_, op) debug_log("construction_subtick", op, op.entity) end
+)
 
 return lib
