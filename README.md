@@ -2,6 +2,8 @@
 
 **WARNING: THIS MOD IS CURRENTLY IN AN ALPHA STATE. API SURFACES AND EVENT DEFINITIONS ARE UNSTABLE. DO NOT USE IN RELEASE-QUALITY MODS YET. YOU HAVE BEEN WARNED!**
 
+This mod is powered by *black magic*. Special thanks goes to the following members of Slytherin House for lending me their spellbooks: protocol_1903, boskid, Bilka, PennyJim
+
 **Things** provides advanced entity management services to other Factorio mods in the form of a high-level abstraction called a `Thing`.
 
 Mod authors register their custom entities in `mod-data`, and any time a registered entity is created, it becomes a new Thing. Once created, Things are manipulated via a documented remote interface, and provide additional custom events for mods to react to.
@@ -23,7 +25,6 @@ As opposed to Factorio entities, a `Thing` retains its identity and data through
 - When a `Thing` is lifted into a blueprint, this data is carried along into the blueprint.
 - When a blueprint is applied, all of the `Thing`s resulting from the blueprint application will have the same data as the corresponding `Thing`s inside the blueprint.
 - This includes all cases involving `Thing`s in the blueprint overlapping pre-existing `Thing`s in the world.
-- Unlike Factorio's native tags, which only work via ghosts, this mechanism works in cheat mode, editor mode, paused, and other situations where no ghost intermediary is present.
 
 ## Synthetic Events
 

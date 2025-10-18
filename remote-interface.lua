@@ -1,5 +1,7 @@
 -- Things API.
 
+require("types")
+
 local pos_lib = require("lib.core.math.pos")
 
 local type = _G.type
