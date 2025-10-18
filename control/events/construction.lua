@@ -1,13 +1,17 @@
 local world_state = require("lib.core.world-state")
 local bind = require("control.events.typed").bind
+local cf_lib = require("control.infrastructure.construction-frame")
 local op_lib = require("control.infrastructure.operation")
 local mop_lib = require("control.infrastructure.mass-operation")
 local uop_lib = require("control.infrastructure.undo-application")
 local constants = require("control.constants")
+local tlib = require("lib.core.table")
 
 local ConstructionOperation = op_lib.ConstructionOperation
 local make_key = world_state.make_world_key
 local get_world_key = world_state.get_world_key
+local EMPTY = tlib.EMPTY_STRICT
+local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
 
 -- Pre-build of a single entity that is not part of a blueprint.
 bind(
@@ -15,6 +19,7 @@ bind(
 	function(ev, player, entity_prototype, quality, surface)
 		-- Filter out non-Things.
 		if not get_thing_registration(entity_prototype.name) then return end
+		local cframe = cf_lib.get_construction_frame()
 
 		debug_log(
 			"on_pre_build_entity: Prebuilt a Thing",
@@ -26,15 +31,59 @@ bind(
 		)
 
 		-- Create prebuild record
-		local prebuild = get_prebuild_player_state(player.index)
 		local key = make_key(ev.position, surface.index, entity_prototype.name)
+		-- XXX: old
+		local prebuild = get_prebuild_player_state(player.index)
 		prebuild:mark_key_as_prebuilt(key)
+		-- XXX: new
+		cframe:mark_prebuild(key, player.index)
 	end
 )
+
+-- Narrow-phase blueprint application event. Creates an `Application` object that
+-- serves as manager for the overall operation.
+bind("blueprint_apply", function(player, bp, surface, event)
+	debug_log("on_blueprint_apply", player, bp, surface, event)
+
+	-- Find out if there are any Things in the blueprint.
+	local entities = bp.get_blueprint_entities()
+	if (not entities) or (#entities == 0) then
+		debug_log("blueprint_apply: no entities in blueprint")
+		return
+	end
+	local by_index = {}
+	local by_local_id = {}
+	for i, bp_entity in pairs(entities) do
+		local local_id = (bp_entity.tags or EMPTY)[LOCAL_ID_TAG]
+		if local_id then
+			local info = {
+				bp_entity = bp_entity,
+				bp_index = i,
+				local_id = local_id,
+			}
+			---@cast local_id int
+			by_index[i] = info
+			by_local_id[local_id] = info
+		end
+	end
+
+	if not next(by_index) then
+		debug_log("blueprint_apply no Things in blueprint")
+		return
+	end
+
+	-- Create construction frame
+	local cframe = cf_lib.get_construction_frame()
+
+	-- Create application record
+	Application:new(player, bp, surface, event, entities, by_index, by_local_id)
+end)
 
 bind("built_ghost", function(ev, ghost, tags, player)
 	-- Filter out non-Things.
 	if not get_thing_registration(ghost.ghost_name) then return end
+	local cframe = cf_lib.get_construction_frame()
+
 	debug_log("built_ghost", ev, ghost, tags, player)
 
 	local op = ConstructionOperation:new(ghost, tags, player)
@@ -59,6 +108,7 @@ end)
 bind("built_real", function(ev, entity, tags, player)
 	-- Filter out non-Things.
 	if not get_thing_registration(entity.name) then return end
+	local cframe = cf_lib.get_construction_frame()
 	debug_log("built_real", ev, entity, tags)
 
 	local op = ConstructionOperation:new(entity, tags, player)
@@ -84,10 +134,12 @@ end)
 bind("entity_cloned", function(event)
 	debug_log("on_entity_cloned", event)
 	-- TODO: impl. if original is a thing, make a new thing. respect ghostiness
+	-- respect parent/child as well; don't clone children, only parents
 end)
 
 ---@param event EventData.on_undo_applied|EventData.on_redo_applied
 local function undo_redo_applied(event)
+	local cframe = cf_lib.get_construction_frame()
 	local mop = mop_lib.find("undo", event.player_index, game.ticks_played) --[[@as things.UndoApplication?]]
 	if not mop then
 		debug_log("undo_applied: no UndoApplication found")
@@ -111,6 +163,7 @@ bind("entity_marked", function(event, entity, player)
 	local thing = get_thing_by_unit_number(un)
 	if not thing then return end
 	-- XXX: UNDOABLE ACTION - Player mark for deconstruction
+	local cframe = cf_lib.get_construction_frame()
 	local vups = get_undo_player_state(player.index)
 	if not vups then return end
 	vups:reconcile_if_needed()
@@ -134,6 +187,7 @@ bind("unified_destroy", function(event, entity, player, leave_tombstone)
 		--- XXX: UNDOABLE ACTION - Player mines entity.
 		-- debug_log("thing destroyed by undoable player action, leaving tombstone")
 		-- debug_undo_stack(player)
+		local cframe = cf_lib.get_construction_frame()
 		local vups = get_undo_player_state(player.index)
 		if vups then
 			vups:reconcile_if_needed()
@@ -161,15 +215,3 @@ bind("entity_died", function(event)
 		thing:destroy()
 	end
 end)
-
--- Configuration
-
--- on_player_flipped_entity(function(event, entity)
--- 	debug_log("on_player_flipped_entity", event)
--- 	debug_log("entity flipped", entity.name, entity.direction, entity.mirroring)
--- end)
-
--- on_player_rotated_entity(function(event, entity)
--- 	debug_log("on_player_rotated_entity", event)
--- 	debug_log("entity rotated", entity.name, entity.direction, entity.mirroring)
--- end)

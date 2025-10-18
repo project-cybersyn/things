@@ -95,10 +95,12 @@ end
 ---Summarizes a Thing for remote interface output.
 ---@return things.ThingSummary
 function Thing:summarize()
+	local entity = self.entity
+	if entity and not entity.valid then entity = nil end
 	return {
 		id = self.id,
 		name = self.registration and self.registration.name,
-		entity = self.entity,
+		entity = entity,
 		status = self.state,
 		virtual_orientation = self.virtual_orientation
 			and self.virtual_orientation:to_data(),
@@ -115,6 +117,13 @@ local function internal_set_unit_number(self, unit_number)
 	storage.things_by_unit_number[self.unit_number or ""] = nil
 	self.unit_number = unit_number
 	if unit_number then storage.things_by_unit_number[unit_number] = self end
+end
+
+---@param validate boolean? If true, and the Thing has an entity, ensure the entity is still valid.
+function Thing:get_entity(validate)
+	local entity = self.entity
+	if validate and entity and not entity.valid then return nil end
+	return entity
 end
 
 ---@param entity LuaEntity?
@@ -167,8 +176,13 @@ end
 
 ---Update a Thing's internal registration state. Should only be called in
 ---code that is beginning a Thing's lifecycle.
-function Thing:update_registration()
-	self.registration = get_thing_registration(self:get_prototype_name())
+---@param registration_name? string If provided, the registration name to use instead of looking it up from the entity.
+function Thing:update_registration(registration_name)
+	if registration_name then
+		self.registration = get_thing_registration(registration_name)
+	else
+		self.registration = get_thing_registration(self:get_prototype_name())
+	end
 	if not self.registration then
 		debug_crash(
 			"Thing:update_registration: no Thing registration for thing id and entity",
@@ -562,6 +576,24 @@ function Thing:on_changed_state(new_state, old_state)
 	end
 end
 
+---Get current orientation of a Thing.
+---@param use_entity boolean? If true, fallback on entity's world orientation if no virtual orientation is set.
+---@param force_entity boolean? If true, ignore virtual orientation and always return entity's world orientation
+---@return Core.Orientation|nil orientation
+function Thing:get_orientation(use_entity, force_entity)
+	if force_entity then
+		if self.entity and self.entity.valid then
+			return orientation_lib.extract_orientation(self.entity)
+		end
+		return nil
+	end
+	if self.virtual_orientation then return self.virtual_orientation end
+	if use_entity and self.entity and self.entity.valid then
+		return orientation_lib.extract_orientation(self.entity)
+	end
+	return nil
+end
+
 ---Initialize the Thing's virtual orientation, if applicable. This should be
 ---called at the start of Thing lifecycle.
 ---@param bp_entity? BlueprintEntity If this Thing was built from a blueprint, the blueprint entity data.
@@ -591,9 +623,7 @@ function Thing:init_virtual_orientation(bp_entity, bp_transform)
 		end
 		---@cast O Core.Orientation
 		-- Apply BP transform
-		debug_log("pre_transform", O, bp_transform)
 		O:apply_blueprint_transform(bp_transform)
-		debug_log("post_transform", O)
 		self:set_virtual_orientation(O)
 	elseif self.entity and self.entity.valid then
 		-- Non-blueprint case

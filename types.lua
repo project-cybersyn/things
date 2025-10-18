@@ -69,6 +69,15 @@
 ---@field public parent_id? things.Id The id of the Thing's parent, if it has one.
 ---@field public child_key_in_parent? string|int The key under which this Thing is registered in its parent's children, if it has a parent.
 
+---Options controlling how a Thing is created via `create_thing`.
+---@class (exact) things.CreateThingParams
+---@field public registration_name? string If given, the new Thing will be created as an instance of the registered Thing type with this name. If not given, registration will be inferred from the entity type.
+---@field public parent? things.ThingIdentification If given, create the new Thing as a child of this Thing.
+---@field public child_key_in_parent? string|int If `parent` is given, the new Thing will be registered in the parent's children under this key. This field is ignored if `parent` is not given, and will not change child keys of existing Things.
+---@field public devoid? things.ThingIdentification If given, instead of creating a new Thing, devoid the given voided Thing with the newly created entity. Cannot be given with `parent`; the new Thing will retain the parent of the devoided Thing.
+---@field public offset? MapPosition If given, and the associated Thing has a parent, the position of the new Thing will be recomputed using the given offset within the parent's local coordinate space. If the Thing has no parent, this field is ignored.
+---@field public relative_orientation? Core.Dihedral If given, and the associated Thing has a parent, the orientation of the new Thing will be computed by applying this relative orientation to the parent's orientation. If the Thing has no parent, this field is ignored.
+
 --------------------------------------------------------------------------------
 -- EVENTS
 --------------------------------------------------------------------------------
@@ -92,37 +101,37 @@
 ---@field public new_tags Tags The new tags of the Thing.
 ---@field public previous_tags Tags The previous tags of the Thing.
 
----@class things.EventData.on_edges_changed
+---@class (exact) things.EventData.on_edges_changed
 ---@field public change "created"|"deleted"|"data_changed"|"status_changed" The type of change that occurred.
 ---@field public graph_name string The name of the graph whose edges changed.
 ---@field public nodes {[int]: true} Set of Thing ids whose edges were changed.
 ---@field public edges things.GraphEdge[] List of edges that were changed.
 
 ---Event raised when the virtual orientation of a Thing changes.
----@class things.EventData.on_orientation_changed
+---@class (exact) things.EventData.on_orientation_changed
 ---@field public thing things.ThingSummary Summary of the Thing whose virtual orientation changed.
 ---@field public old_orientation? Core.OrientationData The previous virtual orientation of the Thing.
 ---@field public new_orientation Core.OrientationData The new virtual orientation of the Thing.
 
 ---Event raised when the composition of a Thing's children changes.
----@class things.EventData.on_children_changed
+---@class (exact) things.EventData.on_children_changed
 ---@field public thing things.ThingSummary Summary of the Thing whose children changed.
 ---@field public added things.ThingSummary|nil If a child was added, its summary.
 ---@field public removed things.ThingSummary[]|nil Summary of the removed children.
 
 ---Event raised when a Thing's parent changes.
----@class things.EventData.on_parent_changed
+---@class (exact)things.EventData.on_parent_changed
 ---@field public thing things.ThingSummary Summary of the Thing whose parent changed.
 ---@field public old_parent_id int64? The id of the Thing's old parent, if it had one.
 
 ---Event raised when a Thing's child changes status.
----@class things.EventData.on_child_status
+---@class (exact) things.EventData.on_child_status
 ---@field public thing things.ThingSummary Summary of the Thing whose children's status changed.
 ---@field public child things.ThingSummary Summary of the child whose status changed.
 ---@field public old_status things.Status The previous status of the child.
 
 ---Event raised when a Thing's parent changes status.
----@class things.EventData.on_parent_status
+---@class (exact) things.EventData.on_parent_status
 ---@field public thing things.ThingSummary Summary of the Thing whose parent's status changed.
 ---@field public parent things.ThingSummary Summary of the parent whose status changed.
 ---@field public old_status things.Status The previous status of the parent.

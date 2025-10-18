@@ -31,11 +31,3 @@ bind("blueprint_extract", function(ev, player, bp)
 	raise("blueprint_extraction_finished", extraction)
 	extraction:finish()
 end)
-
--- Narrow-phase blueprint application event. Creates an `Application` object that
--- serves as manager for the overall operation.
-bind("blueprint_apply", function(player, bp, surface, event)
-	debug_log("on_blueprint_apply", player, bp, surface, event)
-	-- Create application record
-	Application:new(player, bp, surface, event)
-end)

@@ -61,17 +61,8 @@ function ConstructionOperation:new(entity, tags, player)
 		obj.tags = tags --[[@as Tags]]
 		obj.local_id = tags[LOCAL_ID_TAG] --[[@as integer? ]]
 	end
-	events.dynamic_subtick_trigger(
-		"construction_subtick",
-		"construction_subtick",
-		obj
-	)
+
 	return obj
 end
-
-events.register_dynamic_handler(
-	"construction_subtick",
-	function(_, op) debug_log("construction_subtick", op, op.entity) end
-)
 
 return lib

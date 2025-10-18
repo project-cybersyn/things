@@ -5,6 +5,7 @@ local event = require("lib.core.event")
 ---@field public things {[uint]: things.Thing} Things by thing id.
 ---@field public things_by_unit_number {[uint]: things.Thing} Things by unit_number of reified entity, if it exists.
 ---@field public thing_ghosts {[Core.WorldKey]: int} Map from ghost entity world keys to corresponding Thing IDs.
+---@field public construction_frames {[uint64]: things.ConstructionFrame} ConstructionFrames by tick_played.
 ---@field public mass_ops {[int64]: things.MassOperation} MassOperations by mass operation id.
 ---@field public player_undo {[uint]: things.VirtualUndoPlayerState} Player undo states by player index.
 ---@field public extractions {[uint]: things.Extraction} Data for blueprints being extracted, indexed by extraction id
@@ -22,6 +23,8 @@ function _G.init_storage()
 	init_storage_key("things")
 	init_storage_key("things_by_unit_number")
 	init_storage_key("thing_ghosts")
+	init_storage_key("construction_frames")
+	init_storage_key("undoable_frames")
 	init_storage_key("mass_ops")
 	init_storage_key("extractions")
 	init_storage_key("player_undo")

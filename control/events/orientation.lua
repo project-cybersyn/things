@@ -1,5 +1,6 @@
 local event = require("lib.core.event")
 local raise = require("control.events.typed").raise
+local cf_lib = require("control.infrastructure.construction-frame")
 
 ---@param dir_from defines.direction
 ---@param dir_to defines.direction
@@ -17,6 +18,7 @@ event.bind(
 		local entity = ev.entity
 		local thing = get_thing_by_unit_number(entity.unit_number)
 		if not thing then return end
+		local cframe = cf_lib.get_construction_frame()
 		local old_orientation = thing.virtual_orientation
 		if old_orientation then
 			-- Determine if rotation was clockwise or counterclockwise.
@@ -35,6 +37,7 @@ event.bind(
 		local entity = ev.entity
 		local thing = get_thing_by_unit_number(entity.unit_number)
 		if not thing then return end
+		local cframe = cf_lib.get_construction_frame()
 		local old_orientation = thing.virtual_orientation
 		if old_orientation then
 			thing:virtual_flip(ev.horizontal)

@@ -9,6 +9,7 @@ local tlib = require("lib.core.table")
 local event = require("lib.core.event")
 local constants = require("control.constants")
 local orientation_lib = require("lib.core.orientation.orientation")
+local cf_lib = require("control.infrastructure.construction-frame")
 
 local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
 local TAGS_TAG = constants.TAGS_TAG
@@ -63,38 +64,19 @@ lib.Application = Application
 ---@param bp Core.Blueprintish
 ---@param surface LuaSurface
 ---@param ev EventData.on_pre_build
+---@param entities BlueprintEntity[]
+---@param by_bp_index {[uint]: things.ApplicationThingInfo}
+---@param by_local_id {[int]: things.ApplicationThingInfo}
 ---@return things.Application? application Returns the Application manager object if Things were present, or nil if no Things were in the blueprint.
-function Application:new(player, bp, surface, ev)
-	-- Find out if there are any Things in the blueprint. Do this before
-	-- allocating and doing any intense computations.
-	local entities = bp.get_blueprint_entities()
-	if (not entities) or (#entities == 0) then
-		debug_log("Application:new(): no entities in blueprint")
-		return nil
-	end
-
-	-- Filter for Things.
-	local by_bp_index = {}
-	local by_local_id = {}
-	for i, bp_entity in pairs(entities) do
-		local local_id = (bp_entity.tags or EMPTY)[LOCAL_ID_TAG]
-		if local_id then
-			local info = {
-				bp_entity = bp_entity,
-				bp_index = i,
-				local_id = local_id,
-			}
-			---@cast local_id int
-			by_bp_index[i] = info
-			by_local_id[local_id] = info
-		end
-	end
-
-	if not next(by_bp_index) then
-		debug_log("Application:new(): no Things in blueprint")
-		return nil
-	end
-
+function Application:new(
+	player,
+	bp,
+	surface,
+	ev,
+	entities,
+	by_bp_index,
+	by_local_id
+)
 	-- Generate the MassOperation record.
 	local obj = mo_lib.MassOperation.new(self, "application") --[[@as things.Application]]
 	obj.transform = orientation_lib.get_blueprint_transform(ev)

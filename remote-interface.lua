@@ -1,5 +1,7 @@
 -- Things API.
 
+local pos_lib = require("lib.core.math.pos")
+
 local type = _G.type
 local EMPTY = {}
 
@@ -276,6 +278,126 @@ function remote_interface.devoid(thing_id, entity)
 		return { code = "devoid_failed", message = "Failed to devoid Thing" }
 	end
 	return nil
+end
+
+---Create a new Thing by invoking Factorio's `surface.create_entity` API.
+---@param surface LuaSurface The surface to create the entity on.
+---@param create_entity_params LuaSurface.create_entity_param The parameters to pass to `surface.create_entity`.
+---@param create_thing_params things.CreateThingParams Parameters controlling how the Thing is created.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return things.ThingSummary? thing Summary of the created Thing, or `nil` if there was an error.
+function remote_interface.create_thing(
+	surface,
+	create_entity_params,
+	create_thing_params
+)
+	-- Deduce final entity prototype name
+	local name = create_entity_params.name
+	if type(name) ~= "string" then name = name.name end
+	if type(name) ~= "string" then
+		return {
+			code = "invalid_entity_name",
+			message = "The entity name in create_entity_params is invalid.",
+		}
+	end
+	if name == "entity-ghost" then name = create_entity_params.inner_name end
+
+	-- Deduce Thing registration name
+	local registration_name = name
+	if create_thing_params.registration_name then
+		registration_name = create_thing_params.registration_name
+	end
+	local registration = get_thing_registration(registration_name)
+	if not registration then
+		return {
+			code = "unknown_registration",
+			message = "No Thing registration with name '" .. tostring(
+				registration_name
+			) .. "' exists.",
+		}
+	end
+
+	local devoid_thing = nil
+	if create_thing_params.devoid then
+		local dt, valid = resolve_identification(create_thing_params.devoid)
+		if not valid then
+			return {
+				code = "cant_be_a_thing",
+				message = "You may not use an entity that is nil, invalid, or didn't have a `unit_number` as a Thing or Thing identifier for the `devoid` parameter.",
+			}
+		end
+		if not dt then
+			return {
+				code = "not_a_thing",
+				message = "The specified Thing to devoid does not exist.",
+			}
+		end
+		if dt.state ~= "void" then
+			return {
+				code = "not_void",
+				message = "The specified Thing to devoid is not in `void` state.",
+			}
+		end
+		devoid_thing = dt
+	end
+
+	local parent_thing = nil
+	local add_child = false
+	if devoid_thing then parent_thing = devoid_thing.parent end
+	if create_thing_params.parent then
+		if create_thing_params.devoid then
+			return {
+				code = "no_parent_and_devoid",
+				message = "You may not specify both `parent` and `devoid` when creating a Thing.",
+			}
+		end
+		local pt, valid = resolve_identification(create_thing_params.parent)
+		if not valid then
+			return {
+				code = "cant_be_a_thing",
+				message = "You may not use an entity that is nil, invalid, or didn't have a `unit_number` as a Thing or Thing identifier for the `parent` parameter.",
+			}
+		end
+		if not pt then
+			return {
+				code = "not_a_thing",
+				message = "The specified parent Thing does not exist.",
+			}
+		end
+		parent_thing = pt
+		add_child = true
+	end
+	local parent_orientation = nil
+	local parent_entity = nil
+	if parent_thing then
+		parent_orientation = parent_thing:get_orientation(true)
+		parent_entity = parent_thing:get_entity(true)
+	end
+
+	local pos = create_entity_params.position
+	if parent_thing and create_thing_params.offset then
+		if not parent_orientation then
+			return {
+				code = "parent_no_orientation",
+				message = "The specified parent Thing has no orientation, so the `offset` parameter cannot be used.",
+			}
+		end
+		if not parent_entity then
+			return {
+				code = "parent_no_entity",
+				message = "The specified parent Thing has no entity, so the `offset` parameter cannot be used.",
+			}
+		end
+		local ofs =
+			parent_orientation:local_to_world_offset(create_thing_params.offset)
+		local x, y = pos_lib.pos_get(parent_entity.position)
+		local dx, dy = pos_lib.pos_get(ofs)
+		pos = { x + dx, y + dy }
+	end
+	create_entity_params.position = pos
+
+	create_entity_params.raise_built = false
+	local entity = surface.create_entity(create_entity_params)
 end
 
 remote.add_interface("things", remote_interface)
