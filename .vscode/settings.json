@@ -10,6 +10,9 @@
       "factorioPath": "d:\\SteamLibrary\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe"
     }
   ],
+  "Lua.workspace.ignoreDir": [
+    "d:\\dev\\factorio\\0-things\\archive/*",
+  ],
   "Lua.workspace.library": [
     "d:\\dev\\factorio\\0-things\\lib"
   ],

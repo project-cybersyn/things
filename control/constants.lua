@@ -15,6 +15,8 @@ lib.BLUEPRINT_TAG_SET = {
 	["@e"] = true,
 	-- Virtual orientation
 	["@o"] = true,
+	-- Undo/redo metadata
+	["@u"] = true,
 }
 
 lib.LOCAL_ID_TAG = "@i"
@@ -23,5 +25,6 @@ lib.CHILDREN_TAG = "@c"
 lib.GRAPH_EDGES_TAG = "@e"
 lib.PARENT_TAG = "@p"
 lib.ORIENTATION_TAG = "@o"
+lib.UNDO_TAG = "@u"
 
 return lib

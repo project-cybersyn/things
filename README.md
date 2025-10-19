@@ -38,6 +38,19 @@ As opposed to Factorio entities, a `Thing` retains its identity and data through
 
 ## Entity Graphs
 
+# Credits
+
+The only way to succinctly describe how Things works internally is by saying it warps the laws of Factorio through the use of *dark magic*. Therefore:
+
+- Thanks to the following Hermione Grangers for lending me their Time-Turners: **protocol_1903**, **boskid**
+- Thanks to **Bilka** for adding the spell *blueprintus revelio* to Factorio.
+- Thanks to the following members of Slytherin House for teaching me *rotata kedavra*, which may not be Unforgivable but is definitely very cursed: **boskid**, **protocol_1903**, **PennyJim**
+- Thanks to **hgschmie** and **Telkine2018** for the idea of world keys, which are almost as useful as portkeys.
+
+Thanks also to the following in no particular order:
+- justarandomgeek (LuaLS, answering a number of my weird questions in the modding discord)
+- thesixthroc (helping me find and fix bugs in bplib)
+
 ## Contributing
 
 Please use the [GitHub repository](https://github.com/project-cybersyn/things) for questions, bug reports, or pull requests.

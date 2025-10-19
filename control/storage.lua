@@ -1,15 +1,10 @@
-local event = require("lib.core.event")
+local events = require("lib.core.event")
 
 ---@class (exact) things.Storage
----@field public players {[uint]: things.PlayerState} Player states by player index.
----@field public things {[uint]: things.Thing} Things by thing id.
----@field public things_by_unit_number {[uint]: things.Thing} Things by unit_number of reified entity, if it exists.
+---@field public things {[uint64]: things.Thing} Things by thing id.
+---@field public things_by_unit_number {[uint64]: things.Thing} Things by unit_number of reified entity, if it exists.
 ---@field public thing_ghosts {[Core.WorldKey]: int} Map from ghost entity world keys to corresponding Thing IDs.
----@field public construction_frames {[uint64]: things.ConstructionFrame} ConstructionFrames by tick_played.
----@field public mass_ops {[int64]: things.MassOperation} MassOperations by mass operation id.
----@field public player_undo {[uint]: things.VirtualUndoPlayerState} Player undo states by player index.
----@field public extractions {[uint]: things.Extraction} Data for blueprints being extracted, indexed by extraction id
----@field public player_prebuild {[uint]: things.PrebuildPlayerState} Data for prebuild operations.
+---@field public frames {[uint64]: things.Frame} Frames by tick_played.
 ---@field public graphs {[string]: things.Graph} Graphs by graph name.
 storage = {}
 
@@ -40,4 +35,4 @@ commands.add_command(
 )
 
 -- Initialize storage on startup
-event.bind("on_startup", init_storage, true)
+events.bind("on_startup", init_storage, true)

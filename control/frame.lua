@@ -1,38 +1,40 @@
 local class = require("lib.core.class").class
 local events = require("lib.core.event")
+local opset_lib = require("control.op.opset")
 
+local OpSet = opset_lib.OpSet
 local type = type
 
 local lib = {}
 
----@alias things.ConstructionFramePrebuildRecord uint|{[uint]: true}
+---@alias things.FramePrebuildRecord uint|{[uint]: true}
 
----@class things.ConstructionFrame
+---@class things.Frame
 ---@field public t uint64 The tick_played at which this frame was created.
----@field public prebuild table<Core.WorldKey, things.ConstructionFramePrebuildRecord> Prebuild records by world key.
-local ConstructionFrame = class("things.ConstructionFrame")
-lib.ConstructionFrame = ConstructionFrame
+---@field public prebuild table<Core.WorldKey, things.FramePrebuildRecord> Prebuild records by world key.
+---@field public op_set things.OpSet The set of operations in this frame.
+---@field public id_counter int64 Counter for generating local operation IDs.
+local Frame = class("things.Frame")
+lib.Frame = Frame
 
-function ConstructionFrame:new(tick_played)
+function Frame:new(tick_played)
 	local obj = {}
 	setmetatable(obj, self)
 	obj.t = tick_played
 	obj.prebuild = {}
-	storage.construction_frames[tick_played] = obj
-	debug_log("Began construction frame", tick_played)
-	events.dynamic_subtick_trigger(
-		"construction_frame",
-		"construction_frame",
-		obj
-	)
-	events.raise("construction_frame_begin", obj)
+	obj.op_set = OpSet:new()
+	obj.id_counter = 0
+	storage.frames[tick_played] = obj
+	debug_log("Began frame", tick_played)
+	events.dynamic_subtick_trigger("frame", "frame", obj)
+	events.raise("things.frame_begin", obj)
 	return obj
 end
 
 ---Mark a world key as prebuilt by a player in this construction frame.
 ---@param key Core.WorldKey The world key to mark.
 ---@param player_index uint The player index who prebuilt the object.
-function ConstructionFrame:mark_prebuild(key, player_index)
+function Frame:mark_prebuild(key, player_index)
 	local prebuild = self.prebuild
 	local record = prebuild[key]
 	if not record then
@@ -52,7 +54,7 @@ end
 ---@param key Core.WorldKey
 ---@param player_index? uint If given, the player index to check for. If omitted, checks if any player prebuilt the key.
 ---@return boolean
-function ConstructionFrame:is_prebuilt(key, player_index)
+function Frame:is_prebuilt(key, player_index)
 	local record = self.prebuild[key]
 	if not record then return false end
 	if not player_index then return true end
@@ -63,37 +65,46 @@ function ConstructionFrame:is_prebuilt(key, player_index)
 	end
 end
 
-function ConstructionFrame:destroy() storage.construction_frames[self.t] = nil end
+function Frame:destroy() storage.frames[self.t] = nil end
 
-function ConstructionFrame:on_subtick()
+---@param op things.Op
+function Frame:add_op(op) self.op_set:add(op) end
+
+---Generate a numerical ID unique to this frame.
+function Frame:generate_id()
+	self.id_counter = self.id_counter + 1
+	return self.id_counter
+end
+
+function Frame:on_subtick()
 	debug_log("Ending construction frame", self.t, "at tick", game.ticks_played)
-	events.raise("construction_frame_end", self)
+	events.raise("things.frame_end", self)
 	debug_log("Ended construction frame", self.t, "at tick", game.ticks_played)
 end
 
 events.register_dynamic_handler(
-	"construction_frame",
-	---@param frame things.ConstructionFrame
+	"frame",
+	---@param frame things.Frame
 	function(_, frame) frame:on_subtick() end
 )
 
 local function gc_frames(t0)
-	for t, frame in pairs(storage.construction_frames) do
+	for t, frame in pairs(storage.frames) do
 		if t < t0 then
-			debug_log("GC: destroying construction frame", t)
+			debug_log("GC: destroying frame", t)
 			frame:destroy()
 		end
 	end
 end
 
----Get the current ConstructionFrame
----@return things.ConstructionFrame
-function lib.get_construction_frame()
+---Get the current Frame
+---@return things.Frame
+function lib.get_frame()
 	local t = game.ticks_played
-	local frame = storage.construction_frames[t]
+	local frame = storage.frames[t]
 	if frame then return frame end
 	gc_frames(t)
-	return ConstructionFrame:new(t)
+	return Frame:new(t)
 end
 
 return lib
