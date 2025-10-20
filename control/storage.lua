@@ -14,16 +14,10 @@ local function init_storage_key(key, value)
 end
 
 function _G.init_storage()
-	init_storage_key("players")
 	init_storage_key("things")
 	init_storage_key("things_by_unit_number")
 	init_storage_key("thing_ghosts")
-	init_storage_key("construction_frames")
-	init_storage_key("undoable_frames")
-	init_storage_key("mass_ops")
-	init_storage_key("extractions")
-	init_storage_key("player_undo")
-	init_storage_key("player_prebuild")
+	init_storage_key("frames")
 	init_storage_key("graphs")
 end
 

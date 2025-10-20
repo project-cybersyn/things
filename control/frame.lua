@@ -1,8 +1,11 @@
 local class = require("lib.core.class").class
 local events = require("lib.core.event")
 local opset_lib = require("control.op.opset")
+local op_lib = require("control.op.op")
+local strace = require("lib.core.strace")
 
 local OpSet = opset_lib.OpSet
+local OpType = op_lib.OpType
 local type = type
 
 local lib = {}
@@ -25,7 +28,7 @@ function Frame:new(tick_played)
 	obj.op_set = OpSet:new()
 	obj.id_counter = 0
 	storage.frames[tick_played] = obj
-	debug_log("Began frame", tick_played)
+	strace.debug("Began frame", tick_played)
 	events.dynamic_subtick_trigger("frame", "frame", obj)
 	events.raise("things.frame_begin", obj)
 	return obj
@@ -68,7 +71,10 @@ end
 function Frame:destroy() storage.frames[self.t] = nil end
 
 ---@param op things.Op
-function Frame:add_op(op) self.op_set:add(op) end
+function Frame:add_op(op)
+	self.op_set:add(op)
+	strace.debug("Frame", self.t, ": added", OpType[op.type], "op: ", op)
+end
 
 ---Generate a numerical ID unique to this frame.
 function Frame:generate_id()
@@ -77,9 +83,14 @@ function Frame:generate_id()
 end
 
 function Frame:on_subtick()
-	debug_log("Ending construction frame", self.t, "at tick", game.ticks_played)
+	strace.debug(
+		"Ending construction frame",
+		self.t,
+		"at tick",
+		game.ticks_played
+	)
 	events.raise("things.frame_end", self)
-	debug_log("Ended construction frame", self.t, "at tick", game.ticks_played)
+	strace.debug("Ended construction frame", self.t, "at tick", game.ticks_played)
 end
 
 events.register_dynamic_handler(
@@ -91,7 +102,7 @@ events.register_dynamic_handler(
 local function gc_frames(t0)
 	for t, frame in pairs(storage.frames) do
 		if t < t0 then
-			debug_log("GC: destroying frame", t)
+			strace.debug("GC: destroying frame", t)
 			frame:destroy()
 		end
 	end

@@ -55,6 +55,13 @@
 ---A set of graph names.
 ---@alias things.GraphSet {[string]: true}
 
+---Info about a Thing's relationship to its parent.
+---[1]: The ID of the parent Thing.
+---[2]: The key under which this Thing is registered in its parent's children.
+---[3]: The position of this Thing relative to its parent, if any.
+---[4]: The orientation of this Thing relative to its parent, if any.
+---@alias things.ParentRelationshipInfo [int64, string|int, MapPosition?, Core.Orientation?]
+
 ---A summary of a Thing's children, indexed by child key.
 ---@alias things.ThingChildrenSummary {[string|int]: things.ThingSummary}
 
@@ -66,8 +73,7 @@
 ---@field public virtual_orientation Core.OrientationData? The current virtual orientation of the Thing, if it has one.
 ---@field public tags Tags The current tags of the Thing.
 ---@field public graph_set things.GraphSet? Set of graph names this Thing belongs to. `nil` if the Thing belongs to no graphs.
----@field public parent_id? things.Id The id of the Thing's parent, if it has one.
----@field public child_key_in_parent? string|int The key under which this Thing is registered in its parent's children, if it has a parent.
+---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
 
 ---Options controlling how a Thing is created via `create_thing`.
 ---@class (exact) things.CreateThingParams
