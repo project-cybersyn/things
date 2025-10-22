@@ -3,9 +3,17 @@ local frame_lib = require("control.frame")
 local registration_lib = require("control.registration")
 local op_lib = require("control.op.op")
 local ws_lib = require("lib.core.world-state")
+local tlib = require("lib.core.table")
+local constants = require("control.constants")
+local thing_lib = require("control.thing")
+local CreateOp = require("control.op.create").CreateOp
+local strace = require("lib.core.strace")
 
+local get_thing_by_id = thing_lib.get_by_id
+local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
+local TAGS_TAG = constants.TAGS_TAG
+local EMPTY = tlib.EMPTY_STRICT
 local get_world_state = ws_lib.get_world_state
-local CreateOp = op_lib.CreateOp
 
 --------------------------------------------------------------------------------
 -- Unify game events into generic build event, and generate creation ops.
@@ -17,14 +25,41 @@ local function handle_generic_built(ev)
 	local entity = ev.entity
 	local is_ghost = entity.type == "entity-ghost"
 	local name = is_ghost and entity.ghost_name or entity.name
+	local tags = (is_ghost and entity.tags or ev.tags) or EMPTY
+
+	-- Check if a ghost is being revived.
+	local revive_thing_id = tags[GHOST_REVIVAL_TAG] --[[@as uint64?]]
+	if revive_thing_id then
+		local revive_thing = get_thing_by_id(revive_thing_id)
+		if revive_thing then
+			if revive_thing.state ~= "ghost" then
+				error(
+					"Thing with revive tag is not in ghost state. Should be impossible."
+				)
+			else
+				local frame = frame_lib.get_frame()
+				strace.debug(
+					frame.debug_string,
+					"Reviving ghost of Thing ID",
+					revive_thing_id
+				)
+				revive_thing:set_entity(entity)
+				revive_thing:set_state("real")
+				return
+			end
+		end
+	end
 
 	-- Early out if not a thing
-	local registration = registration_lib.get_thing_registration(name)
+	local registration = registration_lib.should_intercept_build(name)
 	if not registration then return end
 
 	-- Generate creation op.
 	local frame = frame_lib.get_frame()
 	local op = CreateOp:new(entity)
+	op.player_index = ev.player_index
+	op.name = registration.name
+	op.tags = tags[TAGS_TAG] --[[@as Tags?]]
 	frame:add_op(op)
 end
 

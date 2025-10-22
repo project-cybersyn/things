@@ -3,6 +3,10 @@
 require("types")
 
 local pos_lib = require("lib.core.math.pos")
+local thing_lib = require("control.thing")
+
+local get_thing_by_unit_number = thing_lib.get_by_unit_number
+local get_thing = thing_lib.get_by_id
 
 local type = _G.type
 local EMPTY = {}
@@ -81,33 +85,34 @@ function remote_interface.modify_edge(
 	operation,
 	data
 )
-	local thing1, valid_id1 = resolve_identification(thing_1)
-	local thing2, valid_id2 = resolve_identification(thing_2)
-	if not valid_id1 or not valid_id2 then return CANT_BE_A_THING end
-	if not thing1 or not thing2 then return NOT_A_THING end
-	local edge = thing1:graph_get_edge(graph_name, thing2)
-	if operation == "create" then
-		if edge then
-			return { code = "edge_exists", message = "Edge already exists." }
-		end
-		thing1:graph_connect(graph_name, thing2)
-	elseif operation == "delete" then
-		if not edge then
-			return { code = "edge_does_not_exist", message = "Edge does not exist." }
-		end
-		thing1:graph_disconnect(graph_name, thing2)
-	elseif operation == "toggle" then
-		if edge then
-			thing1:graph_disconnect(graph_name, thing2)
-			return nil, false
-		else
-			thing1:graph_connect(graph_name, thing2)
-			return nil, true
-		end
-	elseif operation == "set-data" then
-		if not edge then return nil end
-		-- TODO: impl
-	end
+	-- TODO: fix graph shit
+	-- local thing1, valid_id1 = resolve_identification(thing_1)
+	-- local thing2, valid_id2 = resolve_identification(thing_2)
+	-- if not valid_id1 or not valid_id2 then return CANT_BE_A_THING end
+	-- if not thing1 or not thing2 then return NOT_A_THING end
+	-- local edge = thing1:graph_get_edge(graph_name, thing2)
+	-- if operation == "create" then
+	-- 	if edge then
+	-- 		return { code = "edge_exists", message = "Edge already exists." }
+	-- 	end
+	-- 	thing1:graph_connect(graph_name, thing2)
+	-- elseif operation == "delete" then
+	-- 	if not edge then
+	-- 		return { code = "edge_does_not_exist", message = "Edge does not exist." }
+	-- 	end
+	-- 	thing1:graph_disconnect(graph_name, thing2)
+	-- elseif operation == "toggle" then
+	-- 	if edge then
+	-- 		thing1:graph_disconnect(graph_name, thing2)
+	-- 		return nil, false
+	-- 	else
+	-- 		thing1:graph_connect(graph_name, thing2)
+	-- 		return nil, true
+	-- 	end
+	-- elseif operation == "set-data" then
+	-- 	if not edge then return nil end
+	-- 	-- TODO: impl
+	-- end
 	return nil
 end
 
@@ -117,13 +122,15 @@ end
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 ---@return {[int]: things.GraphEdge}|nil edges Edges indexed by destination Thing. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no edges in the graph.
 function remote_interface.get_edges(graph_name, thing_identification)
-	local thing, valid_id = resolve_identification(thing_identification)
-	if not valid_id then return CANT_BE_A_THING end
-	if not thing then return NOT_A_THING end
-	local graph = get_graph(graph_name)
-	if not graph then return nil, {} end
-	local edges = graph:get_edges(thing.id)
-	return nil, edges
+	-- TODO: fix this graph shit
+	return nil, {}
+	-- local thing, valid_id = resolve_identification(thing_identification)
+	-- if not valid_id then return CANT_BE_A_THING end
+	-- if not thing then return NOT_A_THING end
+	-- local graph = get_graph(graph_name)
+	-- if not graph then return nil, {} end
+	-- local edges = graph:get_edges(thing.id)
+	-- return nil, edges
 end
 
 ---Adds a child Thing to a parent Thing.
@@ -181,17 +188,18 @@ function remote_interface.remove_child(
 	parent_identification,
 	child_identification
 )
-	local parent, valid_parent = resolve_identification(parent_identification)
-	local child, valid_child = resolve_identification(child_identification)
-	if not valid_parent or not valid_child then return CANT_BE_A_THING end
-	if not parent or not child then return NOT_A_THING end
-	local removed = parent:remove_children(child)
-	if (not removed) or (#removed == 0) then
-		return {
-			code = "could_not_remove_child",
-			message = "Could not remove child; the specified Thing is not a child of the specified parent.",
-		}
-	end
+	-- TODO: fix this.
+	-- local parent, valid_parent = resolve_identification(parent_identification)
+	-- local child, valid_child = resolve_identification(child_identification)
+	-- if not valid_parent or not valid_child then return CANT_BE_A_THING end
+	-- if not parent or not child then return NOT_A_THING end
+	-- local removed = parent:remove_children(child)
+	-- if (not removed) or (#removed == 0) then
+	-- 	return {
+	-- 		code = "could_not_remove_child",
+	-- 		message = "Could not remove child; the specified Thing is not a child of the specified parent.",
+	-- 	}
+	-- end
 	return nil
 end
 
@@ -205,7 +213,8 @@ function remote_interface.get_children(parent_identification)
 	if not parent then return NOT_A_THING end
 	local result = {}
 	for key, child in pairs(parent.children or EMPTY) do
-		result[key] = child:summarize()
+		local child_thing = get_thing(child)
+		if child_thing then result[key] = child_thing:summarize() end
 	end
 	return nil, result
 end

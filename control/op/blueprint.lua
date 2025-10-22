@@ -1,5 +1,6 @@
 local op_lib = require("control.op.op")
 local class = require("lib.core.class").class
+local oclass_lib = require("lib.core.orientation.orientation-class")
 local orientation_lib = require("lib.core.orientation.orientation")
 local bp_bbox = require("lib.core.blueprint.bbox")
 local bp_pos = require("lib.core.blueprint.pos")
@@ -9,6 +10,9 @@ local constants = require("control.constants")
 local strace = require("lib.core.strace")
 local thing_lib = require("control.thing")
 local pos_lib = require("lib.core.math.pos")
+local OverlapOp = require("control.op.overlap").OverlapOp
+local CreateEdgeOp = require("control.op.edge").CreateEdgeOp
+local ParentOp = require("control.op.parent").ParentOp
 
 local Op = op_lib.Op
 local make_world_key = ws_lib.make_world_key
@@ -18,6 +22,7 @@ local EMPTY = tlib.EMPTY_STRICT
 local GRAPH_EDGES_TAG = constants.GRAPH_EDGES_TAG
 local PARENT_TAG = constants.PARENT_TAG
 local TAGS_TAG = constants.TAGS_TAG
+local ORIENTATION_TAG = constants.ORIENTATION_TAG
 local table_size = table_size
 local Thing = thing_lib.Thing
 local pos_close = pos_lib.pos_close
@@ -25,6 +30,9 @@ local OP_OVERLAP = op_lib.OpType.OVERLAP
 local OP_MFD = op_lib.OpType.MFD
 local OP_DESTROY = op_lib.OpType.DESTROY
 local deep_copy = tlib.deep_copy
+local o_stringify = orientation_lib.stringify
+local o_loose_eq = orientation_lib.loose_eq
+local get_thing_by_id = thing_lib.get_by_id
 
 local lib = {}
 
@@ -36,26 +44,14 @@ local lib = {}
 ---@field world_key Core.WorldKey
 ---@field flid string Frame-local ID
 ---@field pos MapPosition
+---@field blueprinted_orientation Core.Orientation Orientation of the object within the blueprint itself.
+---@field intended_orientation Core.Orientation Intended world orientation of this entity after blueprint placement.
 ---@field thing_id? uint64 ID of the Thing matching this entity, if any.
 ---@field overlapped_entity? LuaEntity If this BP entity overlapped a real entity when placed, that entity.
 ---@field overlapped_orientation? Core.Orientation Orientation of the overlapped entity at pre_build.
 
----@class things.InternalBlueprintGraphEdgeInfo
----@field first int Edge of first/outvertex (bplid)
----@field second int Edge of second/invertex (bplid)
----@field name string Name of the graph this edge belongs to.
----@field data? Tags Optional user data associated with this edge.
----@field resolved true? Whether this edge has been resolved to Things yet.
-
----@class things.InternalBlueprintParentInfo
----@field parent_bplid int Blueprint local ID of the parent.
----@field child_key string|integer Intended child key in parent
----@field relative_offset? MapPosition Offset from parent to child in parent space.
----@field relative_orientation? Core.Dihedral Relative orientation from parent to child.
----@field resolved true? Whether this parent relationship has been resolved to Things yet.
-
 --------------------------------------------------------------------------------
--- BLUEPRINT INITIALIZATION
+-- INIT/BUILD PHASE
 --------------------------------------------------------------------------------
 
 ---@class things.BlueprintOp: things.Op
@@ -65,10 +61,9 @@ local lib = {}
 ---@field public by_flid table<string, things.InternalBlueprintEntityInfo> Mapping from framelocal ID to internal info about that entity.
 ---@field public by_bplid table<int, things.InternalBlueprintEntityInfo> Mapping from blueprint local ID to internal info about that entity.
 ---@field public by_world_key table<Core.WorldKey, things.InternalBlueprintEntityInfo> Mapping from world key to internal info about that entity.
----@field public transform Core.Dihedral The dihedral transformation applied to the blueprint.
+---@field public transform_index 0|1|2|3|4|5|6|7 D8 element index representing the blueprint's overall transform.
 ---@field public bbox BoundingBox The bounding box of world space in which the blueprint will be built.
----@field public edges {[int]: {[things.InternalBlueprintGraphEdgeInfo]: true}} Edges concerning the given node, index by bplid.
----@field public parents {[int]: things.InternalBlueprintParentInfo} Parent info concerning the given node, index by bplid.
+---@field public build_mode defines.build_mode The build mode in which the blueprint is being built.
 local BlueprintOp = class("things.BlueprintOp", Op)
 lib.BlueprintOp = BlueprintOp
 
@@ -85,13 +80,13 @@ function BlueprintOp:new(frame, ev, player, bp, surface, entities, by_index)
 	obj.surface = surface
 	obj.player_index = player.index
 	obj.by_index = by_index
-	obj.transform = orientation_lib.get_blueprint_transform(ev)
+	obj.build_mode = ev.build_mode
+	obj.transform_index = orientation_lib.get_blueprint_transform_index(ev)
 
 	obj:init_generate_local_ids(frame)
 	obj:init_catalogue_positions(frame, bp, surface, ev, entities)
-	obj:init_catalogue_overlaps()
-	obj:init_catalogue_graph_edges()
-	obj:init_catalogue_parents()
+	obj:init_catalogue_orientations()
+	obj:init_catalogue_overlaps(frame)
 
 	return obj
 end
@@ -181,8 +176,41 @@ function BlueprintOp:init_catalogue_positions(
 	)
 end
 
----Catalogue overlapped entities by this BP
-function BlueprintOp:init_catalogue_overlaps()
+---Catalogue intended orientations for things in this BP.
+function BlueprintOp:init_catalogue_orientations()
+	for idx, info in pairs(self.by_index) do
+		local bp_entity = info.bp_entity
+		local tags = bp_entity.tags or EMPTY
+		local blueprinted_orientation
+		if tags and tags[ORIENTATION_TAG] then
+			blueprinted_orientation = tags[ORIENTATION_TAG] --[[@as Core.Orientation]]
+		else
+			blueprinted_orientation = orientation_lib.extract_bp(bp_entity)
+		end
+		info.blueprinted_orientation = blueprinted_orientation
+		-- Apply overall blueprint transform to get intended world orientation.
+		local intended_orientation = orientation_lib.apply_blueprint(
+			blueprinted_orientation,
+			self.transform_index
+		)
+		info.intended_orientation = intended_orientation
+		strace.debug(
+			"BlueprintOp:init_catalogue_orientations: bp_entity",
+			idx,
+			":",
+			bp_entity.name,
+			"blueprinted",
+			function() return o_stringify(blueprinted_orientation) end,
+			"intended",
+			function() return o_stringify(intended_orientation) end
+		)
+	end
+end
+
+---Catalogue overlapped entities by this BP. We do this during the build
+---phase to make sure the `pre_build` information is as fresh as possible.
+---@param frame things.Frame The current frame.
+function BlueprintOp:init_catalogue_overlaps(frame)
 	local surface = self.surface
 	for _, info in pairs(self.by_index) do
 		-- Check for identical overlap
@@ -200,7 +228,7 @@ function BlueprintOp:init_catalogue_overlaps()
 		)
 		if #overlapped > 1 then
 			strace.warn(
-				"BlueprintOp:init_catalogue_overlaps: multiple overlapped entities found for blueprint entity",
+				"BlueprintOp:init_catalogue_overlaps: multiple identical overlapped entities found for blueprint entity",
 				info.bp_entity,
 				"at position",
 				pos,
@@ -208,30 +236,44 @@ function BlueprintOp:init_catalogue_overlaps()
 			)
 		end
 
+		-- Generate Overlap op.
 		overlapped = overlapped[1]
 		if overlapped then
-			-- Store overlapped entity.
-			info.overlapped_entity = overlapped
-			-- Store original orientation of overlapped entity.
 			local thing = thing_lib.get_by_unit_number(overlapped.unit_number)
 			if thing then
-				info.overlapped_orientation = thing:get_orientation()
-			else
-				info.overlapped_orientation =
-					orientation_lib.extract_orientation(overlapped)
+				local imposed_tags = nil
+				local bp_tags = info.bp_entity.tags
+				if bp_tags and bp_tags[TAGS_TAG] then
+					imposed_tags = bp_tags[TAGS_TAG] --[[@as Tags]]
+				end
+				frame:add_op(
+					OverlapOp:new(
+						overlapped,
+						bp_entity_name,
+						pos,
+						info.world_key,
+						thing.id,
+						thing.tags,
+						imposed_tags,
+						info.intended_orientation
+					)
+				)
 			end
 		end
 	end
 end
 
+--------------------------------------------------------------------------------
+-- CATALOGUE PHASE
+--------------------------------------------------------------------------------
+
 ---Catalogue graph edges declared in blueprint entity tags.
----These must be resolved to real Things later, at the end of the build frame.
-function BlueprintOp:init_catalogue_graph_edges()
-	local bp_edges = {}
-	self.edges = bp_edges
+---@param frame things.Frame The current frame.
+function BlueprintOp:catalogue_graph_edges(frame)
 	local n_edges = 0
-	for local_id, info in pairs(self.by_bplid) do
-		local bp_entity = info.bp_entity
+	local by_bplid = self.by_bplid
+	for from_local_id, from_info in pairs(by_bplid) do
+		local bp_entity = from_info.bp_entity
 		local edge_tags = (bp_entity.tags or EMPTY)[GRAPH_EDGES_TAG] --[[@as table?]]
 		if edge_tags then
 			for graph_name, edges in pairs(edge_tags) do
@@ -240,28 +282,40 @@ function BlueprintOp:init_catalogue_graph_edges()
 					if not to_local_id then
 						debug_crash(
 							"init_catalogue_graph_edges: invalid @e tag in blueprint",
-							info,
+							from_info,
 							graph_name
 						)
 					end
 					n_edges = n_edges + 1
 					---@cast to_local_id integer
-					---@type things.InternalBlueprintGraphEdgeInfo
-					local edge
-					if edge_data == true then
-						edge = { first = local_id, second = to_local_id, name = graph_name }
+					local to_info = by_bplid[to_local_id]
+					if to_info then
+						if edge_data == true then
+							frame:add_op(
+								CreateEdgeOp:new(
+									from_info.world_key,
+									to_info.world_key,
+									graph_name
+								)
+							)
+						else
+							frame:add_op(
+								CreateEdgeOp:new(
+									from_info.world_key,
+									to_info.world_key,
+									graph_name,
+									edge_data
+								)
+							)
+						end
 					else
-						edge = {
-							first = local_id,
-							second = to_local_id,
-							data = edge_data,
-							name = graph_name,
-						}
+						debug_crash(
+							"init_catalogue_graph_edges: invalid @e tag in blueprint, target bplid not found",
+							from_info,
+							graph_name,
+							to_local_id
+						)
 					end
-					bp_edges[local_id] = bp_edges[local_id] or {}
-					bp_edges[local_id][edge] = true
-					bp_edges[to_local_id] = bp_edges[to_local_id] or {}
-					bp_edges[to_local_id][edge] = true
 				end
 			end
 		end
@@ -275,12 +329,11 @@ end
 
 ---Catalogue parent-child relationships declared in blueprint entity tags.
 ---These must be resolved to real Things later, at the end of the build frame.
-function BlueprintOp:init_catalogue_parents()
-	local parents = {}
-	self.parents = parents
-	for local_id, info in pairs(self.by_bplid) do
-		local bp_entity = info.bp_entity
-		local parent_tag = (bp_entity.tags or EMPTY)[PARENT_TAG] --[[@as [string|int, int]?]]
+function BlueprintOp:catalogue_parents(frame)
+	local n_parents = 0
+	for child_bplid, child_info in pairs(self.by_bplid) do
+		local child_bp_entity = child_info.bp_entity
+		local parent_tag = (child_bp_entity.tags or EMPTY)[PARENT_TAG] --[[@as [string|int, int]?]]
 		if parent_tag then
 			-- Find parent reference
 			local parent_local_id = parent_tag[2]
@@ -288,123 +341,98 @@ function BlueprintOp:init_catalogue_parents()
 			if not parent_info then
 				debug_crash(
 					"Application:new: invalid parent tag in blueprint",
-					bp_entity,
+					child_bp_entity,
 					parent_tag
 				)
 			end
 
-			---@type things.InternalBlueprintParentInfo
-			local parent_info_rec = {
-				parent_bplid = parent_local_id,
-				child_key = parent_tag[1],
-				relative_offset = parent_tag[3],
-				relative_orientation = parent_tag[4],
-			}
-			parents[local_id] = parent_info_rec
+			n_parents = n_parents + 1
+			frame:add_op(
+				ParentOp:new(
+					child_info.world_key,
+					parent_info.world_key,
+					parent_tag[1],
+					parent_tag[3],
+					parent_tag[4]
+				)
+			)
 		end
 	end
 	strace.debug(
 		"BlueprintOp:init_catalogue_parents: catalogued",
-		table_size(parents),
+		n_parents,
 		"parent-child relationships"
 	)
 end
 
+function BlueprintOp:catalogue(frame)
+	self:catalogue_graph_edges(frame)
+	self:catalogue_parents(frame)
+end
+
 --------------------------------------------------------------------------------
--- BLUEPRINT RESOLUTION
--- At the end of the build frame, generate Ops for everything found in the
--- blueprint.
+-- RESOLVE PHASE
 --------------------------------------------------------------------------------
 
----Examine unresolved construction ops in the given frame. For those that
----correspond to Things that may have been built by this BP, thingify them
----and record resolution info.
+---Examine construction ops in the given frame. For those that
+---correspond to Things that may have been built by this BP, resolve
+---as needed.
 ---@param frame things.Frame The current frame.
 function BlueprintOp:resolve_create_ops(frame)
 	local crops = frame.op_set.by_type[op_lib.OpType.CREATE] or EMPTY
+	strace.debug(
+		frame.debug_string,
+		"BlueprintOp:resolve_create_ops: resolving ",
+		#crops,
+		" create ops for player ",
+		self.player_index
+	)
 	for i = 1, #crops do
 		local op = crops[i] --[[@as things.CreateOp]]
-		if not op.thing_id then
-			local info = self.by_world_key[op.key or ""]
-			if info then
-				-- This op corresponds to a Thing built from our blueprint.
-				-- Thingify it.
-				local entity = op.entity
-				if entity and entity.valid then
-					local thing = Thing:new(info.thing_name)
-					thing:set_entity(entity, op.key)
-					thing.is_silent = true
-					info.thing_id = thing.id
-					op.thing_id = thing.id
-					op.needs_init = true
-					strace.debug(
-						"BlueprintOp:resolve_create_ops: CreateOp",
-						op,
-						"was thingified to",
-						thing.id
-					)
-				else
+		local info = self.by_world_key[op.key or ""]
+		if info and not op.skip then
+			-- This op corresponds to a Thing built from our blueprint.
+			-- Check if orientation matches intended orientation.
+			local thing = get_thing_by_id(op.thing_id)
+			if not thing then
+				error(
+					"BlueprintOp:resolve_create_ops: A resolved create op does not have an extant thing id. This should be impossible. Id: "
+						.. tostring(op.thing_id)
+				)
+			end
+			local O = thing:get_orientation()
+			local intended_orientation = info.intended_orientation
+			if O then
+				if not o_loose_eq(O, intended_orientation) then
 					strace.warn(
-						"BlueprintOp:resolve_create_ops: expected valid entity for CreateOp. Possible early revival or editor pause bug.",
-						op
+						frame.debug_string,
+						"BlueprintOp:resolve_create_ops: Thing ID",
+						thing.id,
+						"orientation",
+						function() return o_stringify(O) end,
+						"does not match intended orientation",
+						function() return o_stringify(intended_orientation) end,
+						"- imposing intended orientation."
+					)
+					thing:set_orientation(intended_orientation, true)
+				else
+					strace.trace(
+						frame.debug_string,
+						"BlueprintOp:resolve_create_ops: Thing ID",
+						thing.id,
+						"orientation matches intended orientation."
 					)
 				end
+			else
+				debug_crash(
+					"BlueprintOp:resolve_create_ops: Thing has no orientation; cannot compare to intended orientation.",
+					thing
+				)
 			end
 		end
 	end
 end
 
----Examine overlapped entities by this BP, filtering out those that are
----MFD or no longer valid.
----This should run in reverse player_index order AFTER create ops are resolved.
----@param frame things.Frame The current frame.
-function BlueprintOp:resolve_overlaps(frame)
-	local surface = self.surface
-	for _, info in pairs(self.by_index) do
-		-- Check if catalogued overlap still makes sense.
-		local overlapped = info.overlapped_entity
-		if
-			not overlapped
-			or not overlapped.valid
-			or (overlapped.status == defines.entity_status.marked_for_deconstruction)
-		then
-			goto continue
-		end
-
-		-- Check if we have a Thing (created ops must resolve first)
-		local overlapped_thing =
-			thing_lib.get_by_unit_number(overlapped.unit_number)
-		if not overlapped_thing then goto continue end
-
-		-- Early-out if there is already an overlap op from an earlier-processed
-		-- blueprint op, or some weirdness that would prevent an overlap here.
-		local existing_ops = frame.op_set.by_key[info.world_key] or EMPTY
-		for i = 1, #existing_ops do
-			local op = existing_ops[i]
-			local op_type = op.type
-			if op_type == OP_OVERLAP then goto continue end
-		end
-
-		-- Generate overlap op
-		frame:add_op(op_lib.Op:new(OP_OVERLAP, info.world_key))
-
-		-- Overlapping tag updates
-		local tags = info.bp_entity.tags
-		if tags and tags[TAGS_TAG] then
-			frame:add_op(
-				op_lib.TagsOp:new(
-					overlapped_thing.id,
-					info.world_key,
-					deep_copy(tags[TAGS_TAG] --[[@as Tags]], true),
-					deep_copy(overlapped_thing.tags, true)
-				)
-			)
-		end
-
-		-- Overlapping orientation updates
-		-- TODO: implement
-		::continue::
-	end
-end
+function BlueprintOp:resolve(frame) self:resolve_create_ops(frame) end
 
 return lib

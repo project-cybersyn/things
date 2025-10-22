@@ -20,7 +20,7 @@ lib.OpSet = OpSet
 function OpSet:new(ops)
 	local obj
 	if not ops then
-		ops = {
+		obj = {
 			by_index = {},
 			by_type = {},
 			by_key = {},
@@ -36,6 +36,15 @@ function OpSet:new(ops)
 	return obj
 end
 
+local function add_key(opset, key, op)
+	local key_list = opset.by_key[key]
+	if not key_list then
+		key_list = {}
+		opset.by_key[key] = key_list
+	end
+	key_list[#key_list + 1] = op
+end
+
 ---@param op things.Op
 function OpSet:add(op)
 	local index_list = self.by_index
@@ -46,14 +55,8 @@ function OpSet:add(op)
 		self.by_type[op.type] = type_list
 	end
 	type_list[#type_list + 1] = op
-	if op.key then
-		local key_list = self.by_key[op.key]
-		if not key_list then
-			key_list = {}
-			self.by_key[op.key] = key_list
-		end
-		key_list[#key_list + 1] = op
-	end
+	if op.key then add_key(self, op.key, op) end
+	if op.secondary_key then add_key(self, op.secondary_key, op) end
 end
 
 ---@param filter_fn fun(op: things.Op): boolean
@@ -63,9 +66,21 @@ function OpSet:filter(filter_fn)
 	return OpSet:new(new_ops)
 end
 
+---Check if an OpSet contains an operation with the given key and type.
+---@param key Core.WorldKey
+---@param type things.OpType
+function OpSet:has_kt(key, type)
+	local key_list = self.by_key[key]
+	if not key_list then return false end
+	for i = 1, #key_list do
+		if key_list[i].type == type then return true end
+	end
+	return false
+end
+
 ---Get a set of Thing IDs affected by operations in this OpSet.
 ---@return table<uint64, boolean> #Set of Thing IDs.
-function OpSet:get_thing_set()
+function OpSet:get_thing_id_set()
 	local thing_ids = {}
 	local ops = self.by_index
 	for i = 1, #ops do
@@ -77,7 +92,7 @@ end
 
 ---Get a set of player indices involved in operations in this OpSet.
 ---@return table<uint, boolean> #Set of player indices.
-function OpSet:get_player_set()
+function OpSet:get_player_index_set()
 	local player_indices = {}
 	local ops = self.by_index
 	for i = 1, #ops do

@@ -38,6 +38,15 @@ end)
 
 require("control.settings")
 require("control.storage")
+require("control.registration")
+
+require("control.events.prebuild")
+require("control.events.build")
+require("control.events.remote")
+
+require("control.debug-overlay")
+
+require("remote-interface")
 
 -- Enable support for the Global Variable Viewer debugging mod, if it is
 -- installed.

@@ -5,6 +5,7 @@ local tlib = require("lib.core.table")
 local ws_lib = require("lib.core.world-state")
 
 local get_world_state = ws_lib.get_world_state
+local type = type
 
 local lib = {}
 
@@ -26,7 +27,7 @@ local OpType = {
 	---Set the parent of a Thing
 	PARENT = 5,
 	---Set the orientation of a Thing
-	ORIENTATION = 6,
+	IMPOSE_ORIENTATION = 6,
 	---Completely destroy a Thing
 	DESTROY = 7,
 	---Player built a blueprint
@@ -37,17 +38,20 @@ local OpType = {
 	REDO = 10,
 	---Generic marker for entity overlap.
 	OVERLAP = 11,
+	---Generic marker for firing an orientation event.
+	ORIENTATION_EVENT = 12,
 	"CREATE",
 	"MFD",
 	"TAGS",
 	"CREATE_EDGE",
 	"PARENT",
-	"ORIENTATION",
+	"IMPOSE_ORIENTATION",
 	"DESTROY",
 	"BLUEPRINT",
 	"UNDO",
 	"REDO",
 	"OVERLAP",
+	"ORIENTATION_EVENT",
 }
 lib.OpType = OpType
 
@@ -56,22 +60,45 @@ lib.OpType = OpType
 ---@field public player_index? uint The index of the player who initiated this operation, if any.
 ---@field public thing_id? uint64 The ID of the Thing this operation applies to, if any.
 ---@field public local_id? string A local ID for this operation, if any. Used to correlate operations before Thing IDs are assigned.
+---@field public secondary_key? Core.WorldKey A secondary world key for this operation, if any. Used for operations involving two Things.
 local Op = class("things.Op")
 lib.Op = Op
 
----@param type things.OpType
+---@param ty things.OpType
 ---@param world_state_or_key? Core.PartialWorldState|Core.WorldState|Core.WorldKey
-function Op:new(type, world_state_or_key)
+function Op:new(ty, world_state_or_key)
 	local obj
 	if type(world_state_or_key) == "string" then
-		obj = { key = world_state_or_key, type = type }
+		obj = { key = world_state_or_key, type = ty }
 	else
 		obj = tlib.assign({}, world_state_or_key) --[[@as things.Op]]
-		obj.type = type
+		obj.type = ty
 	end
 	setmetatable(obj, self)
 	return obj
 end
+
+---Notify that a Thing was found at this op's key or secondary key.
+---This can be used during op resolution to match ambiguous ops to Things.
+---@param key Core.WorldKey The key at which the Thing was found.
+---@param thing things.Thing The Thing found at the key.
+function Op:resolved(key, thing) end
+
+---Called for each op during the catalogue phase of a construction frame.
+---@param frame things.Frame The current frame.
+function Op:catalogue(frame) end
+
+---Called for each op during the resolve phase of a construction frame.
+---@param frame things.Frame The current frame.
+function Op:resolve(frame) end
+
+---Called for each op during the apply phase of a construction frame.
+---@param frame things.Frame The current frame.
+function Op:apply(frame) end
+
+---Called for each op during the reconcile phase of a construction frame.
+---@param frame things.Frame The current frame.
+function Op:reconcile(frame) end
 
 ---Dehydrate this operation for long term storage attached to an undo record.
 ---This involves discarding any transient info. This function should also
@@ -80,37 +107,6 @@ end
 function Op:dehydrate_for_undo() return true end
 
 function Op:destroy() end
-
---------------------------------------------------------------------------------
--- CREATE ENTITY OP
---------------------------------------------------------------------------------
-
----@class things.CreateOp: things.Op
----@field public entity LuaEntity The entity created by this operation
----@field public tags? Tags Initial tags to set on the created Thing.
----@field public needs_init true? Whether a deferred initialization event should be broadcast for this operation.
-local CreateOp = class("things.CreateOp", Op)
-lib.CreateOp = CreateOp
-
----@param entity LuaEntity A *valid* entity.
----@param world_state? Core.WorldState The world state of the created entity. If omitted, it will be generated from the entity.
-function CreateOp:new(entity, world_state)
-	if not world_state then world_state = get_world_state(entity) end
-	local obj = Op.new(self, OpType.CREATE, world_state) --[[@as things.CreateOp]]
-	obj.entity = entity
-	return obj
-end
-
-function CreateOp:dehydrate_for_undo()
-	if self.tags then
-		-- Redo operations will need the tags to recreate the Thing properly.
-		self.entity = nil
-		return true
-	else
-		-- Create ops without tags can be safely discarded.
-		return false
-	end
-end
 
 --------------------------------------------------------------------------------
 -- SET TAGS OP
@@ -133,5 +129,51 @@ function TagsOp:new(thing_id, key, tags, previous_tags)
 	obj.previous_tags = previous_tags
 	return obj
 end
+
+--------------------------------------------------------------------------------
+-- IMPOSE ORIENTATION OP
+--------------------------------------------------------------------------------
+
+---@class things.ImposeOrientationOp: things.Op
+---@field public orientation Core.Orientation The new orientation to impose on the Thing.
+---@field public prev_orientation Core.Orientation The previous orientation of the Thing.
+local ImposeOrientationOp = class("things.ImposeOrientationOp", Op)
+lib.ImposeOrientationOp = ImposeOrientationOp
+
+---@param thing_id uint64 The ID of the Thing whose orientation is being imposed.
+---@param key Core.WorldKey The world key of the Thing whose orientation is being imposed.
+---@param orientation Core.Orientation The new orientation to impose on the Thing.
+---@param prev_orientation Core.Orientation The previous orientation of the Thing.
+function ImposeOrientationOp:new(thing_id, key, orientation, prev_orientation)
+	local obj = Op.new(self, OpType.IMPOSE_ORIENTATION, key) --[[@as things.ImposeOrientationOp]]
+	obj.thing_id = thing_id
+	obj.orientation = orientation
+	obj.prev_orientation = prev_orientation
+	return obj
+end
+
+--------------------------------------------------------------------------------
+-- ORIENTATION EVENT OP
+--------------------------------------------------------------------------------
+
+---@class things.OrientationEventOp: things.Op
+---@field public orientation Core.Orientation The new orientation of the Thing.
+---@field public prev_orientation Core.Orientation The previous orientation of the Thing.
+local OrientationEventOp = class("things.OrientationEventOp", Op)
+lib.OrientationEventOp = OrientationEventOp
+
+---@param thing_id uint64 The ID of the Thing whose orientation event is being fired.
+---@param key Core.WorldKey The world key of the Thing whose orientation event is being fired.
+---@param orientation Core.Orientation The new orientation
+---@param prev_orientation Core.Orientation The previous orientation
+function OrientationEventOp:new(thing_id, key, orientation, prev_orientation)
+	local obj = Op.new(self, OpType.ORIENTATION_EVENT, key) --[[@as things.OrientationEventOp]]
+	obj.thing_id = thing_id
+	obj.orientation = orientation
+	obj.prev_orientation = prev_orientation
+	return obj
+end
+
+function OrientationEventOp:dehydrate_for_undo() return false end
 
 return lib

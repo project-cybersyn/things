@@ -60,7 +60,7 @@
 ---[2]: The key under which this Thing is registered in its parent's children.
 ---[3]: The position of this Thing relative to its parent, if any.
 ---[4]: The orientation of this Thing relative to its parent, if any.
----@alias things.ParentRelationshipInfo [int64, string|int, MapPosition?, Core.Orientation?]
+---@alias things.ParentRelationshipInfo [int64, string|int, MapPosition?, Core.Dihedral?]
 
 ---A summary of a Thing's children, indexed by child key.
 ---@alias things.ThingChildrenSummary {[string|int]: things.ThingSummary}
@@ -70,7 +70,7 @@
 ---@field public name? string The name of the Thing's registration. If the Thing was dynamically generated without registration, this will be nil.
 ---@field public entity LuaEntity? The current entity of the Thing, if it has one.
 ---@field public status things.Status The current status of the Thing.
----@field public virtual_orientation Core.OrientationData? The current virtual orientation of the Thing, if it has one.
+---@field public virtual_orientation Core.Orientation? The current virtual orientation of the Thing, if it has one.
 ---@field public tags Tags The current tags of the Thing.
 ---@field public graph_set things.GraphSet? Set of graph names this Thing belongs to. `nil` if the Thing belongs to no graphs.
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
@@ -93,11 +93,12 @@
 
 ---Event fired when a Thing with a new ID is generated in the world.
 ---Does not apply to undo, revival, etc of pre-existing Things.
----@class (exact) things.EventData.on_initialized: things.ThingSummary
+---@alias things.EventData.on_initialized things.ThingSummary
 
 ---@class (exact) things.EventData.on_status
 ---@field public thing things.ThingSummary Summary of the Thing whose status changed.
 ---@field public old_status things.Status The previous status of the Thing.
+---@field public new_status things.Status The new status of the Thing.
 
 ---Event parameters for when Thing tags change. Note that for performance
 ---reasons, Things does not deep compare tags, so this event may be raised
@@ -105,7 +106,7 @@
 ---@class (exact) things.EventData.on_tags_changed
 ---@field public thing things.ThingSummary Summary of the Thing whose tags changed.
 ---@field public new_tags Tags The new tags of the Thing.
----@field public previous_tags Tags The previous tags of the Thing.
+---@field public old_tags Tags The previous tags of the Thing.
 
 ---@class (exact) things.EventData.on_edges_changed
 ---@field public change "created"|"deleted"|"data_changed"|"status_changed" The type of change that occurred.
@@ -116,8 +117,8 @@
 ---Event raised when the virtual orientation of a Thing changes.
 ---@class (exact) things.EventData.on_orientation_changed
 ---@field public thing things.ThingSummary Summary of the Thing whose virtual orientation changed.
----@field public old_orientation? Core.OrientationData The previous virtual orientation of the Thing.
----@field public new_orientation Core.OrientationData The new virtual orientation of the Thing.
+---@field public old_orientation? Core.Orientation The previous virtual orientation of the Thing.
+---@field public new_orientation Core.Orientation The new virtual orientation of the Thing.
 
 ---Event raised when the composition of a Thing's children changes.
 ---@class (exact) things.EventData.on_children_changed
