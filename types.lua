@@ -20,9 +20,8 @@
 ---`void` means the Thing has no entity. Different from `destroyed` in that it will not be garbage collected and may later be re-attached to an entity.
 ---`real` means the Thing has a valid real entity.
 ---`ghost` means the Thing has a valid ghost entity.
----`tombstone` means the Thing has no entity, but still exists on the undo stack and could potentially be brought back via undo operations.
 ---`destroyed` means the Thing is irrevocably gone. Destroyed things will be garbage-collected and cannot be used for any purpose.
----@alias things.Status "void"|"real"|"ghost"|"tombstone"|"destroyed"
+---@alias things.Status "void"|"real"|"ghost"|"destroyed"
 
 ---Causes of the last status change.
 ---`created` means the Thing was created from nothing.

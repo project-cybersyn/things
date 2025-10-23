@@ -119,7 +119,7 @@ function Thing:undo_unref()
 	self.undo_refcount = self.undo_refcount - 1
 	if self.undo_refcount <= 0 then
 		self.undo_refcount = 0
-		if self.state == "tombstone" then self:destroy() end
+		if self.state == "void" then self:destroy() end
 	end
 end
 
@@ -132,7 +132,7 @@ end
 function Thing:tombstone()
 	if self.undo_refcount > 0 then
 		self:set_entity(nil)
-		self:set_state("tombstone")
+		self:set_state("void")
 	else
 		self:destroy()
 	end

@@ -7,7 +7,7 @@ local orientation_lib = require("lib.core.orientation.orientation")
 local state_icons = {
 	real = "[virtual-signal=signal-lightning]",
 	ghost = "[virtual-signal=signal-ghost]",
-	tombstone = "[virtual-signal=signal-recycle]",
+	void = "[virtual-signal=signal-recycle]",
 	destroyed = "[virtual-signal=signal-skull]",
 }
 

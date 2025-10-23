@@ -1,8 +1,8 @@
 local events = require("lib.core.event")
 local frame_lib = require("control.frame")
 
-local UndoOp = require("control.op.undo").UndoOp
-local RedoOp = require("control.op.redo").RedoOp
+local UndoOp = require("control.op.undo-redo").UndoOp
+local RedoOp = require("control.op.undo-redo").RedoOp
 
 events.bind(
 	defines.events.on_undo_applied,

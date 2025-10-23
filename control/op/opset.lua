@@ -14,6 +14,7 @@ local lib = {}
 ---@field public by_type table<things.OpType, things.Op[]>
 ---@field public by_key table<Core.WorldKey, things.Op[]>
 ---@field public stored_id? int64 ID of stored OpSet in storage, if any.
+---@field public stored_player_index? uint Player index of the player who stored this OpSet, if any.
 local OpSet = class("things.OpSet")
 lib.OpSet = OpSet
 
@@ -158,11 +159,14 @@ function OpSet:get_player_index_set()
 	return player_indices
 end
 
-function OpSet:store()
+---Store this OpSet in global storage, if not already stored.
+---@param player_index uint Player index of the player who is storing this OpSet.
+function OpSet:store(player_index)
 	if self.stored_id then return self.stored_id end
 	local id = counters.next("opset")
 	storage.stored_opsets[id] = self
 	self.stored_id = id
+	self.stored_player_index = player_index
 	local tidset = self:get_thing_id_set()
 	for tid, _ in pairs(tidset) do
 		local thing = get_thing_by_id(tid)

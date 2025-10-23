@@ -9,57 +9,59 @@ local ws_lib = require("lib.core.world-state")
 local Op = op_lib.Op
 local OpType = op_lib.OpType
 local UNDO = OpType.UNDO
+local REDO = OpType.REDO
 local make_world_key = ws_lib.make_world_key
 
 local lib = {}
 
----@class things.UndoOp: things.Op
+---@class things.UndoRedoOp: things.Op
 ---@field public actions {[int]: UndoRedoAction} The list of actions that were undone.
----@field public undo_opset_id int64?
----@field public redo_opset_id int64?
-local UndoOp = class("things.UndoOp", op_lib.Op)
-lib.UndoOp = UndoOp
+---@field public opset_id int64?
+---@field public inverse_opset_id int64?
+local UndoRedoOp = class("things.UndoRedoOp", op_lib.Op)
+lib.UndoRedoOp = UndoRedoOp
 
----@param player_index int The index of the player who initiated the undo.
----@param actions {[int]: UndoRedoAction} The list of actions that were undone.
-function UndoOp:new(player_index, actions)
-	local obj = Op.new(self, UNDO) --[[@as things.UndoOp]]
+---@param type things.OpType
+---@param player_index int The index of the player who initiated the op.
+---@param actions {[int]: UndoRedoAction} The list of actions.
+function UndoRedoOp:new(type, player_index, actions)
+	local obj = Op.new(self, type) --[[@as things.UndoRedoOp]]
 	obj.player_index = player_index
 	obj.actions = actions
-	local undo_opset_id, redo_opset_id =
+	local _, opset_id, inverse_opset_id =
 		ur_util.get_undo_opset_ids(nil, nil, actions)
-	obj.undo_opset_id = undo_opset_id
-	obj.redo_opset_id = redo_opset_id
+	obj.opset_id = opset_id
+	obj.inverse_opset_id = inverse_opset_id
 	return obj
 end
 
-function UndoOp:catalogue(frame)
-	if not self.undo_opset_id then
+function UndoRedoOp:catalogue(frame)
+	if not self.opset_id then
 		strace.warn(
 			frame.debug_string,
-			"UndoOp:catalogue for player",
+			"UndoRedoOp:catalogue for player",
 			self.player_index,
-			"no undo_opset_id; skipping"
+			"no opset_id; skipping"
 		)
 		return
 	end
-	local opset = storage.stored_opsets[self.undo_opset_id]
+	local opset = storage.stored_opsets[self.opset_id]
 	if not opset then
 		strace.warn(
 			frame.debug_string,
-			"UndoOp:catalogue for player",
+			"UndoRedoOp:catalogue for player",
 			self.player_index,
-			"no opset found for undo_opset_id",
-			self.undo_opset_id
+			"no opset found for opset_id",
+			self.opset_id
 		)
 		return
 	end
 	strace.debug(
 		frame.debug_string,
-		"UndoOp:catalogue for player",
+		"UndoRedoOp:catalogue for player",
 		self.player_index,
-		"cataloguing undo opset",
-		self.undo_opset_id
+		"cataloguing opset",
+		self.opset_id
 	)
 	-- Match undone actions to the undo opset.
 	for _, action in pairs(self.actions) do
@@ -69,8 +71,8 @@ end
 
 ---@param frame things.Frame
 ---@param action UndoRedoAction
----@param undo_op_set things.OpSet
-function UndoOp:catalogue_action(frame, action, undo_op_set)
+---@param opset things.OpSet
+function UndoRedoOp:catalogue_action(frame, action, opset)
 	local player_index = self.player_index
 	if action.type == "removed-entity" then
 		-- Match removal action to a CREATE op on this frame and a DESTROY or MFD
@@ -89,7 +91,7 @@ function UndoOp:catalogue_action(frame, action, undo_op_set)
 			end
 		)
 		if create_op then
-			local destroy_op = undo_op_set:findk_unique(
+			local destroy_op = opset:findk_unique(
 				removed_key,
 				function(op)
 					return (op.type == OpType.DESTROY or op.type == OpType.MFD)
@@ -100,7 +102,7 @@ function UndoOp:catalogue_action(frame, action, undo_op_set)
 				create_op.thing_id = destroy_op.thing_id
 				strace.debug(
 					frame.debug_string,
-					"UndoOp:catalogue_action: matched remove-entity action for player",
+					"UndoRedoOp:catalogue_action: matched remove-entity action for player",
 					player_index,
 					"at",
 					create_op.key,
@@ -114,6 +116,28 @@ function UndoOp:catalogue_action(frame, action, undo_op_set)
 			strace.debug("no_create_match")
 		end
 	end
+end
+
+---@class things.UndoOp: things.UndoRedoOp
+local UndoOp = class("things.UndoOp", UndoRedoOp)
+lib.UndoOp = UndoOp
+
+---@param player_index int The index of the player who initiated the op.
+---@param actions {[int]: UndoRedoAction} The list of actions.
+function UndoOp:new(player_index, actions)
+	local obj = UndoRedoOp.new(self, UNDO, player_index, actions) --[[@as things.UndoOp]]
+	return obj
+end
+
+---@class things.RedoOp: things.UndoRedoOp
+local RedoOp = class("things.RedoOp", UndoRedoOp)
+lib.RedoOp = RedoOp
+
+---@param player_index int The index of the player who initiated the op.
+---@param actions {[int]: UndoRedoAction} The list of actions.
+function RedoOp:new(player_index, actions)
+	local obj = UndoRedoOp.new(self, REDO, player_index, actions) --[[@as things.RedoOp]]
+	return obj
 end
 
 return lib

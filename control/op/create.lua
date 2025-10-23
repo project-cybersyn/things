@@ -34,7 +34,6 @@ end
 function CreateOp:dehydrate_for_undo()
 	if not self.skip then
 		self.entity = nil
-		self.no_init = nil
 		return true
 	else
 		return false
@@ -57,25 +56,25 @@ function CreateOp:resolve(frame)
 		return
 	end
 
-	-- Another op (e.g an undo or redo) has flagged us as a tombstoned Thing.
+	-- Another op (e.g an undo or redo) has flagged us as a voided Thing.
 	if self.thing_id then
 		local thing = get_thing_by_id(self.thing_id)
 		if thing then
-			if thing.state == "tombstone" then
+			if thing.state == "void" then
 				strace.debug(
 					frame.debug_string,
-					"CreateOp:resolve: resurrecting tombstoned Thing",
+					"CreateOp:resolve: resurrecting voided Thing",
 					thing.id
 				)
 				thing:set_entity(entity, true)
 				frame:mark_resolved(self.key, thing)
-				-- Do not initialize revived tombstones.
+				-- Do not initialize revived voided Things.
 				self.no_init = true
 				return
 			else
 				strace.warn(
 					frame.debug_string,
-					"CreateOp:resolve: thing_id was preset but Thing is not a tombstone:",
+					"CreateOp:resolve: thing_id was preset but Thing is not voided:",
 					thing.id,
 					thing.state
 				)
@@ -123,7 +122,14 @@ end
 ---Fire initialization events at the reconcile phase which is latest possible
 ---time.
 function CreateOp:reconcile(frame)
-	if self.no_init then return end
+	if self.no_init then
+		strace.trace(
+			frame.debug_string,
+			"CreateOp:reconcile: skipping thing_initialized for Thing",
+			self.thing_id
+		)
+		return
+	end
 
 	local thing = get_thing_by_id(self.thing_id)
 	if not thing then
@@ -131,6 +137,11 @@ function CreateOp:reconcile(frame)
 		return
 	end
 
+	strace.trace(
+		frame.debug_string,
+		"CreateOp:reconcile: deferring thing_initialized for Thing",
+		thing.id
+	)
 	frame:post_event("things.thing_initialized", thing)
 end
 
