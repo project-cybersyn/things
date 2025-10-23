@@ -27,6 +27,7 @@ local lib = {}
 local OverlapOp = class("things.OverlapOp", op_lib.Op)
 lib.OverlapOp = OverlapOp
 
+---@param player_index int
 ---@param entity LuaEntity
 ---@param name string Prototype name of the entity.
 ---@param pos MapPosition
@@ -36,6 +37,7 @@ lib.OverlapOp = OverlapOp
 ---@param imposed_tags Tags?
 ---@param imposed_orientation Core.Orientation?
 function OverlapOp:new(
+	player_index,
 	entity,
 	name,
 	pos,
@@ -46,6 +48,7 @@ function OverlapOp:new(
 	imposed_orientation
 )
 	local obj = op_lib.Op.new(self, OVERLAP, key) --[[@as things.OverlapOp]]
+	obj.player_index = player_index
 	obj.entity = entity
 	obj.name = name
 	obj.pos = pos

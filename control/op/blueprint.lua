@@ -248,6 +248,7 @@ function BlueprintOp:init_catalogue_overlaps(frame)
 				end
 				frame:add_op(
 					OverlapOp:new(
+						self.player_index,
 						overlapped,
 						bp_entity_name,
 						pos,
@@ -433,6 +434,6 @@ function BlueprintOp:resolve_create_ops(frame)
 	end
 end
 
-function BlueprintOp:resolve(frame) self:resolve_create_ops(frame) end
+function BlueprintOp:apply(frame) self:resolve_create_ops(frame) end
 
 return lib

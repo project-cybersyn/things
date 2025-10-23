@@ -41,7 +41,7 @@ function CreateOp:dehydrate_for_undo()
 	end
 end
 
-function CreateOp:catalogue(frame)
+function CreateOp:resolve(frame)
 	local entity = self.entity
 	if
 		not entity
@@ -50,7 +50,7 @@ function CreateOp:catalogue(frame)
 	then
 		strace.debug(
 			frame.debug_string,
-			"CreateOp:catalogue: entity is invalid or marked for deconstruction; skipping",
+			"CreateOp:resolve: entity is invalid or marked for deconstruction; skipping",
 			self.key
 		)
 		self.skip = true
@@ -61,7 +61,7 @@ function CreateOp:catalogue(frame)
 	if (not thing) or not was_created then
 		strace.warn(
 			frame.debug_string,
-			"CreateOp:catalogue: failed to thingify",
+			"CreateOp:resolve: failed to thingify",
 			self,
 			was_created,
 			err
@@ -74,7 +74,7 @@ function CreateOp:catalogue(frame)
 	frame:mark_resolved(self.key, thing)
 	strace.debug(
 		frame.debug_string,
-		"CreateOp:catalogue: created Thing",
+		"CreateOp:resolve: created Thing",
 		thing.id,
 		"for entity",
 		entity,

@@ -42,9 +42,12 @@ require("control.registration")
 
 require("control.events.prebuild")
 require("control.events.build")
+require("control.events.destroy")
+require("control.events.undo")
 require("control.events.remote")
 
 require("control.debug-overlay")
+require("control.util.undo-stack-debugger")
 
 require("remote-interface")
 

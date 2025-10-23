@@ -4,11 +4,18 @@ local opset_lib = require("control.op.opset")
 local op_lib = require("control.op.op")
 local strace = require("lib.core.strace")
 local counters = require("lib.core.counters")
+local urs_lib = require("lib.core.undo-redo-stack")
+local constants = require("control.constants")
+local ur_util = require("control.util.undo-redo")
 
 local OpSet = opset_lib.OpSet
 local OpType = op_lib.OpType
 local type = type
 local tunpack = table.unpack
+local UNDO_TAG = constants.UNDO_TAG
+local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
+local get_undo_opset_ids = ur_util.get_undo_opset_ids
+local set_undo_opset_ids = ur_util.set_undo_opset_ids
 
 local lib = {}
 
@@ -152,6 +159,7 @@ function Frame:on_subtick()
 	self:catalogue_phase()
 	self:resolve_phase()
 	self:apply_phase()
+	self:tag_stacks()
 	self:reconcile_phase()
 	self:terminate()
 end
@@ -208,18 +216,118 @@ function Frame:reconcile_phase()
 	events.raise("things.frame_phase_reconcile", self)
 end
 
+---@param player LuaPlayer
+---@param seen_opset_ids table<int64, boolean>
+---@param undo_op things.UndoOp|nil
+---@param redo_op things.RedoOp|nil
+function Frame:tag_undo_stack_for_player(
+	player,
+	seen_opset_ids,
+	undo_op,
+	redo_op
+)
+	local player_index = player.index
+	if undo_op then
+		strace.debug(
+			self.debug_string,
+			"Player",
+			player_index,
+			"did an undo in this frame. Will not tag top of undo stack."
+		)
+	end
+	local view = urs_lib.make_undo_stack_view(player.undo_redo_stack)
+	for i = 1, view.get_item_count() do
+		local actions = view.get_item(i)
+		local opset_id = get_undo_opset_ids(view, i, actions)
+		if i == 1 and not undo_op then
+			if not opset_id then
+				local filtered_opset = self.op_set:filter(
+					function(op)
+						return (
+							(op.player_index == nil) or (op.player_index == player_index)
+						) and op:dehydrate_for_undo()
+					end
+				)
+				local stored_id = filtered_opset:store()
+				set_undo_opset_ids(view, i, actions, stored_id)
+				seen_opset_ids[stored_id] = true
+				strace.debug(
+					self.debug_string,
+					"Tagged undo stack item",
+					i,
+					"for player",
+					player_index,
+					"with opset ID",
+					stored_id
+				)
+			end
+		end
+		if opset_id then
+			seen_opset_ids[opset_id] = true
+			strace.debug(
+				self.debug_string,
+				"Found existing opset ID",
+				opset_id,
+				"in undo stack item",
+				i,
+				"for player",
+				player_index
+			)
+		end
+	end
+end
+
+---@param player LuaPlayer
+---@param seen_opset_ids table<int64, boolean>
+---@param undo_op things.UndoOp|nil
+---@param redo_op things.RedoOp|nil
+function Frame:tag_redo_stack_for_player(
+	player,
+	seen_opset_ids,
+	undo_op,
+	redo_op
+)
+	local player_index = player.index
+	local view = urs_lib.make_undo_stack_view(player.undo_redo_stack)
+	-- Find undo op for player
+	-- Tag top of redo stack with undo opset
+end
+
+function Frame:tag_stacks()
+	strace.debug(
+		self.debug_string,
+		"-----------------TAG_STACKS PHASE-----------------"
+	)
+	local player_set = self.op_set:get_player_index_set()
+	local seen_opset_ids = {}
+	for player_index, _ in pairs(player_set) do
+		local player = game.get_player(player_index)
+		if player then
+			local undo_op = self.op_set:get_pt(player_index, OpType.UNDO) --[[@as things.UndoOp? ]]
+			local redo_op = self.op_set:get_pt(player_index, OpType.REDO) --[[@as things.RedoOp? ]]
+			self:tag_undo_stack_for_player(player, seen_opset_ids, undo_op, redo_op)
+			self:tag_redo_stack_for_player(player, seen_opset_ids, undo_op, redo_op)
+		end
+	end
+	for id, stored_opset in pairs(storage.stored_opsets) do
+		if not seen_opset_ids[id] then
+			strace.debug(
+				self.debug_string,
+				"Cleaning up unreferenced stored opset: ID",
+				id
+			)
+			stored_opset:unstore()
+		end
+	end
+end
+
 function Frame:terminate()
 	events.raise("things.frame_will_end", self)
 	local t = game.ticks_played
 	strace.debug(
 		self.debug_string,
-		"Terminating frame. Frame spanned",
-		t - self.t + 1,
-		"ticks_played"
-	)
-	strace.debug(
-		self.debug_string,
-		"********************END FRAME********************"
+		"********************END FRAME******************** dt=",
+		t - self.t + 1
 	)
 	events.raise("things.frame_ended", self)
 	storage.current_frame = nil

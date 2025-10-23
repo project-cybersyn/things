@@ -67,5 +67,5 @@ events.bind(defines.events.on_built_entity, handle_generic_built)
 events.bind(defines.events.on_robot_built_entity, handle_generic_built)
 events.bind(defines.events.on_space_platform_built_entity, handle_generic_built)
 -- TODO: Evaluate this; I don't think we want to support script_raised_built
--- events.bind(defines.events.script_raised_built, handle_generic_built)
+events.bind(defines.events.script_raised_built, handle_generic_built)
 events.bind(defines.events.script_raised_revive, handle_generic_built)

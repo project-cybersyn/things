@@ -3,6 +3,7 @@
 local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local op_lib = require("control.op.op")
+local counters = require("lib.core.counters")
 
 local OpType = op_lib.OpType
 
@@ -78,6 +79,21 @@ function OpSet:has_kt(key, type)
 	return false
 end
 
+---Get the first operation in this OpSet with the given player index and type.
+---@param player_index uint
+---@param type things.OpType
+---@return things.Op|nil
+function OpSet:get_pt(player_index, type)
+	local bt = self.by_type[type]
+	if bt then
+		for i = 1, #bt do
+			local op = bt[i]
+			if op.player_index == player_index then return op end
+		end
+	end
+	return nil
+end
+
 ---Get a set of Thing IDs affected by operations in this OpSet.
 ---@return table<uint64, boolean> #Set of Thing IDs.
 function OpSet:get_thing_id_set()
@@ -100,6 +116,22 @@ function OpSet:get_player_index_set()
 		if op.player_index then player_indices[op.player_index] = true end
 	end
 	return player_indices
+end
+
+function OpSet:store()
+	if self.stored_id then return self.stored_id end
+	local id = counters.next("opset")
+	storage.stored_opsets[id] = self
+	self.stored_id = id
+	-- TODO: ref all things
+	return id
+end
+
+function OpSet:unstore()
+	if not self.stored_id then return end
+	storage.stored_opsets[self.stored_id] = nil
+	-- TODO: deref all things
+	self.stored_id = nil
 end
 
 return lib

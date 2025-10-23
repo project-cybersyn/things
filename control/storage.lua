@@ -6,6 +6,7 @@ local events = require("lib.core.event")
 ---@field public current_frame things.Frame? The current construction frame, if any.
 ---@field public graphs {[string]: things.Graph} Graphs by graph name.
 ---@field public debug_overlays {[int64]: things.DebugOverlay} Debug overlays by thing id.
+---@field public stored_opsets {[int64]: things.OpSet} Stored operation sets on the undo stack.
 storage = {}
 
 local function init_storage_key(key, value)
@@ -18,6 +19,7 @@ function _G.init_storage()
 	init_storage_key("things_by_unit_number")
 	init_storage_key("graphs")
 	init_storage_key("debug_overlays")
+	init_storage_key("stored_opsets")
 end
 
 -- TODO: eliminate for release
