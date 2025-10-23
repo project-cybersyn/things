@@ -18,6 +18,7 @@ local lib = {}
 ---@field public name string Registration name of Thing to create.
 ---@field public tags? Tags Initial tags to set on the created Thing.
 ---@field public skip? true `true` if the creation is to be skipped due to invalidity
+---@field public no_init? true `true` if the Thing should not fire initialization events
 local CreateOp = class("things.CreateOp", op_lib.Op)
 lib.CreateOp = CreateOp
 
@@ -31,12 +32,11 @@ function CreateOp:new(entity, world_state)
 end
 
 function CreateOp:dehydrate_for_undo()
-	if self.tags and not self.skip then
-		-- Redo operations will need the tags to recreate the Thing properly.
+	if not self.skip then
 		self.entity = nil
+		self.no_init = nil
 		return true
 	else
-		-- Create ops without tags can be safely discarded.
 		return false
 	end
 end
@@ -57,6 +57,43 @@ function CreateOp:resolve(frame)
 		return
 	end
 
+	-- Another op (e.g an undo or redo) has flagged us as a tombstoned Thing.
+	if self.thing_id then
+		local thing = get_thing_by_id(self.thing_id)
+		if thing then
+			if thing.state == "tombstone" then
+				strace.debug(
+					frame.debug_string,
+					"CreateOp:resolve: resurrecting tombstoned Thing",
+					thing.id
+				)
+				thing:set_entity(entity, true)
+				frame:mark_resolved(self.key, thing)
+				-- Do not initialize revived tombstones.
+				self.no_init = true
+				return
+			else
+				strace.warn(
+					frame.debug_string,
+					"CreateOp:resolve: thing_id was preset but Thing is not a tombstone:",
+					thing.id,
+					thing.state
+				)
+				self.skip = true
+				return
+			end
+		else
+			strace.warn(
+				frame.debug_string,
+				"CreateOp:resolve: thing_id was preset but no pre-existing thing was found.",
+				self.thing_id
+			)
+			self.skip = true
+			return
+		end
+	end
+
+	-- Make a new Thing.
 	local thing, was_created, err = thing_lib.make_thing(entity, self.name)
 	if (not thing) or not was_created then
 		strace.warn(
@@ -86,6 +123,8 @@ end
 ---Fire initialization events at the reconcile phase which is latest possible
 ---time.
 function CreateOp:reconcile(frame)
+	if self.no_init then return end
+
 	local thing = get_thing_by_id(self.thing_id)
 	if not thing then
 		strace.warn(frame.debug_string, "CreateOp:reconcile: thing not found", self)

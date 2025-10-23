@@ -155,6 +155,10 @@ function Frame:post_event(event_name, ...)
 	pe[#pe + 1] = { event_name, ... }
 end
 
+--------------------------------------------------------------------------------
+-- FRAME SUBTICK PHASES
+--------------------------------------------------------------------------------
+
 function Frame:on_subtick()
 	self:catalogue_phase()
 	self:resolve_phase()
@@ -216,16 +220,15 @@ function Frame:reconcile_phase()
 	events.raise("things.frame_phase_reconcile", self)
 end
 
+--------------------------------------------------------------------------------
+-- UNDO-REDO
+--------------------------------------------------------------------------------
+
 ---@param player LuaPlayer
----@param seen_opset_ids table<int64, boolean>
+---@param seen_ids table<int64, boolean>
 ---@param undo_op things.UndoOp|nil
 ---@param redo_op things.RedoOp|nil
-function Frame:tag_undo_stack_for_player(
-	player,
-	seen_opset_ids,
-	undo_op,
-	redo_op
-)
+function Frame:tag_undo_stack_for_player(player, seen_ids, undo_op, redo_op)
 	local player_index = player.index
 	if undo_op then
 		strace.debug(
@@ -250,7 +253,7 @@ function Frame:tag_undo_stack_for_player(
 				)
 				local stored_id = filtered_opset:store()
 				set_undo_opset_ids(view, i, actions, stored_id)
-				seen_opset_ids[stored_id] = true
+				seen_ids[stored_id] = true
 				strace.debug(
 					self.debug_string,
 					"Tagged undo stack item",
@@ -262,18 +265,7 @@ function Frame:tag_undo_stack_for_player(
 				)
 			end
 		end
-		if opset_id then
-			seen_opset_ids[opset_id] = true
-			strace.debug(
-				self.debug_string,
-				"Found existing opset ID",
-				opset_id,
-				"in undo stack item",
-				i,
-				"for player",
-				player_index
-			)
-		end
+		if opset_id then seen_ids[opset_id] = true end
 	end
 end
 
@@ -288,9 +280,59 @@ function Frame:tag_redo_stack_for_player(
 	redo_op
 )
 	local player_index = player.index
-	local view = urs_lib.make_undo_stack_view(player.undo_redo_stack)
-	-- Find undo op for player
-	-- Tag top of redo stack with undo opset
+	local view = urs_lib.make_redo_stack_view(player.undo_redo_stack)
+	for i = 1, view.get_item_count() do
+		local actions = view.get_item(i)
+		local undo_opset_id, redo_opset_id = get_undo_opset_ids(view, i, actions)
+		if i == 1 then
+			if undo_op and undo_op.undo_opset_id then
+				if not redo_opset_id then
+					-- We have an associated undo op, and no redo opset yet.
+					-- Generate a redo opset and tag it.
+					local filtered_opset = self.op_set:filter(
+						function(op)
+							return (
+								(op.player_index == nil) or (op.player_index == player_index)
+							) and op:dehydrate_for_undo()
+						end
+					)
+					local stored_id = filtered_opset:store()
+					set_undo_opset_ids(view, i, actions, undo_op.undo_opset_id, stored_id)
+					seen_opset_ids[stored_id] = true
+					seen_opset_ids[undo_op.undo_opset_id] = true
+					strace.debug(
+						self.debug_string,
+						"Tagged redo stack item",
+						i,
+						"for player",
+						player_index,
+						"with opset IDs",
+						undo_op.undo_opset_id,
+						stored_id
+					)
+				else
+					strace.debug(
+						self.debug_string,
+						"Top of redo stack for player",
+						player_index,
+						"already has opset ids",
+						undo_opset_id,
+						redo_opset_id,
+						"not tagging."
+					)
+				end
+			else
+				strace.debug(
+					self.debug_string,
+					"Player",
+					player_index,
+					"had no undo with a matching opset id. Will not tag top of redo stack."
+				)
+			end
+		end
+		if undo_opset_id then seen_opset_ids[undo_opset_id] = true end
+		if redo_opset_id then seen_opset_ids[redo_opset_id] = true end
+	end
 end
 
 function Frame:tag_stacks()

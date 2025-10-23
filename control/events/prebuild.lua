@@ -93,8 +93,8 @@ events.bind(
 		local key = make_world_key(ev.position, surface.index, entity_placed.name)
 		frame:mark_prebuild(key, player.index)
 		strace.debug(
-			entity_placed.name,
-			"prebuilt by player",
+			frame.debug_string,
+			"prebuild by player",
 			player.index,
 			"at",
 			key

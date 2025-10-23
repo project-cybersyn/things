@@ -42,8 +42,7 @@ function DestroyOp:reconcile(frame)
 		)
 		return
 	end
-
-	-- TODO: if thing is on the undo stack, tombstone it, otherwise destroy it
+	thing:tombstone()
 end
 
 return lib

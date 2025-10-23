@@ -30,23 +30,31 @@ local function handle_generic_built(ev)
 	-- Check if a ghost is being revived.
 	local revive_thing_id = tags[GHOST_REVIVAL_TAG] --[[@as uint64?]]
 	if revive_thing_id then
-		local revive_thing = get_thing_by_id(revive_thing_id)
-		if revive_thing then
-			if revive_thing.state ~= "ghost" then
-				error(
-					"Thing with revive tag is not in ghost state. Should be impossible."
-				)
-			else
-				local frame = frame_lib.get_frame()
-				strace.debug(
-					frame.debug_string,
-					"Reviving ghost of Thing ID",
-					revive_thing_id
-				)
-				revive_thing:set_entity(entity)
-				revive_thing:set_state("real")
-				return
+		if not is_ghost then
+			local revive_thing = get_thing_by_id(revive_thing_id)
+			if revive_thing then
+				if revive_thing.state ~= "ghost" then
+					error(
+						"Thing with revive tag is not in ghost state. Should be impossible."
+					)
+				else
+					local frame = frame_lib.get_frame()
+					strace.debug(
+						frame.debug_string,
+						"Reviving ghost of Thing ID",
+						revive_thing_id
+					)
+					revive_thing:set_entity(entity)
+					revive_thing:set_state("real")
+					return
+				end
 			end
+		else
+			strace.debug(
+				"handle_generic_built: ghost was initialized with a revive tag. this is probably jank from an undo; removing it."
+			)
+			tags[GHOST_REVIVAL_TAG] = nil
+			entity.tags = tags
 		end
 	end
 

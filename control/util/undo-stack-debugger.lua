@@ -41,7 +41,7 @@ local function open_debugger(player_index)
 		"UndoStackDebuggerWindow",
 		"things.UndoStackDebuggerWindow",
 		{
-			player_index = player_index,
+			player = player,
 		}
 	)
 	if not id then return false end
@@ -111,9 +111,9 @@ local UndoStackEntries = relm.define_element({
 relm.define_element({
 	name = "things.UndoStackDebuggerWindow",
 	render = function(props)
-		local player = game.get_player(props.player_index)
+		local player = props.player
 		local child = nil
-		if not player then
+		if not player or not player.valid then
 			child = ultros.Label("Invalid state")
 		else
 			child = UndoStackEntries({

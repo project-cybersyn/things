@@ -67,16 +67,38 @@ function OpSet:filter(filter_fn)
 	return OpSet:new(new_ops)
 end
 
----Check if an OpSet contains an operation with the given key and type.
+---Find a unique operation at the given key also matching the given filter.
 ---@param key Core.WorldKey
----@param type things.OpType
-function OpSet:has_kt(key, type)
+---@param filter_fn fun(op: things.Op): boolean
+function OpSet:findk_unique(key, filter_fn)
 	local key_list = self.by_key[key]
-	if not key_list then return false end
+	if not key_list then return nil end
+	local found = nil
 	for i = 1, #key_list do
-		if key_list[i].type == type then return true end
+		local op = key_list[i]
+		if filter_fn(op) then
+			if found then return nil end
+			found = op
+		end
 	end
-	return false
+	return found
+end
+
+---Find a unique operation of the given type also matching the given filter.
+---@param type things.OpType
+---@param filter_fn fun(op: things.Op): boolean
+function OpSet:findt_unique(type, filter_fn)
+	local type_list = self.by_type[type]
+	if not type_list then return nil end
+	local found = nil
+	for i = 1, #type_list do
+		local op = type_list[i]
+		if filter_fn(op) then
+			if found then return nil end
+			found = op
+		end
+	end
+	return found
 end
 
 ---Get the first operation in this OpSet with the given player index and type.
@@ -89,6 +111,24 @@ function OpSet:get_pt(player_index, type)
 		for i = 1, #bt do
 			local op = bt[i]
 			if op.player_index == player_index then return op end
+		end
+	end
+	return nil
+end
+
+---Get the first removal operation in this OpSet with the given key and player index.
+---@param key Core.WorldKey
+---@param player_index uint
+function OpSet:get_removal_op(key, player_index)
+	local key_list = self.by_key[key]
+	if not key_list then return nil end
+	for i = 1, #key_list do
+		local op = key_list[i]
+		if
+			op.player_index == player_index
+			and (op.type == OpType.MFD or op.type == OpType.DESTROY)
+		then
+			return op
 		end
 	end
 	return nil
@@ -123,14 +163,22 @@ function OpSet:store()
 	local id = counters.next("opset")
 	storage.stored_opsets[id] = self
 	self.stored_id = id
-	-- TODO: ref all things
+	local tidset = self:get_thing_id_set()
+	for tid, _ in pairs(tidset) do
+		local thing = get_thing_by_id(tid)
+		if thing then thing:undo_ref() end
+	end
 	return id
 end
 
 function OpSet:unstore()
 	if not self.stored_id then return end
 	storage.stored_opsets[self.stored_id] = nil
-	-- TODO: deref all things
+	local tidset = self:get_thing_id_set()
+	for tid, _ in pairs(tidset) do
+		local thing = get_thing_by_id(tid)
+		if thing then thing:undo_unref() end
+	end
 	self.stored_id = nil
 end
 

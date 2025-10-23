@@ -66,3 +66,17 @@ events.bind(defines.events.on_player_mined_entity, handle_destroyed)
 events.bind(defines.events.on_robot_mined_entity, handle_destroyed)
 events.bind(defines.events.on_space_platform_mined_entity, handle_destroyed)
 events.bind(defines.events.script_raised_destroy, handle_destroyed)
+
+---Ghosts don't fire MFD or Destroy events when MFD.
+---Therefore we must handle this event and treat it as a DestroyOp.
+events.bind(
+	defines.events.on_pre_ghost_deconstructed,
+	---@param ev EventData.on_pre_ghost_deconstructed
+	function(ev)
+		local entity = ev.ghost
+		local thing = get_thing_by_unit_number(entity.unit_number)
+		if not thing then return end
+		local frame = frame_lib.get_frame()
+		frame:add_op(DestroyOp:new(entity, thing, ev.player_index))
+	end
+)

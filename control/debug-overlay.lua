@@ -39,7 +39,7 @@ local function recreate_overlay(thing)
 	local debug_overlay = storage.debug_overlays[thing_id]
 	if debug_overlay then
 		debug_overlay:destroy()
-		thing.debug_overlay = nil
+		storage.debug_overlays[thing_id] = nil
 	end
 	if thing.entity and thing.entity.valid and mod_settings.debug then
 		debug_overlay = MultiLineTextOverlay:new(

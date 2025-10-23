@@ -27,6 +27,7 @@ local lib = {}
 ---@field public is_silent? boolean If true, suppress events for this Thing.
 ---@field public tags? Tags The tags associated with this Thing.
 ---@field public transient_data? table Custom transient data associated with this Thing. This will NOT be blueprinted.
+---@field public undo_refcount uint Number of undo records currently referencing this Thing.
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity when the Thing is voided or destroyed.
 ---@field public graph_set? {[string]: true} Set of graph names this Thing is a member of. If `nil`, the Thing is not a member of any graphs.
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
@@ -41,6 +42,7 @@ function Thing:new(name)
 	local obj = StateMachine.new(self, "void") --[[@as things.Thing]]
 	obj.id = id
 	obj.name = name
+	obj.undo_refcount = 0
 	storage.things[id] = obj
 	return obj
 end
@@ -78,7 +80,8 @@ local function internal_set_unit_number(self, unit_number)
 end
 
 ---@param entity LuaEntity?
-function Thing:set_entity(entity)
+---@param apply_status boolean? If true, update the thing's state inline.
+function Thing:set_entity(entity, apply_status)
 	if entity and self.state == "destroyed" then
 		debug_crash(
 			"Thing:set_entity: cannot set entity on destroyed Thing",
@@ -95,10 +98,43 @@ function Thing:set_entity(entity)
 	self.entity = entity
 	local unit_number = entity.unit_number
 	internal_set_unit_number(self, unit_number)
-	if entity.type == "entity-ghost" then
+	local is_ghost = entity.type == "entity-ghost"
+	if is_ghost then
 		local tags = entity.tags or {}
 		tags[GHOST_REVIVAL_TAG] = self.id
 		entity.tags = tags
+	end
+	if apply_status then
+		if is_ghost then
+			self:set_state("ghost")
+		else
+			self:set_state("real")
+		end
+	end
+end
+
+function Thing:undo_ref() self.undo_refcount = self.undo_refcount + 1 end
+
+function Thing:undo_unref()
+	self.undo_refcount = self.undo_refcount - 1
+	if self.undo_refcount <= 0 then
+		self.undo_refcount = 0
+		if self.state == "tombstone" then self:destroy() end
+	end
+end
+
+function Thing:destroy()
+	self:set_entity(nil)
+	self:set_state("destroyed")
+	storage.things[self.id] = nil
+end
+
+function Thing:tombstone()
+	if self.undo_refcount > 0 then
+		self:set_entity(nil)
+		self:set_state("tombstone")
+	else
+		self:destroy()
 	end
 end
 
@@ -262,6 +298,7 @@ end
 ---@param id int64
 ---@return things.Thing|nil
 function lib.get_by_id(id) return storage.things[id] end
+_G.get_thing_by_id = lib.get_by_id
 
 ---Get a Thing by the unit number of its entity.
 ---@param unit_number uint64?
@@ -269,6 +306,7 @@ function lib.get_by_id(id) return storage.things[id] end
 function lib.get_by_unit_number(unit_number)
 	return storage.things_by_unit_number[unit_number or ""]
 end
+_G.get_thing_by_unit_number = lib.get_by_unit_number
 
 ---General thingification procedure for generic entities. This will
 ---return a SILENT thing that needs to be initialized later.
