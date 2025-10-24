@@ -26,7 +26,7 @@
 ---Registration options for a type of Thing.
 ---@class (exact) things.ThingRegistration
 ---@field public name string Name of the registered Thing type. This should generally match the prototype name of the entity used by this Thing type, but it does not have to.
----@field public virtualize_orientation? boolean If true, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. (default: false)
+---@field public virtualize_orientation? Core.OrientationClass If given, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. The orientation will be promoted to the given orientation class if possible.
 ---@field public merge_tags_on_overlap? boolean If true, when a Thing is overlapped by a blueprinted thing with tags, the tags will be shallow-merged instead of replaced. (default: false)
 ---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
 
