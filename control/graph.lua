@@ -1,13 +1,16 @@
 local class = require("lib.core.class").class
+local tlib = require("lib.core.table")
+local EMPTY = tlib.EMPTY_STRICT
 
-local EMPTY = setmetatable({}, { __newindex = function() end })
+local lib = {}
 
 ---A simple graph on Things.
 ---@class things.Graph
 ---@field public name string The name of this graph. Unique throughout the game state.
+---@field public is_directed boolean? Whether this graph is directed. (Currently unused.)
 ---@field public edges {[int]: {[int]: things.GraphEdge}} Map of Thing id to set of edges that Thing is connected to.
 local Graph = class("things.Graph")
-_G.Graph = Graph
+lib.Graph = Graph
 
 function Graph:new(name)
 	local obj = setmetatable({
@@ -77,7 +80,7 @@ end
 
 ---@param name string
 ---@return things.Graph
-function _G.get_or_create_graph(name)
+function lib.get_or_create_graph(name)
 	local graph = storage.graphs[name]
 	if not graph then graph = Graph:new(name) end
 	return graph
@@ -85,4 +88,6 @@ end
 
 ---@param name string
 ---@return things.Graph?
-function _G.get_graph(name) return storage.graphs[name] end
+function lib.get_graph(name) return storage.graphs[name] end
+
+return lib

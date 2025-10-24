@@ -41,7 +41,7 @@ local function open_debugger(player_index)
 		"UndoStackDebuggerWindow",
 		"things.UndoStackDebuggerWindow",
 		{
-			player_index = player_index,
+			player = player,
 		}
 	)
 	if not id then return false end
@@ -87,14 +87,12 @@ local UndoStackEntries = relm.define_element({
 	name = "things.UndoStackEntries",
 	render = function(props)
 		local player = props.player --[[@as LuaPlayer]]
-		local vups = props.vups --[[@as things.VirtualUndoPlayerState]]
 		local urs = player.undo_redo_stack
 		local undo_view = urs_lib.make_undo_stack_view(urs)
 		local redo_view = urs_lib.make_redo_stack_view(urs)
-		relm_util.use_event("undo_top_markers_changed")
+		relm_util.use_event("things.frame_ended")
 
 		return VF({ horizontally_stretchable = true }, {
-			Vups({ vups = vups }),
 			HF({ horizontally_stretchable = true }, {
 				Stack({ name = "undo", view = undo_view }),
 				Stack({ name = "redo", view = redo_view }),
@@ -102,11 +100,7 @@ local UndoStackEntries = relm.define_element({
 		})
 	end,
 	message = function(me, payload, props, state)
-		if
-			payload.key == "undo_top_markers_changed"
-			and payload[2] == props.player_index
-		then
-			debug_log("Undo top markers changed, repainting")
+		if payload.key == "things.frame_ended" then
 			relm.paint(me)
 			return true
 		end
@@ -117,16 +111,14 @@ local UndoStackEntries = relm.define_element({
 relm.define_element({
 	name = "things.UndoStackDebuggerWindow",
 	render = function(props)
-		local player = game.get_player(props.player_index)
-		local vups = player and get_undo_player_state(player.index)
+		local player = props.player
 		local child = nil
-		if not player or not vups then
+		if not player or not player.valid then
 			child = ultros.Label("Invalid state")
 		else
 			child = UndoStackEntries({
 				player_index = player.index,
 				player = player,
-				vups = vups,
 			})
 		end
 

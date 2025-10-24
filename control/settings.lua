@@ -1,9 +1,7 @@
-local event = require("lib.core.event")
+local events = require("lib.core.event")
 
 ---@class (exact) things.ModSettings
 ---@field public debug boolean Enable debug mode.
----@field public work_period uint Number of ticks between work cycles.
----@field public work_factor number Multiplier applied to work done per cycle.
 
 ---@type things.ModSettings
 ---@diagnostic disable-next-line: missing-fields
@@ -13,7 +11,19 @@ _G.mod_settings = mod_settings
 local function update_mod_settings()
 	mod_settings.debug = settings.global["things-setting-debug"].value --[[@as boolean]]
 end
-_G.update_mod_settings = update_mod_settings
 
 update_mod_settings()
-event.bind("on_startup", function() event.raise("on_mod_settings_changed") end)
+
+events.bind(
+	"on_startup",
+	function() events.raise("on_mod_settings_changed") end
+)
+
+events.bind(
+	defines.events.on_runtime_mod_setting_changed,
+	---@param event EventData.on_runtime_mod_setting_changed
+	function(event)
+		update_mod_settings()
+		events.raise("on_mod_settings_changed", event.setting)
+	end
+)
