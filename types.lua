@@ -37,6 +37,7 @@
 ---Registration options for a graph of Things.
 ---@class (exact) things.GraphRegistration
 ---@field public directed? boolean Whether the graph is directed (default: false).
+---@field public custom_events? {[things.GraphEventName]: string} Mapping of Things graph event names to `CustomEventPrototype` names to raise for this graph. If not provided, no custom events will be raised for this graph.
 
 ---Representation of an edge in a graph of Things.
 ---@class (exact) things.GraphEdge
@@ -93,7 +94,10 @@
 --------------------------------------------------------------------------------
 
 ---Thing event names that can be rebroadcasted as Factorio custom events.
----@alias things.EventName "on_initialized"|"on_status"|"on_tags_changed"|"on_edges_changed"|"on_orientation_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"
+---@alias things.EventName "on_initialized"|"on_status"|"on_tags_changed"|"on_orientation_changed"|"on_position_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"|"on_edge_status"|"on_immediate_voided"
+
+---Graph event names that can be rebroadcasted as Factorio custom events.
+---@alias things.GraphEventName "on_edge_changed"
 
 ---Event fired when a Thing with a new ID is generated in the world.
 ---Does not apply to undo, revival, etc of pre-existing Things.
@@ -111,12 +115,6 @@
 ---@field public thing things.ThingSummary Summary of the Thing whose tags changed.
 ---@field public new_tags Tags The new tags of the Thing.
 ---@field public old_tags Tags The previous tags of the Thing.
-
----@class (exact) things.EventData.on_edges_changed
----@field public change "created"|"deleted"|"data_changed"|"status_changed" The type of change that occurred.
----@field public graph_name string The name of the graph whose edges changed.
----@field public nodes {[int]: true} Set of Thing ids whose edges were changed.
----@field public edges things.GraphEdge[] List of edges that were changed.
 
 ---Event raised when the orientation of a Thing changes.
 ---@class (exact) things.EventData.on_orientation_changed
@@ -153,6 +151,23 @@
 ---@field public thing things.ThingSummary Summary of the Thing whose parent's status changed.
 ---@field public parent things.ThingSummary Summary of the parent whose status changed.
 ---@field public old_parent_status things.Status The previous status of the parent.
+
+---Notifies a graph when its edge set changes.
+---@class (exact) things.EventData.on_edge_changed
+---@field public change "create"|"delete"|"set-data" The type of change that occurred.
+---@field public graph_name string The name of the graph whose edges changed.
+---@field public edge things.GraphEdge Edge that was changed.
+---@field public from things.ThingSummary Summary of the Thing at the from end of the edge.
+---@field public to things.ThingSummary Summary of the Thing at the to end of the edge
+
+---Notifies a Thing when another thing connected it by a graph edge changes status.
+---@class (exact) things.EventData.on_edge_status
+---@field public thing things.ThingSummary Thing opposite the changed thing along the given edge.
+---@field public changed_thing things.ThingSummary Thing whose status changed.
+---@field public graph_name string The name of the graph where the status changed.
+---@field public edge things.GraphEdge Edge whose status changed.
+---@field public old_status things.Status The previous status of the opposite Thing.
+---@field public new_status things.Status The new status of the opposite Thing.
 
 ---Event raised inline when a Thing is voided. This event occurs mid-frame and
 ---you should take care to avoid causing event cancer. The only valid use

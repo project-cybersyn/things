@@ -1,13 +1,13 @@
+--------------------------------------------------------------------------------
+-- THINGS CONTROL PHASE
+--------------------------------------------------------------------------------
+
 local strace = require("lib.core.strace")
 
 local stringify = strace.stringify
 local format_tick_relative =
 	require("lib.core.math.numeric").format_tick_relative
 local select = select
-
---------------------------------------------------------------------------------
--- THINGS CONTROL PHASE
---------------------------------------------------------------------------------
 
 strace.set_handler(function(level, ...)
 	local frame = game.ticks_played

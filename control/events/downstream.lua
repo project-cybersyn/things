@@ -11,6 +11,12 @@ local function get_custom_event_name(thing, subevent)
 	return reg.custom_events[subevent]
 end
 
+local function get_graph_custom_event_name(graph, subevent)
+	local reg = registry.get_graph_registration(graph.name)
+	if (not reg) or not reg.custom_events then return nil end
+	return reg.custom_events[subevent]
+end
+
 events.bind(
 	"things.thing_initialized",
 	---@param thing things.Thing
@@ -195,6 +201,91 @@ events.bind(
 		if cevp then
 			---@type things.EventData.on_immediate_voided
 			local ev = thing:summarize()
+			script.raise_event(cevp, ev)
+		end
+	end
+)
+
+events.bind(
+	"things.graph_add_edge",
+	---@param graph things.Graph
+	---@param edge things.GraphEdge
+	---@param from things.Thing
+	---@param to things.Thing
+	function(graph, edge, from, to)
+		local cevp = get_graph_custom_event_name(graph, "on_edge_changed")
+		if cevp then
+			---@type things.EventData.on_edge_changed
+			local ev = {
+				change = "create",
+				graph_name = graph.name,
+				edge = edge,
+				from = from:summarize(),
+				to = to:summarize(),
+			}
+			script.raise_event(cevp, ev)
+		end
+	end
+)
+
+events.bind(
+	"things.graph_remove_edge",
+	---@param graph things.Graph
+	---@param edge things.GraphEdge
+	---@param from things.Thing
+	---@param to things.Thing
+	function(graph, edge, from, to)
+		local cevp = get_graph_custom_event_name(graph, "on_edge_changed")
+		if cevp then
+			---@type things.EventData.on_edge_changed
+			local ev = {
+				change = "delete",
+				graph_name = graph.name,
+				edge = edge,
+				from = from:summarize(),
+				to = to:summarize(),
+			}
+			script.raise_event(cevp, ev)
+		end
+	end
+)
+
+events.bind(
+	"things.graph_set_edge_data",
+	---@param graph things.Graph
+	---@param edge things.GraphEdge
+	---@param from things.Thing
+	---@param to things.Thing
+	function(graph, edge, from, to)
+		local cevp = get_graph_custom_event_name(graph, "on_edge_changed")
+		if cevp then
+			---@type things.EventData.on_edge_changed
+			local ev = {
+				change = "set-data",
+				graph_name = graph.name,
+				edge = edge,
+				from = from:summarize(),
+				to = to:summarize(),
+			}
+			script.raise_event(cevp, ev)
+		end
+	end
+)
+
+events.bind(
+	"things.thing_edge_status",
+	function(thing, changed_thing, graph, edge, old_status)
+		local cevp = get_custom_event_name(thing, "on_edge_status")
+		if cevp then
+			---@type things.EventData.on_edge_status
+			local ev = {
+				thing = thing:summarize(),
+				changed_thing = changed_thing:summarize(),
+				graph_name = graph.name,
+				edge = edge,
+				old_status = old_status,
+				new_status = changed_thing.state,
+			}
 			script.raise_event(cevp, ev)
 		end
 	end

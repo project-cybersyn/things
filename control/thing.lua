@@ -10,12 +10,14 @@ local tlib = require("lib.core.table")
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
 local pos_lib = require("lib.core.math.pos")
+local graph_lib = require("control.graph")
 
 local pos_get = pos_lib.pos_get
 local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local get_thing_registration = registration_lib.get_thing_registration
 local o_loose_eq = orientation_lib.loose_eq
 local NO_RAISE_DESTROY = { raise_destroy = false }
+local EMPTY = tlib.EMPTY_STRICT
 
 local lib = {}
 
@@ -137,7 +139,17 @@ end
 function Thing:destroy(skip_destroy, skip_deparent)
 	if self.state == "destroyed" then return end
 	local reg = self:get_registration() --[[@as things.ThingRegistration]]
-	-- TODO: disconnect graph edges
+	-- Disconnect all graph edges
+	local graphs = graph_lib.get_graphs_containing_node(self.id)
+	for _, graph in pairs(graphs or EMPTY) do
+		local out_edges, in_edges = graph:get_edges(self.id)
+		for to_id in pairs(out_edges) do
+			graph_lib.disconnect(graph, self, storage.things[to_id])
+		end
+		for from_id in pairs(in_edges) do
+			graph_lib.disconnect(graph, storage.things[from_id], self)
+		end
+	end
 	if self.parent and not skip_deparent then self:remove_parent() end
 	-- Destroy children
 	if self.children and not reg.no_destroy_children_on_destroy then
@@ -517,29 +529,23 @@ function Thing:on_changed_state(new_state, old_state)
 			)
 		end
 	end
-	-- TODO: fix this graph shit
+
 	-- Notify graph peers
-	-- for graph_name in pairs(self.graph_set or EMPTY) do
-	-- 	local graph = get_graph(graph_name)
-	-- 	if not graph then goto continue end
-	-- 	local edges = graph:get_edges(self.id)
-	-- 	local edge_list = {}
-	-- 	local node_set = {}
-	-- 	node_set[self.id] = true
-	-- 	for other_id, edge in pairs(edges) do
-	-- 		table.insert(edge_list, edge)
-	-- 		node_set[other_id] = true
-	-- 	end
-	-- 	raise(
-	-- 		"thing_edges_changed",
-	-- 		self,
-	-- 		graph_name,
-	-- 		"status_changed",
-	-- 		node_set,
-	-- 		edge_list
-	-- 	)
-	-- 	::continue::
-	-- end
+	for _, graph in pairs(graph_lib.get_graphs_containing_node(self.id)) do
+		local out_edges, in_edges = graph:get_edges(self.id)
+		for to_id, edge in pairs(out_edges) do
+			local thing = storage.things[to_id]
+			if thing then
+				raise("things.thing_edge_status", thing, self, graph, edge, old_state)
+			end
+		end
+		for from_id, edge in pairs(in_edges) do
+			local thing = storage.things[from_id]
+			if thing then
+				raise("things.thing_edge_status", thing, self, graph, edge, old_state)
+			end
+		end
+	end
 end
 
 --------------------------------------------------------------------------------

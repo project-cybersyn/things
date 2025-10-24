@@ -5,6 +5,7 @@ require("types")
 local pos_lib = require("lib.core.math.pos")
 local thing_lib = require("control.thing")
 local reg_lib = require("control.registration")
+local graph_lib = require("control.graph")
 
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
 local get_thing = thing_lib.get_by_id
@@ -72,66 +73,74 @@ function remote_interface.set_tags(thing_identification, tags)
 	return nil
 end
 
----Create a graph edge between two Things.
+---Modify a graph edge between two Things.
 ---@param graph_name string The name of the graph to create the edge in.
----@param thing_1 things.ThingIdentification One side of the edge.
----@param thing_2 things.ThingIdentification The other side of the edge.
----@param operation "create"|"delete"|"toggle"|"set-data"|nil The operation to perform on the edge. Defaults to "create".
+---@param operation "create"|"delete"|"toggle"|"set-data" The operation to perform on the edge.
+---@param from things.ThingIdentification One side of the edge.
+---@param to things.ThingIdentification The other side of the edge.
+---@param data Tags? Additional data to set on the edge.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 ---@return boolean? toggle_result If `operation` is "toggle", this will be `true` if the edge was created, or `false` if it was deleted. `nil` otherwise.
-function remote_interface.modify_edge(
-	graph_name,
-	thing_1,
-	thing_2,
-	operation,
-	data
-)
-	-- TODO: fix graph shit
-	-- local thing1, valid_id1 = resolve_identification(thing_1)
-	-- local thing2, valid_id2 = resolve_identification(thing_2)
-	-- if not valid_id1 or not valid_id2 then return CANT_BE_A_THING end
-	-- if not thing1 or not thing2 then return NOT_A_THING end
-	-- local edge = thing1:graph_get_edge(graph_name, thing2)
-	-- if operation == "create" then
-	-- 	if edge then
-	-- 		return { code = "edge_exists", message = "Edge already exists." }
-	-- 	end
-	-- 	thing1:graph_connect(graph_name, thing2)
-	-- elseif operation == "delete" then
-	-- 	if not edge then
-	-- 		return { code = "edge_does_not_exist", message = "Edge does not exist." }
-	-- 	end
-	-- 	thing1:graph_disconnect(graph_name, thing2)
-	-- elseif operation == "toggle" then
-	-- 	if edge then
-	-- 		thing1:graph_disconnect(graph_name, thing2)
-	-- 		return nil, false
-	-- 	else
-	-- 		thing1:graph_connect(graph_name, thing2)
-	-- 		return nil, true
-	-- 	end
-	-- elseif operation == "set-data" then
-	-- 	if not edge then return nil end
-	-- 	-- TODO: impl
-	-- end
+function remote_interface.modify_edge(graph_name, operation, from, to, data)
+	local from_thing, valid_id1 = resolve_identification(from)
+	local to_thing, valid_id2 = resolve_identification(to)
+	if not valid_id1 or not valid_id2 then return CANT_BE_A_THING end
+	if not from_thing or not to_thing then return NOT_A_THING end
+	local graph = graph_lib.get_graph(graph_name)
+	if not graph then
+		return {
+			code = "invalid_graph",
+			message = "No graph with name '" .. tostring(graph_name) .. "' exists.",
+		}
+	end
+	local edge = graph:get_edge(from_thing.id, to_thing.id)
+	if operation == "create" then
+		if edge then
+			return { code = "edge_exists", message = "Edge already exists." }
+		end
+		graph_lib.connect(graph, from_thing, to_thing, data)
+	elseif operation == "delete" then
+		if not edge then
+			return { code = "edge_does_not_exist", message = "Edge does not exist." }
+		end
+		graph_lib.disconnect(graph, from_thing, to_thing)
+	elseif operation == "toggle" then
+		if edge then
+			graph_lib.disconnect(graph, from_thing, to_thing)
+			return nil, false
+		else
+			graph_lib.connect(graph, from_thing, to_thing, data)
+			return nil, true
+		end
+	elseif operation == "set-data" then
+		if not edge then
+			return { code = "edge_does_not_exist", message = "Edge does not exist." }
+		end
+		graph_lib.set_edge_data(graph, from_thing, to_thing, data)
+	end
 	return nil
 end
 
----Get all graph edges emanating from a Thing in a given graph.
+---Get all graph edges emanating from a Thing in a given graph. For undirected
+---graphs, both `out_edges` and `in_edges` are relevant and must be checked.
 ---@param graph_name string The name of the graph to get edges from.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return {[int]: things.GraphEdge}|nil edges Edges indexed by destination Thing. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no edges in the graph.
+---@return {[int]: things.GraphEdge}|nil out_edges
+---@return {[int]: things.GraphEdge}|nil in_edges
 function remote_interface.get_edges(graph_name, thing_identification)
-	-- TODO: fix this graph shit
-	return nil, {}
-	-- local thing, valid_id = resolve_identification(thing_identification)
-	-- if not valid_id then return CANT_BE_A_THING end
-	-- if not thing then return NOT_A_THING end
-	-- local graph = get_graph(graph_name)
-	-- if not graph then return nil, {} end
-	-- local edges = graph:get_edges(thing.id)
-	-- return nil, edges
+	local thing, valid_id = resolve_identification(thing_identification)
+	if not valid_id then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	local graph = graph_lib.get_graph(graph_name)
+	if not graph then
+		return {
+			code = "invalid_graph",
+			message = "No graph with name '" .. tostring(graph_name) .. "' exists.",
+		}
+	end
+	local out_edges, in_edges = graph:get_edges(thing.id)
+	return nil, out_edges, in_edges
 end
 
 ---Adds a child Thing to a parent Thing.
