@@ -42,6 +42,7 @@ require("control.registration")
 
 require("control.events.prebuild")
 require("control.events.build")
+require("control.events.orientation")
 require("control.events.destroy")
 require("control.events.undo")
 require("control.events.extract")

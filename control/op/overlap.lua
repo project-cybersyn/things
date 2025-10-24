@@ -115,12 +115,6 @@ function OverlapOp:apply(frame)
 		if not o_loose_eq(current_orientation, self.imposed_orientation) then
 			self.previous_orientation = current_orientation
 			overlapped_thing:set_orientation(self.imposed_orientation, true)
-			frame:post_event(
-				"things.thing_orientation_changed",
-				overlapped_thing,
-				self.imposed_orientation,
-				current_orientation
-			)
 		end
 	end
 end

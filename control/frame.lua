@@ -140,8 +140,9 @@ function Frame:get_resolved(key)
 	end
 end
 
----@param op things.Op
+---@param op? things.Op
 function Frame:add_op(op)
+	if not op then return end
 	self.op_set:add(op)
 	strace.debug(self.debug_string, "added", OpType[op.type], "op:", op)
 end
@@ -275,6 +276,18 @@ function Frame:tag_view_for_player(
 				stored_id,
 				inv_id,
 				")"
+			)
+		else
+			tag_undo_item(view, i, actions, nil, nil)
+			strace.debug(
+				self.debug_string,
+				"Tagged",
+				debug_stackname,
+				"item",
+				i,
+				"for player",
+				player_index,
+				"as having no opset"
 			)
 		end
 		::continue_item::

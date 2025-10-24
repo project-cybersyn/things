@@ -38,8 +38,8 @@ local OpType = {
 	REDO = 10,
 	---Generic marker for entity overlap.
 	OVERLAP = 11,
-	---Generic marker for firing an orientation event.
-	ORIENTATION_EVENT = 12,
+	---Change thing orientation.
+	ORIENTATION = 12,
 	"CREATE",
 	"MFD",
 	"TAGS",
@@ -51,7 +51,7 @@ local OpType = {
 	"UNDO",
 	"REDO",
 	"OVERLAP",
-	"ORIENTATION_EVENT",
+	"ORIENTATION",
 }
 lib.OpType = OpType
 
@@ -151,29 +151,5 @@ function ImposeOrientationOp:new(thing_id, key, orientation, prev_orientation)
 	obj.prev_orientation = prev_orientation
 	return obj
 end
-
---------------------------------------------------------------------------------
--- ORIENTATION EVENT OP
---------------------------------------------------------------------------------
-
----@class things.OrientationEventOp: things.Op
----@field public orientation Core.Orientation The new orientation of the Thing.
----@field public prev_orientation Core.Orientation The previous orientation of the Thing.
-local OrientationEventOp = class("things.OrientationEventOp", Op)
-lib.OrientationEventOp = OrientationEventOp
-
----@param thing_id uint64 The ID of the Thing whose orientation event is being fired.
----@param key Core.WorldKey The world key of the Thing whose orientation event is being fired.
----@param orientation Core.Orientation The new orientation
----@param prev_orientation Core.Orientation The previous orientation
-function OrientationEventOp:new(thing_id, key, orientation, prev_orientation)
-	local obj = Op.new(self, OpType.ORIENTATION_EVENT, key) --[[@as things.OrientationEventOp]]
-	obj.thing_id = thing_id
-	obj.orientation = orientation
-	obj.prev_orientation = prev_orientation
-	return obj
-end
-
-function OrientationEventOp:dehydrate_for_undo() return false end
 
 return lib

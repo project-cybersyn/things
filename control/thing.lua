@@ -8,9 +8,11 @@ local registration_lib = require("control.registration")
 local tlib = require("lib.core.table")
 local frame_lib = require("control.frame")
 local events = require("lib.core.event")
+local strace = require("lib.core.strace")
 
 local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local get_thing_registration = registration_lib.get_thing_registration
+local o_loose_eq = orientation_lib.loose_eq
 
 local lib = {}
 
@@ -138,6 +140,16 @@ function Thing:tombstone()
 	end
 end
 
+function Thing:raise_event(event_name, ...)
+	if self.is_silent then return end
+	local frame = frame_lib.in_frame()
+	if frame then
+		frame:post_event(event_name, ...)
+	else
+		events.raise(event_name, ...)
+	end
+end
+
 ---@return Core.Orientation?
 function Thing:get_orientation()
 	local entity = self:get_entity()
@@ -149,19 +161,58 @@ end
 
 ---@param orientation Core.Orientation
 ---@param impose boolean? If true, impose the orientation on the Thing's entity
-function Thing:set_orientation(orientation, impose)
-	if self.virtual_orientation then
-		-- TODO: check for matching oclass?
-		self.virtual_orientation = orientation
+---@param suppress_event boolean? If true, suppress orientation change events.
+---@return boolean changed `true` if Things thinks the orientation was changed.
+function Thing:set_orientation(orientation, impose, suppress_event)
+	local current_orientation = self:get_orientation()
+	if not current_orientation then
+		-- Virtual thingless case.
+		current_orientation = self.virtual_orientation
+		if current_orientation then
+			if not o_loose_eq(current_orientation, orientation) then
+				self.virtual_orientation = orientation
+				if not suppress_event then
+					self:raise_event(
+						"things.thing_orientation_changed",
+						self,
+						orientation,
+						current_orientation
+					)
+				end
+				return true
+			end
+		else
+			strace.debug(
+				"Thing:set_orientation: called on a Thing with no current orientation. Ignoring."
+			)
+		end
+		return false
+	elseif not o_loose_eq(current_orientation, orientation) then
+		if self.virtual_orientation then
+			-- TODO: check for matching oclass?
+			self.virtual_orientation = orientation
+		end
+		local entity = self:get_entity()
+		if not entity then return false end
+		-- TODO: check if config allows imposition
+		if impose then orientation_lib.impose(orientation, entity) end
+		if not suppress_event then
+			self:raise_event(
+				"things.thing_orientation_changed",
+				self,
+				orientation,
+				current_orientation
+			)
+		end
+		return true
 	end
-	local entity = self:get_entity()
-	if not entity then return end
-	if impose then orientation_lib.impose(orientation, entity) end
+	return false
 end
 
 ---@param tags Tags?
 ---@param no_copy boolean? If true, assign the tags table directly instead of deep-copying it.
-function Thing:set_tags(tags, no_copy)
+---@param suppress_event boolean? If true, suppress tags change events.
+function Thing:set_tags(tags, no_copy, suppress_event)
 	if (not tags) and not self.tags then return end
 	local previous_tags = self.tags
 	if tags then
@@ -175,17 +226,13 @@ function Thing:set_tags(tags, no_copy)
 	end
 
 	-- Post events as needed.
-	if self.is_silent then return end
-	local frame = frame_lib.in_frame()
-	if frame then
-		frame:post_event(
+	if not suppress_event then
+		self:raise_event(
 			"things.thing_tags_changed",
 			self,
 			self.tags,
 			previous_tags
 		)
-	else
-		events.raise("things.thing_tags_changed", self, self.tags, previous_tags)
 	end
 end
 
