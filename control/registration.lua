@@ -36,7 +36,8 @@ function lib.get_graph_registration(name) return thing_graphs[name or ""] end
 ---@param name string The entity prototype name to check.
 ---@return things.ThingRegistration|nil #The Thing Registration that should be associated to the built thing, or nil.
 function lib.should_intercept_build(name)
-	return lib.get_thing_registration(name)
+	local reg = lib.get_thing_registration(name)
+	if reg and reg.intercept_construction then return reg end
 end
 
 return lib

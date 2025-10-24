@@ -4,6 +4,7 @@ require("types")
 
 local pos_lib = require("lib.core.math.pos")
 local thing_lib = require("control.thing")
+local reg_lib = require("control.registration")
 
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
 local get_thing = thing_lib.get_by_id
@@ -291,40 +292,22 @@ function remote_interface.devoid(thing_id, entity)
 	return nil
 end
 
----Create a new Thing by invoking Factorio's `surface.create_entity` API.
----@param surface LuaSurface The surface to create the entity on.
----@param create_entity_params LuaSurface.create_entity_param The parameters to pass to `surface.create_entity`.
+---Create a new Thing from an entity.
 ---@param create_thing_params things.CreateThingParams Parameters controlling how the Thing is created.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 ---@return things.ThingSummary? thing Summary of the created Thing, or `nil` if there was an error.
-function remote_interface.create_thing(
-	surface,
-	create_entity_params,
-	create_thing_params
-)
-	-- Deduce final entity prototype name
-	local name = create_entity_params.name
-	if type(name) ~= "string" then name = name.name end
-	if type(name) ~= "string" then
-		return {
-			code = "invalid_entity_name",
-			message = "The entity name in create_entity_params is invalid.",
-		}
-	end
-	if name == "entity-ghost" then name = create_entity_params.inner_name end
-
-	-- Deduce Thing registration name
-	local registration_name = name
-	if create_thing_params.registration_name then
-		registration_name = create_thing_params.registration_name
-	end
-	local registration = get_thing_registration(registration_name)
+function remote_interface.create_thing(create_thing_params)
+	local name = create_thing_params.name
+	local entity = create_thing_params.entity
+	local is_ghost = entity.type == "entity-ghost"
+	if not name then name = is_ghost and entity.ghost_name or entity.name end
+	local registration = reg_lib.get_thing_registration(name)
 	if not registration then
 		return {
-			code = "unknown_registration",
-			message = "No Thing registration with name '" .. tostring(
-				registration_name
-			) .. "' exists.",
+			code = "invalid_name",
+			message = "No Thing registration with name '"
+				.. tostring(name)
+				.. "' exists.",
 		}
 	end
 
@@ -349,7 +332,13 @@ function remote_interface.create_thing(
 				message = "The specified Thing to devoid is not in `void` state.",
 			}
 		end
-		devoid_thing = dt
+		if not dt:devoid(entity) then
+			return {
+				code = "devoid_failed",
+				message = "Failed to devoid the specified Thing.",
+			}
+		end
+		return nil, dt:summarize()
 	end
 
 	local parent_thing = nil

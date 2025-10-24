@@ -25,7 +25,8 @@
 
 ---Registration options for a type of Thing.
 ---@class (exact) things.ThingRegistration
----@field public name string Name of the registered Thing type. This should generally match the prototype name of the entity used by this Thing type, but it does not have to.
+---@field public name string Name of the registered Thing type. This MUST be the same name as the key used to registere it, and SHOULD match the type of the corresponding entity.
+---@field public intercept_construction? boolean If true, Things will intercept player-driven construction of entities of this type and create Things for them automatically. (default: false)
 ---@field public virtualize_orientation? Core.OrientationClass If given, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. The orientation will be promoted to the given orientation class if possible.
 ---@field public merge_tags_on_overlap? boolean If true, when a Thing is overlapped by a blueprinted thing with tags, the tags will be shallow-merged instead of replaced. (default: false)
 ---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
@@ -35,12 +36,12 @@
 ---@field public directed? boolean Whether the graph is directed (default: false).
 
 ---Representation of an edge in a graph of Things.
----@class things.GraphEdge
----@field public first int First Thing ID connected to this edge. (In undirected graphs, the lower id.)
----@field public second int Second Thing ID connected to this edge.
+---@class (exact) things.GraphEdge
+---@field public from int Edge emanates from this Thing ID. (In undirected graphs, the lower id.)
+---@field public to int Edge points to this Thing ID. (In undirected graphs, the higher id.)
 ---@field public data? Tags Optional user data associated with this edge.
 
----@class things.NamedGraphEdge: things.GraphEdge
+---@class (exact) things.NamedGraphEdge: things.GraphEdge
 ---@field public name string The name of the graph this edge belongs to.
 
 ---A set of graph names.
@@ -68,12 +69,10 @@
 
 ---Options controlling how a Thing is created via `create_thing`.
 ---@class (exact) things.CreateThingParams
+---@field public entity LuaEntity The *valid* entity to associate the new Thing with. This entity must not already be associated with an existing Thing.
 ---@field public name? string If given, the new Thing will be created as an instance of the registered Thing type with this name. If not given, name will be inferred from the entity type.
----@field public parent? things.ThingIdentification If given, create the new Thing as a child of this Thing.
----@field public index_in_parent? string|int If `parent` is given, the new Thing will be registered in the parent's children under this index. This field is ignored if `parent` is not given, and will not change child keys of existing Things.
----@field public devoid? things.ThingIdentification If given, instead of creating a new Thing, devoid the given voided Thing. Cannot be given with `parent`; the new Thing will retain the parent of the devoided Thing.
----@field public relative_offset? MapPosition If given, and the associated Thing has a parent, the position of the new Thing will be recomputed using the given offset within the parent's local coordinate space. If the Thing has no parent, this field is ignored.
----@field public relative_orientation? Core.Dihedral If given, and the associated Thing has a parent, the orientation of the new Thing will be computed by applying this relative orientation to the parent's orientation. If the Thing has no parent, this field is ignored.
+---@field public parent? things.ParentRelationshipInfo If given, create the new Thing as a child of this Thing.
+---@field public devoid? things.ThingIdentification If given, instead of creating a new Thing, devoid the given voided Thing. Cannot be given with `parent`; the new Thing will retain the parent of the voided Thing.
 
 ---Entity within a blueprint being extracted.
 ---@class (exact) things.ExtractedEntity

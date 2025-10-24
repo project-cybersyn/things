@@ -12,8 +12,11 @@ local strace = require("lib.core.strace")
 local get_thing_by_id = thing_lib.get_by_id
 local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local TAGS_TAG = constants.TAGS_TAG
+local NAME_TAG = constants.NAME_TAG
 local EMPTY = tlib.EMPTY_STRICT
 local get_world_state = ws_lib.get_world_state
+local get_thing_registration = registration_lib.get_thing_registration
+local should_intercept_build = registration_lib.should_intercept_build
 
 --------------------------------------------------------------------------------
 -- Unify game events into generic build event, and generate creation ops.
@@ -59,7 +62,8 @@ local function handle_generic_built(ev)
 	end
 
 	-- Early out if not a thing
-	local registration = registration_lib.should_intercept_build(name)
+	local registration = get_thing_registration(tags[NAME_TAG] --[[@as string?]])
+		or should_intercept_build(name)
 	if not registration then return end
 
 	-- Generate creation op.
