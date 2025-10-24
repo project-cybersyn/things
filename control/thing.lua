@@ -162,7 +162,8 @@ end
 ---@param orientation Core.Orientation
 ---@param impose boolean? If true, impose the orientation on the Thing's entity
 ---@param suppress_event boolean? If true, suppress orientation change events.
----@return boolean changed `true` if Things thinks the orientation was changed.
+---@return boolean changed `true` if the Thing's orientation was changed.
+---@return boolean imposed `true` if the orientation was imposed on the entity.
 function Thing:set_orientation(orientation, impose, suppress_event)
 	local current_orientation = self:get_orientation()
 	if not current_orientation then
@@ -179,23 +180,33 @@ function Thing:set_orientation(orientation, impose, suppress_event)
 						current_orientation
 					)
 				end
-				return true
+				return true, false
 			end
 		else
 			strace.debug(
 				"Thing:set_orientation: called on a Thing with no current orientation. Ignoring."
 			)
 		end
-		return false
+		return false, false
 	elseif not o_loose_eq(current_orientation, orientation) then
+		local changed = false
+		local imposed = false
 		if self.virtual_orientation then
 			-- TODO: check for matching oclass?
 			self.virtual_orientation = orientation
+			changed = true
 		end
 		local entity = self:get_entity()
-		if not entity then return false end
+		if not entity then return changed, false end
 		-- TODO: check if config allows imposition
-		if impose then orientation_lib.impose(orientation, entity) end
+		if impose then
+			local eo = orientation_lib.extract(entity)
+			if not o_loose_eq(eo, orientation) then
+				orientation_lib.impose(orientation, entity)
+				imposed = true
+				changed = true
+			end
+		end
 		if not suppress_event then
 			self:raise_event(
 				"things.thing_orientation_changed",
@@ -204,9 +215,9 @@ function Thing:set_orientation(orientation, impose, suppress_event)
 				current_orientation
 			)
 		end
-		return true
+		return changed, imposed
 	end
-	return false
+	return false, false
 end
 
 ---@param tags Tags?
