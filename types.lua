@@ -30,6 +30,9 @@
 ---@field public virtualize_orientation? Core.OrientationClass If given, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. The orientation will be promoted to the given orientation class if possible.
 ---@field public migrate_tags_callback? Core.RemoteCallbackSpec A remote callback to invoke when a Thing is built with unrecognized tags. This allows mods using non-Thing custom blueprint data to migrate to Things. The callback will be invoked as `callback(parsed_tags: Tags, raw_tags: Tags) -> Tags`, and should return the ultimate set of tags to assign to the Thing.
 ---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
+---@field public no_garbage_collection? boolean If `true`, Things of this type will not be automatically garbage collected when Things thinks they are unreachable. You must manually destroy these Things when they are no longer needed. (default: false)
+---@field public no_destroy_children_on_destroy? boolean If `true`, when a Thing of this type is destroyed, its children will NOT be automatically destroyed. (default: false)
+---@field public no_void_children_on_void? boolean If `true`, when a Thing of this type is voided, its children will NOT be automatically voided. (default: false)
 
 ---Registration options for a graph of Things.
 ---@class (exact) things.GraphRegistration
@@ -71,7 +74,10 @@
 ---@class (exact) things.CreateThingParams
 ---@field public entity LuaEntity The *valid* entity to associate the new Thing with. This entity must not already be associated with an existing Thing.
 ---@field public name? string If given, the new Thing will be created as an instance of the registered Thing type with this name. If not given, name will be inferred from the entity type.
----@field public parent? things.ParentRelationshipInfo If given, create the new Thing as a child of this Thing.
+---@field public parent? things.ThingIdentification If given, create the new Thing as a child of this Thing.
+---@field public child_index? int|string The index of the new Thing within its parent's children, if any. If not given, the new Thing will be added at the end of the parent's children.
+---@field public relative_pos? MapPosition The position of the new Thing relative to its parent, if any.
+---@field public relative_orientation? Core.Dihedral The orientation of the new Thing relative to its parent, if any.
 ---@field public devoid? things.ThingIdentification If given, instead of creating a new Thing, devoid the given voided Thing. Cannot be given with `parent`; the new Thing will retain the parent of the voided Thing.
 
 ---Entity within a blueprint being extracted.
@@ -112,11 +118,17 @@
 ---@field public nodes {[int]: true} Set of Thing ids whose edges were changed.
 ---@field public edges things.GraphEdge[] List of edges that were changed.
 
----Event raised when the virtual orientation of a Thing changes.
+---Event raised when the orientation of a Thing changes.
 ---@class (exact) things.EventData.on_orientation_changed
----@field public thing things.ThingSummary Summary of the Thing whose virtual orientation changed.
----@field public old_orientation? Core.Orientation The previous virtual orientation of the Thing.
----@field public new_orientation Core.Orientation The new virtual orientation of the Thing.
+---@field public thing things.ThingSummary Summary of the Thing whose orientation changed.
+---@field public old_orientation? Core.Orientation The previous orientation of the Thing.
+---@field public new_orientation Core.Orientation The new orientation of the Thing.
+
+---Event raised when a Thing's position changes.
+---@class (exact) things.EventData.on_position_changed
+---@field public thing things.ThingSummary Summary of the Thing whose position changed.
+---@field public old_position? MapPosition The previous position of the Thing.
+---@field public new_position MapPosition The new position of the Thing.
 
 ---Event raised when the composition of a Thing's children changes.
 ---@class (exact) things.EventData.on_children_changed
@@ -127,16 +139,23 @@
 ---Event raised when a Thing's parent changes.
 ---@class (exact)things.EventData.on_parent_changed
 ---@field public thing things.ThingSummary Summary of the Thing whose parent changed.
----@field public old_parent_id int64? The id of the Thing's old parent, if it had one.
+---@field public new_parent things.ThingSummary|nil Summary of the new parent, if any.
 
 ---Event raised when a Thing's child changes status.
 ---@class (exact) things.EventData.on_child_status
 ---@field public thing things.ThingSummary Summary of the Thing whose children's status changed.
 ---@field public child things.ThingSummary Summary of the child whose status changed.
----@field public old_status things.Status The previous status of the child.
+---@field public child_index string|int The key under which the child is registered in the parent.
+---@field public old_child_status things.Status The previous status of the child.
 
 ---Event raised when a Thing's parent changes status.
 ---@class (exact) things.EventData.on_parent_status
 ---@field public thing things.ThingSummary Summary of the Thing whose parent's status changed.
 ---@field public parent things.ThingSummary Summary of the parent whose status changed.
----@field public old_status things.Status The previous status of the parent.
+---@field public old_parent_status things.Status The previous status of the parent.
+
+---Event raised inline when a Thing is voided. This event occurs mid-frame and
+---you should take care to avoid causing event cancer. The only valid use
+---for this event is to collect data about the Thing before its entity is
+---destroyed.
+---@alias things.EventData.on_immediate_voided things.ThingSummary

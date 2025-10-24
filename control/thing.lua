@@ -4,15 +4,18 @@ local StateMachine = require("lib.core.state-machine")
 local constants = require("control.constants")
 local orientation_lib = require("lib.core.orientation.orientation")
 local oclass_lib = require("lib.core.orientation.orientation-class")
+local dih_lib = require("lib.core.math.dihedral")
 local registration_lib = require("control.registration")
 local tlib = require("lib.core.table")
-local frame_lib = require("control.frame")
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
+local pos_lib = require("lib.core.math.pos")
 
+local pos_get = pos_lib.pos_get
 local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local get_thing_registration = registration_lib.get_thing_registration
 local o_loose_eq = orientation_lib.loose_eq
+local NO_RAISE_DESTROY = { raise_destroy = false }
 
 local lib = {}
 
@@ -65,6 +68,8 @@ function Thing:summarize()
 		parent = self.parent,
 	}
 end
+
+function Thing:get_registration() return get_thing_registration(self.name) end
 
 ---@param skip_validation boolean? If falsy, and the Thing has an entity, ensure the entity is still valid.
 function Thing:get_entity(skip_validation)
@@ -125,45 +130,84 @@ function Thing:undo_unref()
 	end
 end
 
-function Thing:destroy()
+---Irreversibly and immediately destroy this Thing. By default, also destroy
+---its associated entity.
+---@param skip_destroy boolean? If true, skip destroying the Thing's entity.
+---@param skip_deparent boolean? If true, skip removing this Thing from its parent.
+function Thing:destroy(skip_destroy, skip_deparent)
+	if self.state == "destroyed" then return end
+	local reg = self:get_registration() --[[@as things.ThingRegistration]]
+	-- TODO: disconnect graph edges
+	if self.parent and not skip_deparent then self:remove_parent() end
+	-- Destroy children
+	if self.children and not reg.no_destroy_children_on_destroy then
+		for _, child_id in pairs(self.children) do
+			local child_thing = storage.things[child_id]
+			if child_thing then child_thing:destroy(true) end
+		end
+		self.children = nil
+	end
+	local former_entity = self.entity
 	self:set_entity(nil)
 	self:set_state("destroyed")
 	storage.things[self.id] = nil
+	if not skip_destroy and former_entity and former_entity.valid then
+		strace.trace("Thing:destroy: destroying entity for Thing ID", self.id)
+		former_entity.destroy(NO_RAISE_DESTROY)
+	end
+end
+
+---@param skip_destroy boolean? If true, skip destroying the Thing's entity.
+---@param skip_destroy_children boolean? If true, skip destroying this Thing's children.
+---@return boolean changed `true` if the Thing was voided, `false` if it was already void.
+function Thing:void(skip_destroy, skip_destroy_children)
+	if self.state == "destroyed" then
+		error("Attempt to void a destroyed Thing. Thing ID: " .. self.id)
+	end
+	if self.state == "void" then return false end
+	local reg = self:get_registration() --[[@as things.ThingRegistration]]
+	-- Void children
+	if self.children and not reg.no_void_children_on_void then
+		for _, child_id in pairs(self.children) do
+			local child_thing = storage.things[child_id]
+			if child_thing then child_thing:void(skip_destroy_children) end
+		end
+	end
+	events.raise("things.thing_immediate_voided", self)
+	local former_entity = self.entity
+	self:set_entity(nil)
+	self:set_state("void")
+	if not skip_destroy and former_entity and former_entity.valid then
+		former_entity.destroy(NO_RAISE_DESTROY)
+	end
+	return true
+end
+
+---@param entity LuaEntity A *valid* entity to associate with this Thing.
+---@return boolean changed `true` if the Thing was devoided, `false` if it was not in the void state.
+function Thing:devoid(entity)
+	if self.state ~= "void" then return false end
+	self:set_entity(entity, true)
+	return true
 end
 
 function Thing:tombstone()
 	if self.undo_refcount > 0 then
-		self:set_entity(nil)
-		self:set_state("void")
 		strace.trace(
 			"Thing:tombstone: Thing ID",
 			self.id,
-			"tombstoned; undo_refcount is",
+			"will be tombstoned; undo_refcount is",
 			self.undo_refcount
 		)
+		self:void(true, false)
 	else
 		self:destroy()
 	end
 end
 
-function Thing:raise_event(event_name, ...)
-	if self.is_silent then return end
-	local frame = frame_lib.in_frame()
-	if frame then
-		frame:post_event(event_name, ...)
-	else
-		strace.trace(
-			"Raising inline Thing event",
-			event_name,
-			"for Thing ID",
-			self.id
-		)
-		events.raise(event_name, ...)
-	end
-end
-
 ---@return Core.Orientation?
 function Thing:get_orientation()
+	-- TODO: allow this to run purely virtually
 	local entity = self:get_entity()
 	if not entity then return nil end
 	local vo = self.virtual_orientation
@@ -183,6 +227,7 @@ function Thing:set_orientation(orientation, impose, suppress_event)
 		current_orientation = self.virtual_orientation
 		if current_orientation then
 			if not o_loose_eq(current_orientation, orientation) then
+				-- TODO: oclass matching/projection
 				self.virtual_orientation = orientation
 				if not suppress_event then
 					self:raise_event(
@@ -232,6 +277,26 @@ function Thing:set_orientation(orientation, impose, suppress_event)
 	return false, false
 end
 
+---@param next_pos MapPosition
+function Thing:teleport(next_pos)
+	local entity = self:get_entity()
+	if not entity then return false end
+	local pos = entity.position
+	if pos_lib.pos_close(pos, next_pos) then return false end
+	if entity.teleport(next_pos, nil, false) then
+		self:raise_event("things.thing_position_changed", self, next_pos, pos)
+		return true
+	else
+		strace.error(
+			"Thing:teleport: teleport failed for Thing ID",
+			self.id,
+			"to position",
+			next_pos
+		)
+		return false
+	end
+end
+
 ---@param tags Tags?
 ---@param no_copy boolean? If true, assign the tags table directly instead of deep-copying it.
 ---@param suppress_event boolean? If true, suppress tags change events.
@@ -259,34 +324,6 @@ function Thing:set_tags(tags, no_copy, suppress_event)
 	end
 end
 
----@param index int|string The index of the child.
----@param child things.Thing The child Thing to add.
----@param relative_pos? MapPosition The position of the child relative to this Thing.
----@param relative_orientation? Core.Dihedral The orientation of the child relative to this Thing.
-function Thing:add_child(index, child, relative_pos, relative_orientation)
-	if child.parent then return false end
-	if self.children and self.children[index] then return false end
-	if not self.children then self.children = {} end
-	self.children[index] = child.id
-	child.parent = {
-		self.id,
-		index,
-		relative_pos,
-		relative_orientation,
-	}
-
-	-- Post events as needed.
-	if self.is_silent then return end
-	local frame = frame_lib.in_frame()
-	if frame then
-		frame:post_event("things.thing_children_changed", self, child, nil)
-		frame:post_event("things.thing_parent_changed", child)
-	else
-		events.raise("things.thing_children_changed", self, child, nil)
-		events.raise("things.thing_parent_changed", child)
-	end
-end
-
 ---Set custom transient data on this Thing.
 ---@param key string
 ---@param value AnyBasic?
@@ -299,37 +336,182 @@ function Thing:set_transient_data(key, value)
 end
 
 --------------------------------------------------------------------------------
+-- PARENT CHILD RELATIONSHIPS
+--------------------------------------------------------------------------------
+
+---@param index? int|string The index of the child. If not provided, #children+1 is used.
+---@param child things.Thing The child Thing to add.
+---@param relative_pos? MapPosition The position of the child relative to this Thing.
+---@param relative_orientation? Core.Dihedral The orientation of the child relative to this Thing.
+---@param suppress_event boolean? If true, suppress parent/child change events.
+function Thing:add_child(
+	index,
+	child,
+	relative_pos,
+	relative_orientation,
+	suppress_event
+)
+	if child.parent then return false end
+	if self.children and index and self.children[index] then return false end
+	if not self.children then self.children = {} end
+	if not index then index = #self.children + 1 end
+	self.children[index] = child.id
+	child.parent = {
+		self.id,
+		index,
+		relative_pos,
+		relative_orientation,
+	}
+
+	-- Post events as needed.
+	if not suppress_event then
+		self:raise_event("things.thing_children_changed", self, child, nil)
+		child:raise_event("things.thing_parent_changed", child, self)
+	end
+end
+
+---Remove this Thing's parent, if any.
+---@return boolean removed `true` if a parent was removed, `false` if there was no parent.
+function Thing:remove_parent()
+	local parent_relationship = self.parent
+	if not parent_relationship then return false end
+	local parent_thing = storage.things[parent_relationship[1]]
+	local child_key = parent_relationship[2]
+	local my_id = parent_thing
+		and parent_thing.children
+		and parent_thing.children[child_key]
+
+	if (not parent_thing) or (my_id ~= self.id) then
+		self.parent = nil
+		self:raise_event("things.thing_parent_changed", self)
+		return true
+	end
+
+	self.parent = nil
+	parent_thing.children[child_key] = nil
+
+	parent_thing:raise_event(
+		"things.thing_children_changed",
+		parent_thing,
+		nil,
+		{ self }
+	)
+	self:raise_event("things.thing_parent_changed", self)
+	return true
+end
+
+---If this Thing has a parent, and its relationship specifies a relative
+---position and/or orientation, compute the WORLD orientation using the
+---parent's current data plus the given relative offsets.
+---@return MapPosition? adjusted_pos The adjusted world position, or `nil` if no relative offset is specified.
+---@return Core.Orientation? adjusted_orientation The adjusted world orientation, or `nil` if no relative offset is specified.
+function Thing:get_adjusted_pos_and_orientation()
+	local parent_relationship = self.parent
+	if not parent_relationship then return nil, nil end
+	local parent_thing = storage.things[parent_relationship[1]]
+	if not parent_thing then return nil, nil end
+	return lib.get_adjusted_pos_and_orientation(
+		parent_thing,
+		parent_relationship[3],
+		parent_relationship[4]
+	)
+end
+
+---If this Thing has a parent, and its relationship specifies a relative
+---position or orientation, apply those if needed.
+function Thing:apply_adjusted_pos_and_orientation()
+	local entity = self:get_entity()
+	if not entity then return end
+	local adj_pos, adj_orientation = self:get_adjusted_pos_and_orientation()
+	if adj_pos then
+		strace.trace(
+			"Thing:apply_adjusted_pos_and_orientation: computed adjusted position for Thing ID",
+			self.id,
+			"parent-index",
+			self.parent and self.parent[2],
+			"as",
+			adj_pos
+		)
+		if self:teleport(adj_pos) then
+			strace.trace(
+				"Thing:apply_adjusted_pos_and_orientation: adjusted position for Thing ID",
+				self.id,
+				"to",
+				adj_pos
+			)
+		end
+	end
+	if adj_orientation then self:set_orientation(adj_orientation, true) end
+end
+
+--------------------------------------------------------------------------------
 -- EVENT HANDLING
 --------------------------------------------------------------------------------
+
+function Thing:initialize()
+	local frame = in_frame()
+	if frame then
+		frame:post_event("things.thing_initialized", self)
+	else
+		strace.trace(
+			"Raising inline Thing event",
+			"things.thing_initialized",
+			"for Thing ID",
+			self.id
+		)
+		events.raise("things.thing_initialized", self)
+	end
+end
+
+function Thing:raise_event(event_name, ...)
+	if self.is_silent then return end
+	local frame = in_frame()
+	if frame then
+		frame:post_event(event_name, ...)
+	else
+		strace.trace(
+			"Raising inline Thing event",
+			event_name,
+			"for Thing ID",
+			self.id
+		)
+		events.raise(event_name, ...)
+	end
+end
 
 function Thing:on_changed_state(new_state, old_state)
 	-- If silent, skip all events.
 	if self.is_silent then return end
 	local raise = events.raise
-	local frame = frame_lib.in_frame()
+	local frame = in_frame()
 	if frame then
 		raise = function(event_name, ...) frame:post_event(event_name, ...) end
 	end
 	-- Notify children first.
 	if self.children then
 		for _, child in pairs(self.children) do
-			raise(
-				"things.thing_parent_status",
-				child,
-				self,
-				old_state --[[@as string]]
-			)
+			local child_thing = storage.things[child]
+			if child_thing then
+				raise(
+					"things.thing_parent_status",
+					child_thing,
+					self,
+					old_state --[[@as string]]
+				)
+			end
 		end
 	end
 	-- Notify self
 	raise("things.thing_status", self, old_state --[[@as string]])
 	-- Notify parent
-	if self.parent then
-		local parent_thing = storage.things[self.parent[1]]
+	local parent_relationship = self.parent
+	if parent_relationship then
+		local parent_thing = storage.things[parent_relationship[1]]
 		if parent_thing then
 			raise(
 				"things.thing_child_status",
 				parent_thing,
+				parent_relationship[2],
 				self,
 				old_state --[[@as string]]
 			)
@@ -411,12 +593,7 @@ function lib.make_thing(entity, thing_name)
 	end
 	local thing = Thing:new(thing_name)
 	thing.is_silent = true
-	thing:set_entity(entity)
-	if entity.type == "entity-ghost" then
-		thing:set_state("ghost")
-	else
-		thing:set_state("real")
-	end
+	thing:set_entity(entity, true)
 	if reg.virtualize_orientation then
 		local entity_orientation = orientation_lib.extract(entity)
 		if not entity_orientation then
@@ -439,6 +616,37 @@ function lib.make_thing(entity, thing_name)
 		thing.virtual_orientation = vo
 	end
 	return thing, true, nil
+end
+
+---Get adjusted position and orientation values for a child Thing based on its
+---relationship to its parent.
+---@param parent_thing things.Thing
+---@param offset MapPosition? The position of the child relative to the parent.
+---@param transform Core.Dihedral? The transform of the child relative to the parent.
+---@return MapPosition? adjusted_pos The adjusted world position, or `nil` if no relative offset is specified.
+---@return Core.Orientation? adjusted_orientation The adjusted world orientation, or `nil` if no relative offset is specified.
+function lib.get_adjusted_pos_and_orientation(parent_thing, offset, transform)
+	local parent_entity = parent_thing:get_entity()
+	if not parent_entity then return nil, nil end
+	local parent_orientation = parent_thing:get_orientation()
+	if not parent_orientation then return nil, nil end
+	-- Position
+	local adj_pos = nil
+	if offset then
+		offset = orientation_lib.transform_vector(parent_orientation, offset)
+		local offset_x, offset_y = pos_get(offset)
+		local parent_x, parent_y = pos_get(parent_entity.position)
+		adj_pos = {
+			parent_x + offset_x,
+			parent_y + offset_y,
+		}
+	end
+	-- Orientation
+	local adj_orientation = nil
+	if transform then
+		adj_orientation = orientation_lib.apply(parent_orientation, transform)
+	end
+	return adj_pos, adj_orientation
 end
 
 return lib

@@ -181,26 +181,20 @@ function remote_interface.add_child(
 	return nil
 end
 
----Removes a child Thing from a parent Thing.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---Removes a child Thing from its current parent.
 ---@param child_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The child Thing.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
-function remote_interface.remove_child(
-	parent_identification,
-	child_identification
-)
-	-- TODO: fix this.
-	-- local parent, valid_parent = resolve_identification(parent_identification)
-	-- local child, valid_child = resolve_identification(child_identification)
-	-- if not valid_parent or not valid_child then return CANT_BE_A_THING end
-	-- if not parent or not child then return NOT_A_THING end
-	-- local removed = parent:remove_children(child)
-	-- if (not removed) or (#removed == 0) then
-	-- 	return {
-	-- 		code = "could_not_remove_child",
-	-- 		message = "Could not remove child; the specified Thing is not a child of the specified parent.",
-	-- 	}
-	-- end
+function remote_interface.remove_parent(child_identification)
+	local child, valid_child = resolve_identification(child_identification)
+	if valid_child then return CANT_BE_A_THING end
+	if not child then return NOT_A_THING end
+	local removed = child:remove_parent()
+	if not removed then
+		return {
+			code = "could_not_remove_child",
+			message = "Could not remove child; the specified Thing is not a child of any parent.",
+		}
+	end
 	return nil
 end
 
@@ -254,6 +248,7 @@ function remote_interface.force_destroy(
 	thing_identification,
 	dont_destroy_entity
 )
+	-- TODO: fix this.
 	local thing, valid = resolve_identification(thing_identification)
 	if not valid then return CANT_BE_A_THING end
 	if not thing then return NOT_A_THING end
@@ -265,53 +260,47 @@ end
 ---relationships for possible future reuse.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@param skip_destroy boolean? If true, do not destroy the underlying entity. Use with caution.
+---@param skip_destroy_children boolean? If true, do not recursively destroy child Thing entities when voiding them. Use with caution.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
-function remote_interface.void(thing_identification, skip_destroy)
+function remote_interface.void(
+	thing_identification,
+	skip_destroy,
+	skip_destroy_children
+)
 	local thing, valid = resolve_identification(thing_identification)
 	if not valid then return CANT_BE_A_THING end
 	if not thing then return NOT_A_THING end
 	if thing.state == "void" then return nil end
-	thing:void(skip_destroy)
+	thing:void(skip_destroy, skip_destroy_children)
 	return nil
 end
 
----Devoid a Thing by attaching it to the given real or ghost entity. Thing must
----be in `void` state or the operation will fail.
----@param thing_id int64 The id of the Thing to devoid.
----@param entity LuaEntity A *valid* entity to attach to the Thing.
+---Get adjusted position and orientation of a Thing relative to a parent.
+---Can be useful when creating child entities.
+---@param thing_identification things.ThingIdentification The parent Thing to adjust against.
+---@param offset MapPosition? The position of the child relative to the parent.
+---@param transform Core.Dihedral? The transform of the child relative to the parent.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
-function remote_interface.devoid(thing_id, entity)
-	local thing = get_thing(thing_id)
-	if not thing then return NOT_A_THING end
-	if not entity or not entity.valid then
-		return { code = "invalid_entity", message = "Invalid entity provided" }
-	end
-	if not thing:devoid(entity) then
-		return { code = "devoid_failed", message = "Failed to devoid Thing" }
-	end
-	return nil
+---@return MapPosition? adjusted_position The adjusted position of the child.
+---@return Core.Orientation? adjusted_orientation The adjusted orientation of the child.
+function remote_interface.get_adjusted_pos_and_orientation(
+	thing_identification,
+	offset,
+	transform
+)
+	local parent_thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not parent_thing then return NOT_A_THING end
+	return nil,
+		thing_lib.get_adjusted_pos_and_orientation(parent_thing, offset, transform)
 end
 
----Create a new Thing from an entity.
+---Create a Thing from an entity.
 ---@param create_thing_params things.CreateThingParams Parameters controlling how the Thing is created.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 ---@return things.ThingSummary? thing Summary of the created Thing, or `nil` if there was an error.
 function remote_interface.create_thing(create_thing_params)
-	local name = create_thing_params.name
 	local entity = create_thing_params.entity
-	local is_ghost = entity.type == "entity-ghost"
-	if not name then name = is_ghost and entity.ghost_name or entity.name end
-	local registration = reg_lib.get_thing_registration(name)
-	if not registration then
-		return {
-			code = "invalid_name",
-			message = "No Thing registration with name '"
-				.. tostring(name)
-				.. "' exists.",
-		}
-	end
-
-	local devoid_thing = nil
 	if create_thing_params.devoid then
 		local dt, valid = resolve_identification(create_thing_params.devoid)
 		if not valid then
@@ -341,16 +330,21 @@ function remote_interface.create_thing(create_thing_params)
 		return nil, dt:summarize()
 	end
 
+	local name = create_thing_params.name
+	local is_ghost = entity.type == "entity-ghost"
+	if not name then name = is_ghost and entity.ghost_name or entity.name end
+	local registration = reg_lib.get_thing_registration(name)
+	if not registration then
+		return {
+			code = "invalid_name",
+			message = "No Thing registration with name '"
+				.. tostring(name)
+				.. "' exists.",
+		}
+	end
+
 	local parent_thing = nil
-	local add_child = false
-	if devoid_thing then parent_thing = devoid_thing.parent end
 	if create_thing_params.parent then
-		if create_thing_params.devoid then
-			return {
-				code = "no_parent_and_devoid",
-				message = "You may not specify both `parent` and `devoid` when creating a Thing.",
-			}
-		end
 		local pt, valid = resolve_identification(create_thing_params.parent)
 		if not valid then
 			return {
@@ -365,39 +359,40 @@ function remote_interface.create_thing(create_thing_params)
 			}
 		end
 		parent_thing = pt
-		add_child = true
 	end
-	local parent_orientation = nil
-	local parent_entity = nil
+
+	local thing, was_created, err = thing_lib.make_thing(entity, name)
+	if not was_created or not thing then
+		return {
+			code = "creation_failed",
+			message = "Failed to create Thing",
+		}
+	end
+
+	local child_was_added = false
 	if parent_thing then
-		parent_orientation = parent_thing:get_orientation(true)
-		parent_entity = parent_thing:get_entity(true)
+		child_was_added = parent_thing:add_child(
+			create_thing_params.child_index,
+			thing,
+			create_thing_params.relative_pos,
+			create_thing_params.relative_orientation,
+			true
+		)
 	end
 
-	local pos = create_entity_params.position
-	if parent_thing and create_thing_params.offset then
-		if not parent_orientation then
-			return {
-				code = "parent_no_orientation",
-				message = "The specified parent Thing has no orientation, so the `offset` parameter cannot be used.",
-			}
-		end
-		if not parent_entity then
-			return {
-				code = "parent_no_entity",
-				message = "The specified parent Thing has no entity, so the `offset` parameter cannot be used.",
-			}
-		end
-		local ofs =
-			parent_orientation:local_to_world_offset(create_thing_params.offset)
-		local x, y = pos_lib.pos_get(parent_entity.position)
-		local dx, dy = pos_lib.pos_get(ofs)
-		pos = { x + dx, y + dy }
+	-- Broadcast child initialization
+	thing:initialize()
+	-- Broadcast parent child-change
+	if child_was_added and parent_thing then
+		parent_thing:raise_event(
+			"things.thing_children_changed",
+			parent_thing,
+			thing,
+			nil
+		)
 	end
-	create_entity_params.position = pos
 
-	create_entity_params.raise_built = false
-	local entity = surface.create_entity(create_entity_params)
+	return nil, thing:summarize()
 end
 
 remote.add_interface("things", remote_interface)

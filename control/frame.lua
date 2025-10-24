@@ -405,9 +405,11 @@ function lib.get_frame()
 	if frame then return frame end
 	return Frame:new()
 end
+_G.get_frame = lib.get_frame
 
 ---Return the current frame if it exists.
 ---@return things.Frame|nil
 function lib.in_frame() return storage.current_frame end
+_G.in_frame = lib.in_frame
 
 return lib

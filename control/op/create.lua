@@ -143,7 +143,7 @@ function CreateOp:reconcile(frame)
 		"CreateOp:reconcile: deferring thing_initialized for Thing",
 		thing.id
 	)
-	frame:post_event("things.thing_initialized", thing)
+	thing:initialize()
 end
 
 return lib
