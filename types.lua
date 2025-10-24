@@ -28,7 +28,7 @@
 ---@field public name string Name of the registered Thing type. This MUST be the same name as the key used to registere it, and SHOULD match the type of the corresponding entity.
 ---@field public intercept_construction? boolean If true, Things will intercept player-driven construction of entities of this type and create Things for them automatically. (default: false)
 ---@field public virtualize_orientation? Core.OrientationClass If given, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. The orientation will be promoted to the given orientation class if possible.
----@field public merge_tags_on_overlap? boolean If true, when a Thing is overlapped by a blueprinted thing with tags, the tags will be shallow-merged instead of replaced. (default: false)
+---@field public migrate_tags_callback? Core.RemoteCallbackSpec A remote callback to invoke when a Thing is built with unrecognized tags. This allows mods using non-Thing custom blueprint data to migrate to Things. The callback will be invoked as `callback(parsed_tags: Tags, raw_tags: Tags) -> Tags`, and should return the ultimate set of tags to assign to the Thing.
 ---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
 
 ---Registration options for a graph of Things.
