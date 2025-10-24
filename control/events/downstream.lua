@@ -1,4 +1,4 @@
--- Re-raise Things events into events relevant to consumer mods.
+-- Event processing downstream from core frames.
 local events = require("lib.core.event")
 local registry = require("control.registration")
 

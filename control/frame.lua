@@ -59,7 +59,7 @@ function Frame:new()
 
 	-- Begin frame
 	storage.current_frame = obj
-	strace.debug(
+	strace.info(
 		debug_string,
 		"vvvvvvvvvvvvvvvvvvvvvvvvvBEGIN FRAMEvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
 	)
@@ -271,8 +271,10 @@ function Frame:tag_view_for_player(
 				i,
 				"for player",
 				player_index,
-				"with opset ID",
-				stored_id
+				"with opset IDs (",
+				stored_id,
+				inv_id,
+				")"
 			)
 		end
 		::continue_item::
@@ -323,7 +325,7 @@ function Frame:tag_stacks()
 			local redo_op = self.op_set:get_pt(player_index, OpType.REDO) --[[@as things.RedoOp? ]]
 			self:tag_undo_stack_for_player(player, seen_opset_ids, undo_op, redo_op)
 			self:tag_redo_stack_for_player(player, seen_opset_ids, undo_op, redo_op)
-			strace.debug(
+			strace.trace(
 				self.debug_string,
 				"Player",
 				player_index,
@@ -364,7 +366,7 @@ function Frame:terminate()
 		t - self.t + 1,
 		" ticks)",
 	})
-	strace.debug(
+	strace.info(
 		self.debug_string,
 		"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^END FRAME^^^^^^^^^^^^^^^^^^^^^^^^^^^"
 	)
