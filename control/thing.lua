@@ -135,6 +135,12 @@ function Thing:tombstone()
 	if self.undo_refcount > 0 then
 		self:set_entity(nil)
 		self:set_state("void")
+		strace.trace(
+			"Thing:tombstone: Thing ID",
+			self.id,
+			"tombstoned; undo_refcount is",
+			self.undo_refcount
+		)
 	else
 		self:destroy()
 	end
@@ -146,6 +152,12 @@ function Thing:raise_event(event_name, ...)
 	if frame then
 		frame:post_event(event_name, ...)
 	else
+		strace.trace(
+			"Raising inline Thing event",
+			event_name,
+			"for Thing ID",
+			self.id
+		)
 		events.raise(event_name, ...)
 	end
 end

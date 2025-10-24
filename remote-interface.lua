@@ -67,7 +67,7 @@ function remote_interface.set_tags(thing_identification, tags)
 	local thing, valid_id = resolve_identification(thing_identification)
 	if not valid_id then return CANT_BE_A_THING end
 	if not thing then return NOT_A_THING end
-	thing:set_tags(tags)
+	thing:set_tags(tags, true)
 	return nil
 end
 

@@ -107,6 +107,7 @@ function CreateOp:resolve(frame)
 	end
 
 	self.thing_id = thing.id
+	thing:set_tags(self.tags)
 	frame:mark_resolved(self.key, thing)
 	strace.debug(
 		frame.debug_string,
