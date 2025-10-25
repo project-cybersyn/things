@@ -2,6 +2,7 @@
 
 ## Quick Links
 
+- [Docs](https://project-cybersyn.github.io/things/)
 - [GitHub](https://github.com/project-cybersyn/things)
 
 ## Description
