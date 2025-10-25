@@ -29,3 +29,8 @@ Things is meant to have a stable API, event, and data surface that modders can r
 - Use what's there. If something is possible using existing API surfaces, it's likely we won't add a custom surface just for that thing.
 - Enable, don't embrace. We want to provide an API surface for modders to implement ideas, not implement every idea ourselves.
 - Maintain scope. Things is about managing entity lifecycles and relationships. If something doesn't fall in that scope, it doesn't belong in Things.
+
+## Other coding guidelines
+
+- Style is deterministically enforced using the StyLua system. A config file is provided and all contributed code must be styled. The easiest way to do this is to set up StyLua to work "on-save" in your IDE.
+- Type checking is done by LuaLS+FMTK. All contributed source code must type check. If a line does not type check due to LuaLS jank, leave a "disable" comment and a further comment above the disable comment explaining why the line doesn't need to type-check properly.
