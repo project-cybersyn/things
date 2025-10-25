@@ -72,7 +72,7 @@
 ---@class (exact) things.ThingSummary
 ---@field public id things.Id The id of the Thing.
 ---@field public name string The name of the Thing's registration.
----@field public entity LuaEntity? The current entity of the Thing, if it has one.
+---@field public entity LuaEntity? The current entity of the Thing, if it has one. This entity is pre-checked for validity at the time the summary is generated.
 ---@field public status things.Status The current status of the Thing.
 ---@field public virtual_orientation Core.Orientation? The current virtual orientation of the Thing, if it has one. This will always be nil for Thing types that do not virtualize orientation.
 ---@field public tags Tags? The current tags of the Thing.
