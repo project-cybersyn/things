@@ -10,7 +10,7 @@
   "dependencies": [ "base >= 2.0.67" ],
   "package": {
     "git_publish_branch": "main",
-    "ignore": [ "crowdin.yml", "stylua.toml", "tests", "doc", "site" ],
+    "ignore": [ "crowdin.yml", "stylua.toml", "tests", "doc/**", "site/**", ".gitmodules", ".editorconfig" ],
     "scripts": {
     },
     "sync_portal_details": true

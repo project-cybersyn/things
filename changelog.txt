@@ -2,4 +2,9 @@
 Version: 0.1.0
 Date: 2025-10-25
   Features:
-    - Initial release. (This mod is currently alpha-quality and may contain bugs.)
+    - Initial release.
+    - Thing registration and construction interception.
+    - Lifecycle management and associated APIs and events.
+    - Automatic parent-child and associated APIs.
+    - Thing graphs and associated APIs and events.
+    - See online documentation for full details.
