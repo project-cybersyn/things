@@ -1,5 +1,11 @@
 # Things
 
+## Quick Links
+
+- [GitHub](https://github.com/project-cybersyn/things)
+
+## Description
+
 **WARNING: THIS MOD IS CURRENTLY IN AN ALPHA STATE. API SURFACES AND EVENT DEFINITIONS ARE UNSTABLE. DO NOT USE IN RELEASE-QUALITY MODS YET. YOU HAVE BEEN WARNED!**
 
 **Things** provides advanced entity management services to other Factorio mods in the form of a high-level abstraction called a `Thing`.
@@ -67,7 +73,3 @@ Thanks also to the following in no particular order:
 ## Contributing
 
 Please use the [GitHub repository](https://github.com/project-cybersyn/things) for questions, bug reports, or pull requests.
-
-## Usage
-
-Documentation is WIP.
