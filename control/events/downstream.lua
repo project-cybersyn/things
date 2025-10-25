@@ -290,3 +290,16 @@ events.bind(
 		end
 	end
 )
+
+events.bind(
+	"things.thing_children_normalized",
+	---@param thing things.Thing
+	function(thing)
+		local cevp = get_custom_event_name(thing, "on_children_normalized")
+		if cevp then
+			---@type things.EventData.on_children_normalized
+			local ev = thing:summarize()
+			script.raise_event(cevp, ev)
+		end
+	end
+)

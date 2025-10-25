@@ -3,21 +3,17 @@ local tlib = require("lib.core.table")
 ---@type {[string]: things.ThingRegistration}
 local thing_names = {}
 for name, reg in pairs(prototypes.mod_data["things-names"].data) do
-	thing_names[name] = tlib.assign(
-		{},
-		reg --[[@as things.ThingRegistration]],
-		{ name = name }
-	)
+	thing_names[name] =
+		tlib.deep_copy(reg --[[@as things.ThingRegistration]], true)
+	thing_names[name].name = name
 end
 
 ---@type {[string]: things.GraphRegistration}
 local thing_graphs = {}
 for name, reg in pairs(prototypes.mod_data["things-graphs"].data) do
-	thing_graphs[name] = tlib.assign(
-		{},
-		reg --[[@as things.GraphRegistration]],
-		{ name = name }
-	)
+	thing_graphs[name] =
+		tlib.deep_copy(reg --[[@as things.GraphRegistration]], true)
+	thing_graphs[name].name = name
 end
 
 local lib = {}

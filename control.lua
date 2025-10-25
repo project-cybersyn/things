@@ -48,6 +48,9 @@ require("control.events.undo")
 require("control.events.extract")
 require("control.events.downstream")
 
+-- must be after `events.downstream`
+require("control.automatic-children")
+
 require("control.debug-overlay")
 require("control.util.undo-stack-debugger")
 

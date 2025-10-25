@@ -33,9 +33,16 @@
 ---@field public no_garbage_collection? boolean If `true`, Things of this type will not be automatically garbage collected when Things thinks they are unreachable. You must manually destroy these Things when they are no longer needed. (default: false)
 ---@field public no_destroy_children_on_destroy? boolean If `true`, when a Thing of this type is destroyed, its children will NOT be automatically destroyed. (default: false)
 ---@field public no_void_children_on_void? boolean If `true`, when a Thing of this type is voided, its children will NOT be automatically voided. (default: false)
+---@field public children? {[string|int]: things.ThingRegistration.Child} Specifications for automatic child creation.
+
+---@class (exact) things.ThingRegistration.Child
+---@field public create? LuaSurface.create_entity_param
+---@field public offset? MapPosition Position offset of the child relative to the parent Thing's position
+---@field public orientation? Core.Dihedral Orientation of the child relative to the parent Thing's orientation
 
 ---Registration options for a graph of Things.
 ---@class (exact) things.GraphRegistration
+---@field public name string Name of the registered graph.
 ---@field public directed? boolean Whether the graph is directed (default: false).
 ---@field public custom_events? {[things.GraphEventName]: string} Mapping of Things graph event names to `CustomEventPrototype` names to raise for this graph. If not provided, no custom events will be raised for this graph.
 
@@ -94,7 +101,7 @@
 --------------------------------------------------------------------------------
 
 ---Thing event names that can be rebroadcasted as Factorio custom events.
----@alias things.EventName "on_initialized"|"on_status"|"on_tags_changed"|"on_orientation_changed"|"on_position_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"|"on_edge_status"|"on_immediate_voided"
+---@alias things.EventName "on_initialized"|"on_status"|"on_tags_changed"|"on_orientation_changed"|"on_position_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"|"on_edge_status"|"on_children_normalized"|"on_immediate_voided"
 
 ---Graph event names that can be rebroadcasted as Factorio custom events.
 ---@alias things.GraphEventName "on_edge_changed"
@@ -168,6 +175,11 @@
 ---@field public edge things.GraphEdge Edge whose status changed.
 ---@field public old_status things.Status The previous status of the opposite Thing.
 ---@field public new_status things.Status The new status of the opposite Thing.
+
+---Event that takes place after automatically generated children are normalized.
+---This means that all automatic children have been created, devoided, or revived
+---as necessary to match the current state of the parent Thing.
+---@alias things.EventData.on_children_normalized things.ThingSummary
 
 ---Event raised inline when a Thing is voided. This event occurs mid-frame and
 ---you should take care to avoid causing event cancer. The only valid use
