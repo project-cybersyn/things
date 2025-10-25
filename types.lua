@@ -110,6 +110,7 @@
 ---Does not apply to undo, revival, etc of pre-existing Things.
 ---@alias things.EventData.on_initialized things.ThingSummary
 
+---Event fired when a Thing's lifecycle status changes.
 ---@class (exact) things.EventData.on_status
 ---@field public thing things.ThingSummary Summary of the Thing whose status changed.
 ---@field public old_status things.Status The previous status of the Thing.
