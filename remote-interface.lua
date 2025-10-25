@@ -249,6 +249,32 @@ function remote_interface.set_transient_data(thing_identification, key, value)
 	return nil
 end
 
+---Silently revive a ghosted Thing. Returns the same values as `LuaEntity.silent_revive`.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return ItemWithQualityCounts?
+---@return LuaEntity?
+---@return LuaEntity?
+function remote_interface.silent_revive(thing_identification)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	if thing.state ~= "ghost" then
+		return {
+			code = "not_ghost",
+			message = "The specified Thing is not in `ghost` state.",
+		}
+	end
+	local r1, r2, r3 = thing:revive()
+	if not r1 then
+		return {
+			code = "revive_failed",
+			message = "Failed to silently revive the specified Thing.",
+		}
+	end
+	return nil, r1, r2, r3
+end
+
 ---Forcefully destroy a Thing and its underlying entity, if any.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@param dont_destroy_entity boolean? If true, destroy the Thing but do not destroy the underlying entity.

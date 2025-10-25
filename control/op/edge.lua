@@ -2,24 +2,28 @@
 local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local op_lib = require("control.op.op")
+local graph_lib = require("control.graph")
+local strace = require("lib.core.strace")
 
 local lib = {}
 
 ---@class things.CreateEdgeOp: things.Op
----@field public source_thing_id int64? The ID of the first Thing in the edge.
----@field public target_thing_id int64? The ID of the second Thing in the edge.
+---@field public from_thing_id int64? The ID of the first Thing in the edge.
+---@field public to_thing_id int64? The ID of the second Thing in the edge.
 ---@field public name string The name of the graph the edge belongs to.
 ---@field public data Tags? Optional user data associated with this edge.
 local CreateEdgeOp = class("things.CreateEdgeOp", op_lib.Op)
 lib.CreateEdgeOp = CreateEdgeOp
 
----@param source_key Core.WorldKey The world key of the first Thing in the edge.
----@param target_key Core.WorldKey The world key of the second Thing in the edge.
+---@param player_index uint? The player index performing the operation.
+---@param from_key Core.WorldKey The world key of the first Thing in the edge.
+---@param to_key Core.WorldKey The world key of the second Thing in the edge.
 ---@param name string The name of the graph the edge belongs to.
 ---@param data? Tags Optional user data associated with this edge.
-function CreateEdgeOp:new(source_key, target_key, name, data)
-	local obj = op_lib.Op.new(self, op_lib.OpType.CREATE_EDGE, source_key) --[[@as things.CreateEdgeOp]]
-	obj.secondary_key = target_key
+function CreateEdgeOp:new(player_index, from_key, to_key, name, data)
+	local obj = op_lib.Op.new(self, op_lib.OpType.CREATE_EDGE, from_key) --[[@as things.CreateEdgeOp]]
+	obj.player_index = player_index
+	obj.secondary_key = to_key
 	obj.name = name
 	if data then obj.data = tlib.deep_copy(data) end
 	return obj
@@ -27,19 +31,26 @@ end
 
 function CreateEdgeOp:dehydrate_for_undo()
 	-- Discard unresolved edges
-	if (not self.source_thing_id) or not self.target_thing_id then
-		return false
-	end
+	if (not self.from_thing_id) or not self.to_thing_id then return false end
 	return true
 end
 
 function CreateEdgeOp:apply(frame)
-	local _, source_thing = frame:get_resolved(self.key)
-	local _, target_thing = frame:get_resolved(self.secondary_key)
-	if source_thing and target_thing then
-		-- TODO: Create the graph if needed
-		-- TODO: Create the edge in the graph
-		-- TODO: schedule event
+	local graph = graph_lib.get_graph(self.name)
+	if not graph then
+		strace.warn(
+			frame.debug_string,
+			"CreateEdgeOp.apply: Graph not found:",
+			self.name
+		)
+		return
+	end
+	local _, from_thing = frame:get_resolved(self.key)
+	local _, to_thing = frame:get_resolved(self.secondary_key)
+	if from_thing and to_thing then
+		self.from_thing_id = from_thing.id
+		self.to_thing_id = to_thing.id
+		graph_lib.connect(graph, from_thing, to_thing, self.data)
 	end
 end
 

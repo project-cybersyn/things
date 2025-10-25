@@ -146,16 +146,23 @@ end
 ---@param from things.Thing
 ---@param to things.Thing
 ---@param data Tags?
+---@return boolean created True if the edge was created, false if it could not be.
 function lib.connect(graph, from, to, data)
-	if not graph or not from or not to then return end
+	if not graph or not from or not to then return false end
 	if (not graph.is_directed) and (from.id > to.id) then
 		from, to = to, from
 	end
 	local created, edge = graph:add_edge(from.id, to.id, data)
 	if created then
-		strace.debug("Graph", graph.name, "connected", from.id, "to", to.id)
-		events.raise("things.graph_add_edge", graph, edge, from, to)
+		local frame = in_frame()
+		if frame then
+			frame:post_event("things.graph_add_edge", graph, edge, from, to)
+		else
+			events.raise("things.graph_add_edge", graph, edge, from, to)
+		end
+		return true
 	end
+	return false
 end
 
 ---Disconnect two Things in the given graph.
@@ -170,7 +177,12 @@ function lib.disconnect(graph, from, to)
 	local edge = graph:remove_edge(from.id, to.id)
 	if edge then
 		strace.debug("Graph", graph.name, "disconnected", from.id, "from", to.id)
-		events.raise("things.graph_remove_edge", graph, edge, from, to)
+		local frame = in_frame()
+		if frame then
+			frame:post_event("things.graph_remove_edge", graph, edge, from, to)
+		else
+			events.raise("things.graph_remove_edge", graph, edge, from, to)
+		end
 	end
 end
 
@@ -187,7 +199,12 @@ function lib.set_edge_data(graph, from, to, data)
 	local edge = graph:get_edge(from.id, to.id)
 	if edge then
 		edge.data = data
-		events.raise("things.graph_set_edge_data", graph, edge, from, to)
+		local frame = in_frame()
+		if frame then
+			frame:post_event("things.graph_set_edge_data", graph, edge, from, to)
+		else
+			events.raise("things.graph_set_edge_data", graph, edge, from, to)
+		end
 	end
 end
 

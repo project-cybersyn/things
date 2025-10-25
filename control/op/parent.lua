@@ -1,6 +1,7 @@
 -- Parent op
 local class = require("lib.core.class").class
 local op_lib = require("control.op.op")
+local strace = require("lib.core.strace")
 
 local lib = {}
 ---@class things.ParentOp: things.Op
@@ -42,8 +43,21 @@ function ParentOp:apply(frame)
 	local _, child_thing = frame:get_resolved(self.key)
 	local _, parent_thing = frame:get_resolved(self.secondary_key)
 	if child_thing and parent_thing then
-		-- TODO: create relationship
-		-- TODO: schedule event
+		self.child_thing_id = child_thing.id
+		self.parent_thing_id = parent_thing.id
+		parent_thing:add_child(
+			self.child_index,
+			child_thing,
+			self.relative_position,
+			self.relative_orientation
+		)
+	else
+		strace.warn(
+			frame.debug_string,
+			"ParentOp.apply: could not resolve child or parent Thing:",
+			self.child_thing_id,
+			self.parent_thing_id
+		)
 	end
 end
 

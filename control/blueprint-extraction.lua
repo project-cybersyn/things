@@ -3,6 +3,7 @@ local counters = require("lib.core.counters")
 local constants = require("control.constants")
 local tlib = require("lib.core.table")
 local strace = require("lib.core.strace")
+local graph_lib = require("control.graph")
 
 local EMPTY = tlib.EMPTY_STRICT
 local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
@@ -28,6 +29,8 @@ lib.Extraction = Extraction
 
 ---@type things.Extraction|nil
 lib.running_extraction = nil
+---@type LuaProfiler|nil
+lib.running_extraction_profiler = nil
 
 ---@param bp Core.Blueprintish The blueprint being extracted.
 ---@param index_to_world {[int]: LuaEntity} The mapping from bp indices to world entities. Comes from factorio api via `event.mapping`
@@ -40,6 +43,7 @@ function Extraction:new(bp, index_to_world)
 		by_index = {},
 		by_thing_id = {},
 		has_things = false,
+		profiler = game.create_profiler(),
 	}, self) --[[@as things.Extraction]]
 
 	local by_index = obj.by_index
@@ -78,11 +82,12 @@ function Extraction:new(bp, index_to_world)
 	end
 
 	obj:init_normalize_thing_tags()
-	-- obj:init_map_parent_child()
-	-- obj:init_map_edges()
+	obj:init_map_parent_child()
+	obj:init_map_edges()
 	obj:init_map_entities()
 
 	lib.running_extraction = obj
+	lib.running_extraction_profiler = game.create_profiler()
 	return obj
 end
 
@@ -127,20 +132,21 @@ end
 ---Map graph edges into the blueprint.
 ---Must be called after `init_normalize_thing_tags`.
 function Extraction:init_map_edges()
-	for index, thing in pairs(self.index_to_thing) do
+	for thing_id, info in pairs(self.by_thing_id) do
 		local edge_tags = nil
-		for graph_name in pairs(thing.graph_set or EMPTY) do
-			local edges = thing:graph_get_edges(graph_name)
+		local graphs = graph_lib.get_graphs_containing_node(thing_id)
+		for graph_name, graph in pairs(graphs) do
+			local out_edges = graph:get_edges(thing_id)
 			local edges_tags = {}
 			debug_log(
 				"Extraction:map_edges: mapping edges for Thing",
-				thing.id,
-				edges
+				thing_id,
+				out_edges
 			)
-			for to, edge in pairs(edges) do
-				local local_to = self.thing_id_to_index[to]
-				if local_to then
-					edges_tags[local_to] = edge.data and edge.data or true
+			for to_thing_id, edge in pairs(out_edges) do
+				local to_info = self.by_thing_id[to_thing_id]
+				if to_info then
+					edges_tags[to_info.index] = edge.data and edge.data or true
 				end
 			end
 			if next(edges_tags) then
@@ -149,7 +155,7 @@ function Extraction:init_map_edges()
 			end
 		end
 		if edge_tags and next(edge_tags) then
-			self.bp.set_blueprint_entity_tag(index, GRAPH_EDGES_TAG, edge_tags)
+			self.bp.set_blueprint_entity_tag(info.index, GRAPH_EDGES_TAG, edge_tags)
 		end
 	end
 end
@@ -157,18 +163,22 @@ end
 ---Map parent-child relationships into the blueprint.
 ---Must be called after `init_normalize_thing_tags`.
 function Extraction:init_map_parent_child()
-	for index, thing in pairs(self.index_to_thing) do
-		local parent = thing.parent
-		if parent then
-			local parent_eid = self.thing_id_to_index[parent[1]]
-			if parent_eid then
-				self.bp.set_blueprint_entity_tag(
-					index,
-					PARENT_TAG,
-					{ parent[2], parent_eid }
-				)
+	for thing_id, info in pairs(self.by_thing_id) do
+		local thing = get_thing_by_id(thing_id)
+		if not thing then goto continue end
+		local parent_relationship = thing.parent
+		if parent_relationship then
+			local parent_info = self.by_thing_id[parent_relationship[1]]
+			if parent_info then
+				self.bp.set_blueprint_entity_tag(info.index, PARENT_TAG, {
+					parent_info.index,
+					parent_relationship[2],
+					parent_relationship[3],
+					parent_relationship[4],
+				})
 			end
 		end
+		::continue::
 	end
 end
 

@@ -17,6 +17,7 @@ local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local get_thing_registration = registration_lib.get_thing_registration
 local o_loose_eq = orientation_lib.loose_eq
 local NO_RAISE_DESTROY = { raise_destroy = false }
+local NO_RAISE_REVIVE = { raise_revive = false }
 local EMPTY = tlib.EMPTY_STRICT
 
 local lib = {}
@@ -53,6 +54,10 @@ function Thing:new(name)
 	storage.things[id] = obj
 	return obj
 end
+
+--------------------------------------------------------------------------------
+-- CORE
+--------------------------------------------------------------------------------
 
 ---Summarizes a Thing for remote interface output.
 ---@return things.ThingSummary
@@ -131,6 +136,10 @@ function Thing:undo_unref()
 		if self.state == "void" then self:destroy() end
 	end
 end
+
+--------------------------------------------------------------------------------
+-- LIFECYCLE
+--------------------------------------------------------------------------------
 
 ---Irreversibly and immediately destroy this Thing. By default, also destroy
 ---its associated entity.
@@ -216,6 +225,35 @@ function Thing:tombstone()
 		self:destroy()
 	end
 end
+
+---Scripted revive for a ghosted thing. Triggers only Things-internal events.
+---Returns the values of the `LuaEntity.silent_revive` Lua API call.
+---@return ItemWithQualityCounts?
+---@return LuaEntity?
+---@return LuaEntity?
+function Thing:revive()
+	if self.state ~= "ghost" then return nil end
+	local entity = self:get_entity()
+	if not entity then
+		strace.error(
+			"Thing:revive: cannot revive ghost Thing ID",
+			self.id,
+			"because its entity is missing."
+		)
+		return nil
+	end
+	local r1, r2, r3 = entity.silent_revive(NO_RAISE_REVIVE)
+	if r2 then
+		self:set_entity(r2, true)
+	else
+		return nil
+	end
+	return r1, r2, r3
+end
+
+--------------------------------------------------------------------------------
+-- POS/ORIENTATION
+--------------------------------------------------------------------------------
 
 ---@return Core.Orientation?
 function Thing:get_orientation()
@@ -308,6 +346,10 @@ function Thing:teleport(next_pos)
 		return false
 	end
 end
+
+--------------------------------------------------------------------------------
+-- DATA
+--------------------------------------------------------------------------------
 
 ---@param tags Tags?
 ---@param no_copy boolean? If true, assign the tags table directly instead of deep-copying it.

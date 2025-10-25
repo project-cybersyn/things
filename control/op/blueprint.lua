@@ -294,6 +294,7 @@ function BlueprintOp:catalogue_graph_edges(frame)
 						if edge_data == true then
 							frame:add_op(
 								CreateEdgeOp:new(
+									self.player_index,
 									from_info.world_key,
 									to_info.world_key,
 									graph_name
@@ -302,6 +303,7 @@ function BlueprintOp:catalogue_graph_edges(frame)
 						else
 							frame:add_op(
 								CreateEdgeOp:new(
+									self.player_index,
 									from_info.world_key,
 									to_info.world_key,
 									graph_name,
@@ -334,10 +336,10 @@ function BlueprintOp:catalogue_parents(frame)
 	local n_parents = 0
 	for child_bplid, child_info in pairs(self.by_bplid) do
 		local child_bp_entity = child_info.bp_entity
-		local parent_tag = (child_bp_entity.tags or EMPTY)[PARENT_TAG] --[[@as [string|int, int]?]]
+		local parent_tag = (child_bp_entity.tags or EMPTY)[PARENT_TAG] --[[@as things.ParentRelationshipInfo?]]
 		if parent_tag then
 			-- Find parent reference
-			local parent_local_id = parent_tag[2]
+			local parent_local_id = parent_tag[1]
 			local parent_info = self.by_bplid[parent_local_id]
 			if not parent_info then
 				debug_crash(
@@ -352,7 +354,7 @@ function BlueprintOp:catalogue_parents(frame)
 				ParentOp:new(
 					child_info.world_key,
 					parent_info.world_key,
-					parent_tag[1],
+					parent_tag[2],
 					parent_tag[3],
 					parent_tag[4]
 				)
