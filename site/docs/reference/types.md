@@ -1,3 +1,7 @@
+---
+sidebar_position: 1
+---
+
 # Types
 
 ## things.Id
@@ -72,4 +76,47 @@
 ---[3]: The position of this Thing relative to its parent, if any.
 ---[4]: The orientation of this Thing relative to its parent, if any.
 ---@alias things.ParentRelationshipInfo [int64, string|int, MapPosition?, Core.Dihedral?]
+```
+
+## things.ThingChildrenSummary
+```lua
+---A summary of a Thing's children, indexed by child key.
+---@alias things.ThingChildrenSummary {[string|int]: things.ThingSummary}
+```
+
+## things.ThingSummary
+```lua
+---Serializable summary information about a Thing.
+---@class (exact) things.ThingSummary
+---@field public id things.Id The id of the Thing.
+---@field public name string The name of the Thing's registration.
+---@field public entity LuaEntity? The current entity of the Thing, if it has one. This entity is pre-checked for validity at the time the summary is generated.
+---@field public status things.Status The current status of the Thing.
+---@field public virtual_orientation Core.Orientation? The current virtual orientation of the Thing, if it has one. This will always be nil for Thing types that do not virtualize orientation.
+---@field public tags Tags? The current tags of the Thing.
+---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
+```
+
+## things.CreateThingParams
+```lua
+---Options controlling how a Thing is created via `create_thing`.
+---@class (exact) things.CreateThingParams
+---@field public entity LuaEntity The *valid* entity to associate the new Thing with. This entity must not already be associated with an existing Thing.
+---@field public name? string If given, the new Thing will be created as an instance of the registered Thing type with this name. If not given, name will be inferred from the entity type.
+---@field public parent? things.ThingIdentification If given, create the new Thing as a child of this Thing.
+---@field public child_index? int|string The index of the new Thing within its parent's children, if any. If not given, the new Thing will be added at the end of the parent's children.
+---@field public relative_pos? MapPosition The position of the new Thing relative to its parent, if any.
+---@field public relative_orientation? Core.Dihedral The orientation of the new Thing relative to its parent, if any.
+---@field public devoid? things.ThingIdentification If given, instead of creating a new Thing, devoid the given voided Thing. Cannot be given with `parent`; the new Thing will retain the parent of the voided Thing.
+```
+
+## things.ExtractedEntity
+```lua
+---Entity within a blueprint being extracted.
+---@class (exact) things.ExtractedEntity
+---@field public index int The index of the entity within the extraction process.
+---@field public bp_entity BlueprintEntity The blueprint entity data.
+---@field public entity LuaEntity The in-world entity this blueprint entity represents.
+---@field public thing_id things.Id? The Thing this blueprint entity represents.
+---@field public deleted true? If `true`, this entity was deleted by an atomic blueprint operation.
 ```
