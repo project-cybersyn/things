@@ -133,8 +133,28 @@ function Thing:undo_unref()
 	self.undo_refcount = self.undo_refcount - 1
 	if self.undo_refcount <= 0 then
 		self.undo_refcount = 0
-		if self.state == "void" then self:destroy() end
+		self:undo_maybe_destroy()
 	end
+end
+
+function Thing:undo_maybe_destroy()
+	if self.state ~= "void" then return end
+	local parent_relationship = self.parent
+	local parent_thing = parent_relationship
+		and storage.things[parent_relationship[1]]
+	if
+		parent_thing
+		and (parent_thing.state == "real" or parent_thing.state == "ghost")
+	then
+		-- Parent is alive; do not destroy.
+		return
+	end
+	-- TODO: no-gc flag
+	strace.trace(
+		"Thing:undo_maybe_destroy: Thing ID",
+		self.id,
+		"undo_refcount is zero and no live parent; garbage collecting."
+	)
 end
 
 --------------------------------------------------------------------------------
@@ -147,6 +167,7 @@ end
 ---@param skip_deparent boolean? If true, skip removing this Thing from its parent.
 function Thing:destroy(skip_destroy, skip_deparent)
 	if self.state == "destroyed" then return end
+	strace.debug("Thing:destroy: destroying Thing ID", self.id)
 	local reg = self:get_registration() --[[@as things.ThingRegistration]]
 	-- Disconnect all graph edges
 	local graphs = graph_lib.get_graphs_containing_node(self.id)
@@ -186,6 +207,7 @@ function Thing:void(skip_destroy, skip_destroy_children)
 		error("Attempt to void a destroyed Thing. Thing ID: " .. self.id)
 	end
 	if self.state == "void" then return false end
+	strace.debug("Thing:void: voiding Thing ID", self.id)
 	local reg = self:get_registration() --[[@as things.ThingRegistration]]
 	-- Void children
 	if self.children and not reg.no_void_children_on_void then

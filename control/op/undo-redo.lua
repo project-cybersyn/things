@@ -1,4 +1,4 @@
--- Op for when a player initiates undo during a frame.
+-- Op for when a player initiates undo or redo during a frame.
 
 local class = require("lib.core.class").class
 local op_lib = require("control.op.op")
@@ -15,7 +15,7 @@ local make_world_key = ws_lib.make_world_key
 local lib = {}
 
 ---@class things.UndoRedoOp: things.Op
----@field public actions {[int]: UndoRedoAction} The list of actions that were undone.
+---@field public actions {[int]: UndoRedoAction} The list of actions that were undone. Note that this may be sparse.
 ---@field public opset_id int64?
 ---@field public inverse_opset_id int64?
 local UndoRedoOp = class("things.UndoRedoOp", op_lib.Op)
