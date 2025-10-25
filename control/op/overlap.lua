@@ -119,6 +119,28 @@ function OverlapOp:apply(frame)
 	end
 end
 
+function OverlapOp:apply_undo(frame)
+	local overlapped_thing = thing_lib.get_by_id(self.thing_id)
+	if not overlapped_thing then return end
+	-- Revert tags
+	overlapped_thing:set_tags(self.overlapped_tags, true)
+	-- Revert orientation
+	if self.previous_orientation then
+		overlapped_thing:set_orientation(self.previous_orientation, true)
+	end
+end
+
+function OverlapOp:apply_redo(frame)
+	local overlapped_thing = thing_lib.get_by_id(self.thing_id)
+	if not overlapped_thing then return end
+	-- Reapply tags
+	overlapped_thing:set_tags(self.imposed_tags, true)
+	-- Reapply orientation
+	if self.imposed_orientation then
+		overlapped_thing:set_orientation(self.imposed_orientation, true)
+	end
+end
+
 function OverlapOp:dehydrate_for_undo()
 	if self.skip then return false end
 	self.entity = nil
@@ -127,6 +149,7 @@ end
 
 ---@param opset things.OpSet
 function lib.consolidate_overlap_ops(opset)
+	-- TODO: make this more efficient. it should be rare (impossible in sp) for this to ever happen anyway.
 	local by_key = opset.by_key
 	for key, ops in pairs(by_key) do
 		local first_overlap_op, last_overlap_op

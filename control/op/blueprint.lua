@@ -10,11 +10,12 @@ local constants = require("control.constants")
 local strace = require("lib.core.strace")
 local thing_lib = require("control.thing")
 local pos_lib = require("lib.core.math.pos")
-local OverlapOp = require("control.op.overlap").OverlapOp
+local overlap_op_lib = require("control.op.overlap")
 local CreateEdgeOp = require("control.op.edge").CreateEdgeOp
 local ParentOp = require("control.op.parent").ParentOp
 
 local Op = op_lib.Op
+local OverlapOp = overlap_op_lib.OverlapOp
 local make_world_key = ws_lib.make_world_key
 local tostring = tostring
 local strformat = string.format
@@ -375,6 +376,14 @@ end
 
 --------------------------------------------------------------------------------
 -- RESOLVE PHASE
+--------------------------------------------------------------------------------
+
+function BlueprintOp:resolve(frame)
+	overlap_op_lib.consolidate_overlap_ops(frame.op_set)
+end
+
+--------------------------------------------------------------------------------
+-- APPLY PHASE
 --------------------------------------------------------------------------------
 
 ---Examine construction ops in the given frame. For those that

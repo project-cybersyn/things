@@ -78,7 +78,7 @@ function Extraction:new(bp, index_to_world)
 		)
 		self.has_things = true
 	else
-		debug_log("Extraction:new(): no Things in blueprint.")
+		strace.debug("Extraction:new(): no Things in blueprint.")
 	end
 
 	obj:init_normalize_thing_tags()
@@ -100,6 +100,8 @@ function Extraction:init_normalize_thing_tags()
 		-- Normalize by clearing all tags including possible residual tags from
 		-- previous blueprint ghosts.
 		for tag in pairs(BLUEPRINT_TAG_SET) do
+			-- FMTK and/or the factorio API has wrong typing for the 3rd arg here.
+			---@diagnostic disable-next-line: param-type-mismatch
 			self.bp.set_blueprint_entity_tag(index, tag, nil)
 		end
 		-- Apply basic tags.
@@ -138,7 +140,7 @@ function Extraction:init_map_edges()
 		for graph_name, graph in pairs(graphs) do
 			local out_edges = graph:get_edges(thing_id)
 			local edges_tags = {}
-			debug_log(
+			strace.debug(
 				"Extraction:map_edges: mapping edges for Thing",
 				thing_id,
 				out_edges

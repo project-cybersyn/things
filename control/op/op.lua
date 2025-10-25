@@ -96,7 +96,8 @@ function Op:resolve(frame) end
 ---@param frame things.Frame The current frame.
 function Op:apply(frame) end
 
----Called for each op during the reconcile phase of a construction frame.
+---Called for each op during the reconcile phase of a construction frame. Note
+---that this takes place AFTER `dehydrate_for_undo` happens.
 ---@param frame things.Frame The current frame.
 function Op:reconcile(frame) end
 
@@ -104,7 +105,7 @@ function Op:reconcile(frame) end
 ---This involves discarding any transient info. This function should also
 ---return `true` or `false` indicating whether the operation should be retained
 ---at all. Returning `false` indicates the operation is transient and drops it altogether.
-function Op:dehydrate_for_undo() return true end
+function Op:dehydrate_for_undo() return false end
 
 function Op:destroy() end
 

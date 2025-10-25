@@ -2,6 +2,7 @@
 
 local class = require("lib.core.class").class
 local op_lib = require("control.op.op")
+local opset_lib = require("control.op.opset")
 local ur_util = require("control.util.undo-redo")
 local strace = require("lib.core.strace")
 local ws_lib = require("lib.core.world-state")
@@ -114,6 +115,24 @@ function UndoRedoOp:catalogue_action(frame, action, opset)
 			end
 		else
 			strace.debug("no_create_match")
+		end
+	end
+end
+
+function UndoRedoOp:apply(frame)
+	local is_undo = self.type == UNDO
+	local opset = is_undo and opset_lib.get_stored_opset(self.opset_id)
+		or opset_lib.get_stored_opset(self.inverse_opset_id)
+	if not opset then return end
+	strace.trace("UndoRedoOp:apply: applying opset", opset.stored_id)
+	for _, op in pairs(opset.by_index) do
+		if is_undo then
+			-- TODO: consider adding to basetype
+			---@diagnostic disable-next-line: undefined-field
+			if op.apply_undo then op:apply_undo(frame) end
+		else
+			---@diagnostic disable-next-line: undefined-field
+			if op.apply_redo then op:apply_redo(frame) end
 		end
 	end
 end

@@ -186,4 +186,10 @@ function OpSet:unstore()
 	self.stored_id = nil
 end
 
+---@param opset_id int64?
+---@return things.OpSet|nil #The stored OpSet, or nil if not found.
+function lib.get_stored_opset(opset_id)
+	return storage.stored_opsets[opset_id or ""]
+end
+
 return lib

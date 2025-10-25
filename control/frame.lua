@@ -253,16 +253,24 @@ function Frame:tag_view_for_player(
 		if inverse_opset_id then seen_ids[inverse_opset_id] = true end
 		if tagged then goto continue_item end
 		if i == 1 then
-			local filtered_opset = self.op_set:filter(
-				function(op)
-					return ((op.player_index == nil) or (op.player_index == player_index))
-						and op:dehydrate_for_undo()
-				end
-			)
-			local stored_id = filtered_opset:store(player_index)
+			local forward_id
+			-- If inverse op was performed, no need to generate new opset.
+			if inverse_op and inverse_op.inverse_opset_id then
+				forward_id = inverse_op.inverse_opset_id
+			else
+				local filtered_opset = self.op_set:filter(
+					function(op)
+						return (
+							(op.player_index == nil) or (op.player_index == player_index)
+						) and op:dehydrate_for_undo()
+					end
+				)
+				forward_id = filtered_opset:store(player_index)
+			end
+			---@cast forward_id int64
 			local inv_id = inverse_op and inverse_op.opset_id
-			tag_undo_item(view, i, actions, stored_id, inv_id)
-			seen_ids[stored_id] = true
+			tag_undo_item(view, i, actions, forward_id, inv_id)
+			seen_ids[forward_id] = true
 			if inv_id then seen_ids[inv_id] = true end
 			strace.debug(
 				self.debug_string,
@@ -273,7 +281,7 @@ function Frame:tag_view_for_player(
 				"for player",
 				player_index,
 				"with opset IDs (",
-				stored_id,
+				forward_id,
 				inv_id,
 				")"
 			)
