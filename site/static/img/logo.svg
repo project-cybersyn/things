@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-labelledby="titleA descA">
+  <title id="titleA">Things — Node Gear logo</title>
+  <desc id="descA">Square logo: rounded slate background with three connected nodes and a small gear motif representing entity manipulation.</desc>
+  <!-- Rounded background -->
+  <rect x="2" y="2" width="124" height="124" rx="18" ry="18" fill="#1f2937"/>
+  <!-- Links -->
+  <path d="M36 72 L58 50 L90 62" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Nodes -->
+  <circle cx="36" cy="72" r="8" fill="#ffffff"/>
+  <circle cx="58" cy="50" r="6" fill="#ffffff"/>
+  <circle cx="90" cy="62" r="7" fill="#ffffff"/>
+</svg>

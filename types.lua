@@ -48,8 +48,8 @@
 
 ---Representation of an edge in a graph of Things.
 ---@class (exact) things.GraphEdge
----@field public from int Edge emanates from this Thing ID. (In undirected graphs, the lower id.)
----@field public to int Edge points to this Thing ID. (In undirected graphs, the higher id.)
+---@field public from int64 Edge emanates from this Thing ID. (In undirected graphs, the lower id.)
+---@field public to int64 Edge points to this Thing ID. (In undirected graphs, the higher id.)
 ---@field public data? Tags Optional user data associated with this edge.
 
 ---@class (exact) things.NamedGraphEdge: things.GraphEdge

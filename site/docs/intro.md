@@ -1,6 +1,8 @@
-# Things
+---
+sidebar_position: 1
+---
 
-**WARNING: THIS MOD IS CURRENTLY IN AN ALPHA STATE. API SURFACES AND EVENT DEFINITIONS ARE UNSTABLE. DO NOT USE IN RELEASE-QUALITY MODS YET. YOU HAVE BEEN WARNED!**
+# Introduction
 
 **Things** provides advanced entity management services to other Factorio mods in the form of a high-level abstraction called a `Thing`.
 
@@ -51,23 +53,3 @@ As opposed to Factorio entities, a `Thing` retains its identity and data through
 - This means it will not impact performance outside of monitored construction and lifecycle events.
 - This also means Things (and by extension the `Thing`s you make with it) fully works while the game is paused in the editor.
 
-## Credits
-
-The only way to succinctly describe how Things works internally is by saying it warps the laws of Factorio through the use of *incredibly cursed dark magic*. Therefore:
-
-- Special thanks to **protocol_1903** and **boskid** for lending me their subtick-event Time-Turners.
-- Special thanks to **Bilka** for adding the spell *blueprintus revelio* to Factorio.
-- Special thanks to the following members of Slytherin House for teaching me *rotata kedavra*, which may not be Unforgivable but is definitely very cursed: **boskid**, **protocol_1903**, **PennyJim**
-- Special thanks to **hgschmie** and **Telkine2018** for the idea of world keys, which are almost as useful as portkeys.
-
-Thanks also to the following in no particular order:
-- justarandomgeek (for FMTK, as well answering a number of my weird questions in modding discord)
-- thesixthroc (for helping me find and fix bugs in bplib, the intellectual precursor to this library)
-
-## Contributing
-
-Please use the [GitHub repository](https://github.com/project-cybersyn/things) for questions, bug reports, or pull requests.
-
-## Usage
-
-Documentation is WIP.

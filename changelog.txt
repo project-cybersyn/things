@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.0.0
-Date: 2025-09-21
+Version: 0.1.0
+Date: 2025-10-25
   Features:
-    - Initial release
+    - Initial release. (This mod is currently alpha-quality and may contain bugs.)
