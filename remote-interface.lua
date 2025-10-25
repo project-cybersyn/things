@@ -143,6 +143,29 @@ function remote_interface.get_edges(graph_name, thing_identification)
 	return nil, out_edges, in_edges
 end
 
+---If a graph edge exists between two Things, get it. In undirected graphs,
+---the direction of the edge does not matter.
+---@param graph_name string The name of the graph to get the edge from.
+---@param from things.ThingIdentification One side of the edge.
+---@param to things.ThingIdentification The other side of the edge.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return things.GraphEdge? edge The edge between the two Things, or `nil` if none exists.
+function remote_interface.get_edge(graph_name, from, to)
+	local from_thing, valid_id1 = resolve_identification(from)
+	local to_thing, valid_id2 = resolve_identification(to)
+	if not valid_id1 or not valid_id2 then return CANT_BE_A_THING end
+	if not from_thing or not to_thing then return NOT_A_THING end
+	local graph = graph_lib.get_graph(graph_name)
+	if not graph then
+		return {
+			code = "invalid_graph",
+			message = "No graph with name '" .. tostring(graph_name) .. "' exists.",
+		}
+	end
+	local edge = graph:get_edge(from_thing.id, to_thing.id)
+	return nil, edge
+end
+
 ---Adds a child Thing to a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
 ---@param child_key string|int|nil The key to assign the child in the parent Thing. If `nil`, uses the smallest free numeric key as determined by the Lua `#` operator.
