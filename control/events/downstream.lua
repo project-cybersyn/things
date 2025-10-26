@@ -54,6 +54,15 @@ events.bind(
 	"things.thing_orientation_changed",
 	---@param thing things.Thing
 	function(thing, new_orientation, old_orientation)
+		-- Apply child orientations
+		if thing.children then
+			for _, child_id in pairs(thing.children) do
+				local child_thing = get_thing_by_id(child_id)
+				if child_thing then child_thing:apply_adjusted_pos_and_orientation() end
+			end
+		end
+
+		-- Raise event
 		local cevp = get_custom_event_name(thing, "on_orientation_changed")
 		if cevp then
 			---@type things.EventData.on_orientation_changed
@@ -63,13 +72,6 @@ events.bind(
 				old_orientation = old_orientation,
 			}
 			script.raise_event(cevp, ev)
-		end
-		-- Apply child orientations
-		if thing.children then
-			for _, child_id in pairs(thing.children) do
-				local child_thing = get_thing_by_id(child_id)
-				if child_thing then child_thing:apply_adjusted_pos_and_orientation() end
-			end
 		end
 	end
 )
