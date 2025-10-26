@@ -15,15 +15,18 @@ For the purposes of this tutorial, we will assume you are working on a mod calle
 ## Data Phase
 
 ### Custom Entity
+We will begin by creating a simple custom entity that will become our new Thing. This one is based on the `simple-entity-with-owner` prototype.
 
-We will begin by creating a simple custom entity that will become our new Thing. This one is based on the `simple-entity-with-owner` prototype. You will need the following entity sprite graphic, as well as a `white.png` file for the icon, loaded into your graphics folder:
+:::info
+This section is standard Factorio modding for custom entity creation. Experienced modders may skip to the next section. If you use this code, be sure to modify as appropriate for your actual mod name, graphics, etc.
+:::
+
+You will need the following entity sprite graphic, as well as a `white.png` file for the icon, loaded into your graphics folder:
 
 ![entity sprite](./entity-sprite.png)
 
 Add the following definitions to your `data.lua`:
-:::info
-Be sure to modify as appropriate for your actual mod name, graphics, etc.
-:::
+
 ```lua
 local entity_sprite = {}
 for idx, direction in pairs({ "north", "east", "south", "west" }) do
@@ -90,11 +93,28 @@ local item = {
 	subgroup = "circuit-network",
 }
 
-data:extend({entity, item})
+---@type data.RecipePrototype
+local recipe = {
+	type = "recipe",
+	name = "my-mod-thing",
+	hidden = false,
+	enabled = true,
+	energy_required = 5,
+	ingredients = {
+		{ type = "item", name = "electronic-circuit", amount = 1 },
+	},
+	results = {
+		{ type = "item", name = "my-mod-thing", amount = 1 },
+	},
+}
+
+data:extend({entity, item, recipe})
 ```
 Boot into a Factorio editor scenario and you should now have a placeable custom entity. Now to make it into a Thing.
 
 ### Thing Definition
+
+Once you have a custom entity, you must make it into a Thing.
 
 To define a Thing, we use the `mod-data` mechanism to provide information about our Thing and its desired behaviors. Add the following code to the bottom of our `data.lua` file:
 
@@ -111,7 +131,7 @@ data.raw["mod-data"]["things-names"].data["my-mod-thing"] = my_thing_registratio
 This code is adding an entry to Things' `mod-data` table explaining how it should manage your new Thing. In this case, we are simply passing in the name of your custom entity, along with the `intercept_construction` option. This option will cause Things to intercept any event where a user-initiated action would build your custom entity, and make the built entity into a Thing.
 
 :::info
-Thing registration is the primary interface for customizing the behavior of your Thing. Numerous options are available when registering a Thing. See the [things.ThingRegistration reference](../reference/types#thingsthingregistration) for more information.
+Thing registration is the primary interface for customizing the behavior of your Thing. Numerous options are available when registering a Thing. See the [`things.ThingRegistration` reference](../reference/types#thingsthingregistration) for more information.
 :::
 
 ### In-Game Test
