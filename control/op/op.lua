@@ -20,32 +20,26 @@ local OpType = {
 	CREATE = 1,
 	---Mark a Thing's main entity for destruction
 	MFD = 2,
-	---Set tags on a Thing
-	TAGS = 3,
 	---Create an edge in a graph
-	CREATE_EDGE = 4,
+	CREATE_EDGE = 3,
 	---Set the parent of a Thing
-	PARENT = 5,
-	---Set the orientation of a Thing
-	IMPOSE_ORIENTATION = 6,
+	PARENT = 4,
 	---Completely destroy a Thing
-	DESTROY = 7,
+	DESTROY = 5,
 	---Player built a blueprint
-	BLUEPRINT = 8,
+	BLUEPRINT = 6,
 	---Player undid an action
-	UNDO = 9,
+	UNDO = 7,
 	---Player redid an action
-	REDO = 10,
+	REDO = 8,
 	---Generic marker for entity overlap.
-	OVERLAP = 11,
+	OVERLAP = 9,
 	---Change thing orientation.
-	ORIENTATION = 12,
+	ORIENTATION = 10,
 	"CREATE",
 	"MFD",
-	"TAGS",
 	"CREATE_EDGE",
 	"PARENT",
-	"IMPOSE_ORIENTATION",
 	"DESTROY",
 	"BLUEPRINT",
 	"UNDO",
@@ -108,49 +102,5 @@ function Op:reconcile(frame) end
 function Op:dehydrate_for_undo() return false end
 
 function Op:destroy() end
-
---------------------------------------------------------------------------------
--- SET TAGS OP
---------------------------------------------------------------------------------
-
----@class things.TagsOp: things.Op
----@field public previous_tags? Tags The previous tags on the Thing
----@field public tags Tags The new tags to be set on the Thing
-local TagsOp = class("things.TagsOp", Op)
-lib.TagsOp = TagsOp
-
----@param thing_id uint64 The ID of the Thing whose tags are being set.
----@param key Core.WorldKey The world key of the Thing whose tags are being set.
----@param tags Tags The new tags to set on the Thing.
----@param previous_tags? Tags The previous tags on the Thing, if any.
-function TagsOp:new(thing_id, key, tags, previous_tags)
-	local obj = Op.new(self, OpType.TAGS, key) --[[@as things.TagsOp]]
-	obj.thing_id = thing_id
-	obj.tags = tags
-	obj.previous_tags = previous_tags
-	return obj
-end
-
---------------------------------------------------------------------------------
--- IMPOSE ORIENTATION OP
---------------------------------------------------------------------------------
-
----@class things.ImposeOrientationOp: things.Op
----@field public orientation Core.Orientation The new orientation to impose on the Thing.
----@field public prev_orientation Core.Orientation The previous orientation of the Thing.
-local ImposeOrientationOp = class("things.ImposeOrientationOp", Op)
-lib.ImposeOrientationOp = ImposeOrientationOp
-
----@param thing_id uint64 The ID of the Thing whose orientation is being imposed.
----@param key Core.WorldKey The world key of the Thing whose orientation is being imposed.
----@param orientation Core.Orientation The new orientation to impose on the Thing.
----@param prev_orientation Core.Orientation The previous orientation of the Thing.
-function ImposeOrientationOp:new(thing_id, key, orientation, prev_orientation)
-	local obj = Op.new(self, OpType.IMPOSE_ORIENTATION, key) --[[@as things.ImposeOrientationOp]]
-	obj.thing_id = thing_id
-	obj.orientation = orientation
-	obj.prev_orientation = prev_orientation
-	return obj
-end
 
 return lib
