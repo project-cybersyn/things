@@ -54,6 +54,10 @@ commands.add_command(
 	function(cmd)
 		local index = cmd.player_index
 		if not index then return end
+		if get_debugger(index) then
+			close_debugger(index)
+			return
+		end
 		open_debugger(index)
 	end
 )
