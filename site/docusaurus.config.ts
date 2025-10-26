@@ -69,6 +69,17 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          type: 'doc',
+          docId: 'basics/installation',
+          position: 'left',
+          label: 'Tutorial',
+        },
+        {
+          to: '/category/reference',
+          position: 'left',
+          label: 'Reference',
+        },
+        {
           href: 'https://github.com/project-cybersyn/things',
           label: 'GitHub',
           position: 'right',

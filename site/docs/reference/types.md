@@ -4,6 +4,8 @@ sidebar_position: 1
 
 # Types
 
+These are the core Lua data types used by the Things API.
+
 ## things.Id
 ```lua
 ---Unique identifier for a Thing.

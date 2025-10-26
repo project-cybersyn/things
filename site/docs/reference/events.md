@@ -4,6 +4,8 @@ sidebar_position: 2
 
 # Events
 
+These are the events that can be bound using `custom_events`.
+
 ## on_initialized
 ```lua
 ---Event fired when a Thing with a new ID is generated in the world.
