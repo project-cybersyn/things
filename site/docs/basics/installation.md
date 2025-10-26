@@ -28,7 +28,7 @@ Once your dependency is set up, you may download and install it in-game through 
 Things is a stateful mod with a control phase, and may not be used as standalone code. You must install it as a dependency.
 :::
 
-## IDE Integration
+## VSCode IDE Integration
 
 Things is fully typed for use with FMTK + LuaLS. To add integration to your IDE, you can do the following:
 
