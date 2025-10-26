@@ -13,9 +13,7 @@
   "Lua.workspace.ignoreDir": [
     "d:\\dev\\factorio\\0-things\\archive/*",
   ],
-  "Lua.workspace.library": [
-    "d:\\dev\\factorio\\0-things\\lib"
-  ],
+  "Lua.workspace.ignoreSubmodules": false,
   "Lua.workspace.userThirdParty": [
     "c:\\Users\\wcjoh\\AppData\\Roaming\\Code\\User\\workspaceStorage\\9581b7bbb4573ac73802e72d53bbd2f1\\justarandomgeek.factoriomod-debug\\sumneko-3rd"
   ],
