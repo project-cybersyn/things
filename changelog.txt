@@ -18,3 +18,8 @@ Date: 2025-10-25
     - Automatically-oriented children are now correctly reoriented before the parent reorientation event is broadcast.
   Changes:
     - Breaking: Orientation class names have changed.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.2
+Date: 2025-10-25
+  Bugfixes:
+    - Fixed an issue with rounding that broke blueprint position computations.
