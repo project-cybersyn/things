@@ -16,3 +16,5 @@ Date: 2025-10-25
     - Added `things.get_edge` remote interface call.
   Bugfixes:
     - Automatically-oriented children are now correctly reoriented before the parent reorientation event is broadcast.
+  Changes:
+    - Breaking: Orientation class names have changed.
