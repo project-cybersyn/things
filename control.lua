@@ -46,6 +46,7 @@ require("control.events.orientation")
 require("control.events.destroy")
 require("control.events.undo")
 require("control.events.extract")
+require("control.events.cursor")
 require("control.events.downstream")
 
 -- must be after `events.downstream`

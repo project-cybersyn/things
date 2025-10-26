@@ -8,3 +8,11 @@ Date: 2025-10-25
     - Automatic parent-child and associated APIs.
     - Thing graphs and associated APIs and events.
     - See online documentation for full details.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.1
+Date: 2025-10-25
+  Features:
+    - Added `things.ThingRegistration.allow_in_cursor`
+    - Added `things.get_edge` remote interface call.
+  Bugfixes:
+    - Automatically-oriented children are now correctly reoriented before the parent reorientation event is broadcast.
