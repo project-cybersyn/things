@@ -273,6 +273,30 @@ function Thing:revive()
 	return r1, r2, r3
 end
 
+---Die leaving a ghost, when possible.
+---@return boolean died `true` if the Thing's entity was successfully killed, `false` otherwise.
+function Thing:die()
+	if self.state ~= "real" then
+		strace.warn(
+			"Thing:die: cannot die Thing ID",
+			self.id,
+			"because its state is not 'real'. Current state:",
+			self.state
+		)
+		return false
+	end
+	local entity = self:get_entity()
+	if not entity then
+		strace.error(
+			"Thing:die: cannot die Thing ID",
+			self.id,
+			"because its entity is missing."
+		)
+		return false
+	end
+	return entity.die()
+end
+
 --------------------------------------------------------------------------------
 -- POS/ORIENTATION
 --------------------------------------------------------------------------------

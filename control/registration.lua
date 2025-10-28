@@ -16,6 +16,37 @@ for name, reg in pairs(prototypes.mod_data["things-graphs"].data) do
 	thing_graphs[name].name = name
 end
 
+-- Check integrity of definitions.
+for thing_key, thing_reg in pairs(thing_names) do
+	if thing_reg.children then
+		for index, child_def in pairs(thing_reg.children) do
+			if child_def.create then
+				local name = child_def.create.name
+				if not name then
+					error(
+						"Thing Registration for '"
+							.. thing_reg.name
+							.. "' has a child at index '"
+							.. tostring(index)
+							.. "' with create instructions missing 'name'"
+					)
+				end
+				if not thing_names[name] then
+					error(
+						"Thing Registration for '"
+							.. thing_reg.name
+							.. "' has a child at index '"
+							.. tostring(index)
+							.. "' with create instructions referencing unregistered name '"
+							.. tostring(name)
+							.. "'"
+					)
+				end
+			end
+		end
+	end
+end
+
 local lib = {}
 
 ---Check if a name is registered as a Thing name, and return its Registration if so.

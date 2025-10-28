@@ -70,6 +70,7 @@ The only way to succinctly describe how Things works internally is by saying it 
 Thanks also to the following in no particular order:
 - justarandomgeek (for FMTK, as well answering a number of my weird questions in modding discord)
 - thesixthroc (for helping me find and fix bugs in bplib, the intellectual precursor to this library)
+- Heroes that braved the perils of Alpha to help me find bugs and add features: Kryzeth
 
 ## Contributing
 

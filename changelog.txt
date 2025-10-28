@@ -1,13 +1,18 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.0
-Date: 2025-10-25
+Version: 0.1.3
+Date: 2025-10-27
   Features:
-    - Initial release.
-    - Thing registration and construction interception.
-    - Lifecycle management and associated APIs and events.
-    - Automatic parent-child and associated APIs.
-    - Thing graphs and associated APIs and events.
-    - See online documentation for full details.
+    - Added `things.ThingRegistration.Child.lifecycle_type` option for automatic children.
+  Bugfixes:
+    - Fixed an issue where automatic children of ghost parents would always be created as real.
+    - Fixed an issue where automatic children of ghost parents could destroy parents because of collision.
+    - Fixed an issue where automatic children would not match the quality of their parents.
+    - Added an intentional Lua error at startup when a child registration has no matching Thing registration.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.2
+Date: 2025-10-25
+  Bugfixes:
+    - Fixed an issue with rounding that broke blueprint position computations.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2025-10-25
@@ -19,7 +24,12 @@ Date: 2025-10-25
   Changes:
     - Breaking: Orientation class names have changed.
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.2
+Version: 0.1.0
 Date: 2025-10-25
-  Bugfixes:
-    - Fixed an issue with rounding that broke blueprint position computations.
+  Features:
+    - Initial release.
+    - Thing registration and construction interception.
+    - Lifecycle management and associated APIs and events.
+    - Automatic parent-child and associated APIs.
+    - Thing graphs and associated APIs and events.
+    - See online documentation for full details.

@@ -40,6 +40,7 @@
 ---@field public create? LuaSurface.create_entity_param
 ---@field public offset? MapPosition Position offset of the child relative to the parent Thing's position
 ---@field public orientation? Core.Dihedral Orientation of the child relative to the parent Thing's orientation
+---@field public lifecycle_type? "real-real"|"void-real"|"ghost-real" Determines lifecycle of child based on parent. `real-real` means child is real regardless of whether parent is ghost or real. `void-real` means child is real if parent is real, void if parent is ghost. `ghost-real` means child is real if parent is real, ghost if parent is ghost. (default: `ghost-real`)
 
 ---Registration options for a graph of Things.
 ---@class (exact) things.GraphRegistration
