@@ -28,7 +28,7 @@
 ---@field public name string Name of the registered Thing type. This MUST be the same name as the key used to register it, and SHOULD match the prototype name of the corresponding entity.
 ---@field public intercept_construction? boolean If true, Things will intercept player-driven construction of entities of this type and create Things for them automatically. (default: false)
 ---@field public virtualize_orientation? Core.OrientationClass If given, the orientation of the Thing will be stored and managed by Things instead of relying on Factorio's built-in entity orientation. This allows for more complex orientation scenarios involving compound entities. The orientation will be promoted to the given orientation class if possible.
----@field public migrate_tags_callback? Core.RemoteCallbackSpec A remote callback to invoke when a Thing is built with unrecognized tags. This allows mods using non-Thing custom blueprint data to migrate to Things. The callback will be invoked as `callback(parsed_tags: Tags, raw_tags: Tags) -> Tags`, and should return the ultimate set of tags to assign to the Thing.
+---@field public migrate_tags_callback? Core.RemoteCallbackSpec A remote callback to invoke when a Thing is built with unrecognized tags. This allows mods using non-Thing custom blueprint data to migrate to Things. The callback will be invoked as `callback(unrecognized_tags: Tags) -> Tags`, and should return a set of Tags to be applied to the Thing.
 ---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
 ---@field public no_garbage_collection? boolean If `true`, Things of this type will not be automatically garbage collected when Things thinks they are unreachable. You must manually destroy these Things when they are no longer needed. (default: false)
 ---@field public no_destroy_children_on_destroy? boolean If `true`, when a Thing of this type is destroyed, its children will NOT be automatically destroyed. (default: false)
@@ -84,6 +84,7 @@
 ---@class (exact) things.CreateThingParams
 ---@field public entity LuaEntity The *valid* entity to associate the new Thing with. This entity must not already be associated with an existing Thing.
 ---@field public name? string If given, the new Thing will be created as an instance of the registered Thing type with this name. If not given, name will be inferred from the entity type.
+---@field public tags? Tags Initial tags to set on the created Thing.
 ---@field public parent? things.ThingIdentification If given, create the new Thing as a child of this Thing.
 ---@field public child_index? int|string The index of the new Thing within its parent's children, if any. If not given, the new Thing will be added at the end of the parent's children.
 ---@field public relative_pos? MapPosition The position of the new Thing relative to its parent, if any.
@@ -125,6 +126,7 @@
 ---@field public thing things.ThingSummary Summary of the Thing whose tags changed.
 ---@field public new_tags Tags The new tags of the Thing.
 ---@field public old_tags Tags The previous tags of the Thing.
+---@field public cause "api"|"engine" Source of the tag change event.
 
 ---Event raised when the orientation of a Thing changes.
 ---@class (exact) things.EventData.on_orientation_changed

@@ -400,7 +400,8 @@ end
 ---@param tags Tags?
 ---@param no_copy boolean? If true, assign the tags table directly instead of deep-copying it.
 ---@param suppress_event boolean? If true, suppress tags change events.
-function Thing:set_tags(tags, no_copy, suppress_event)
+---@param event_source? "api"|"engine" Source of the tag change event, if any.
+function Thing:set_tags(tags, no_copy, suppress_event, event_source)
 	if (not tags) and not self.tags then return end
 	local previous_tags = self.tags
 	if tags then
@@ -419,7 +420,8 @@ function Thing:set_tags(tags, no_copy, suppress_event)
 			"things.thing_tags_changed",
 			self,
 			self.tags,
-			previous_tags
+			previous_tags,
+			event_source or "engine"
 		)
 	end
 end

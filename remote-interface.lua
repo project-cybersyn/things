@@ -6,6 +6,7 @@ local pos_lib = require("lib.core.math.pos")
 local thing_lib = require("control.thing")
 local reg_lib = require("control.registration")
 local graph_lib = require("control.graph")
+local tlib = require("lib.core.table")
 
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
 local get_thing = thing_lib.get_by_id
@@ -139,6 +140,10 @@ function remote_interface.create_thing(create_thing_params)
 		}
 	end
 
+	if create_thing_params.tags then
+		thing:set_tags(create_thing_params.tags, true, true, "api")
+	end
+
 	local child_was_added = false
 	if parent_thing then
 		child_was_added = parent_thing:add_child(
@@ -262,7 +267,21 @@ function remote_interface.set_tags(thing_identification, tags)
 	local thing, valid_id = resolve_identification(thing_identification)
 	if not valid_id then return CANT_BE_A_THING end
 	if not thing then return NOT_A_THING end
-	thing:set_tags(tags, true)
+	thing:set_tags(tags, true, nil, "api")
+	return nil
+end
+
+---Shallow merges new tags into the existing tags of a Thing.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param tags Tags The tags to merge into the Thing's existing tags.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.merge_tags(thing_identification, tags)
+	local thing, valid_id = resolve_identification(thing_identification)
+	if not valid_id then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	local new_tags = thing.tags or {}
+	tlib.assign(new_tags, tags)
+	thing:set_tags(new_tags, true, nil, "api")
 	return nil
 end
 

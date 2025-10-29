@@ -8,11 +8,14 @@ local constants = require("control.constants")
 local thing_lib = require("control.thing")
 local CreateOp = require("control.op.create").CreateOp
 local strace = require("lib.core.strace")
+local get_migrated_tags =
+	require("control.util.tag-migration").get_migrated_tags
 
 local get_thing_by_id = thing_lib.get_by_id
 local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local TAGS_TAG = constants.TAGS_TAG
 local NAME_TAG = constants.NAME_TAG
+local BLUEPRINT_TAG_SET = constants.BLUEPRINT_TAG_SET
 local EMPTY = tlib.EMPTY_STRICT
 local get_world_state = ws_lib.get_world_state
 local get_thing_registration = registration_lib.get_thing_registration
@@ -66,18 +69,20 @@ local function handle_generic_built(ev)
 		or should_intercept_build(name)
 	if not registration then return end
 
+	-- Perform tag migration
+	local real_tags = get_migrated_tags(tags, registration)
+
 	-- Generate creation op.
 	local frame = frame_lib.get_frame()
 	local op = CreateOp:new(entity)
 	op.player_index = ev.player_index
 	op.name = registration.name
-	op.tags = tags[TAGS_TAG] --[[@as Tags?]]
+	op.tags = real_tags
 	frame:add_op(op)
 end
 
 events.bind(defines.events.on_built_entity, handle_generic_built)
 events.bind(defines.events.on_robot_built_entity, handle_generic_built)
 events.bind(defines.events.on_space_platform_built_entity, handle_generic_built)
--- TODO: Evaluate this; I don't think we want to support script_raised_built
 events.bind(defines.events.script_raised_built, handle_generic_built)
 events.bind(defines.events.script_raised_revive, handle_generic_built)

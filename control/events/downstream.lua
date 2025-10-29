@@ -103,7 +103,7 @@ events.bind(
 events.bind(
 	"things.thing_tags_changed",
 	---@param thing things.Thing
-	function(thing, new_tags, old_tags)
+	function(thing, new_tags, old_tags, cause)
 		local cevp = get_custom_event_name(thing, "on_tags_changed")
 		if cevp then
 			---@type things.EventData.on_tags_changed
@@ -111,6 +111,7 @@ events.bind(
 				thing = thing:summarize(),
 				new_tags = new_tags,
 				old_tags = old_tags,
+				cause = cause,
 			}
 			script.raise_event(cevp, ev)
 		end
