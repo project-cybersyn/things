@@ -36,6 +36,8 @@ local OpType = {
 	OVERLAP = 9,
 	---Change thing orientation.
 	ORIENTATION = 10,
+	---Paste-settings
+	PASTE_SETTINGS = 11,
 	"CREATE",
 	"MFD",
 	"CREATE_EDGE",
@@ -46,6 +48,7 @@ local OpType = {
 	"REDO",
 	"OVERLAP",
 	"ORIENTATION",
+	"PASTE_SETTINGS",
 }
 lib.OpType = OpType
 
