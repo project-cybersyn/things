@@ -395,6 +395,52 @@ function remote_interface.get_children(parent_identification)
 	return nil, result
 end
 
+---Adds a transient child entity to a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_index string|int The index to assign the transient child in the parent Thing.
+---@param child_entity LuaEntity The child entity to add as a transient child.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return boolean? added True if the transient child was added, false if the index was already in use, nil on error.
+function remote_interface.add_transient_child(
+	parent_identification,
+	child_index,
+	child_entity
+)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	if not valid_parent then return CANT_BE_A_THING end
+	if not parent then return NOT_A_THING end
+	if not child_entity or not child_entity.valid then
+		return {
+			code = "invalid_entity",
+			message = "The specified child entity is nil or invalid.",
+		}
+	end
+	parent:add_transient_child(child_index, child_entity)
+	return nil, parent:add_transient_child(child_index, child_entity)
+end
+
+---Remove a transient child entity from a parent Thing, optionally destroying it.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_index string|int The index of the transient child to remove.
+---@param destroy_child boolean? If true, destroy the transient child entity after removing it. Defaults to false.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.remove_transient_child(
+	parent_identification,
+	child_index,
+	destroy_child
+)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	if not valid_parent then return CANT_BE_A_THING end
+	if not parent then return NOT_A_THING end
+	local removed = parent:remove_transient_child(child_index, destroy_child)
+	if not removed then
+		return {
+			code = "no_such_transient_child",
+			message = "Could not remove transient child; the specified index does not exist.",
+		}
+	end
+end
+
 --------------------------------------------------------------------------------
 -- GRAPH
 --------------------------------------------------------------------------------

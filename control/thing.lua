@@ -17,6 +17,7 @@ local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local get_thing_registration = registration_lib.get_thing_registration
 local o_loose_eq = orientation_lib.loose_eq
 local NO_RAISE_DESTROY = { raise_destroy = false }
+local RAISE_DESTROY = { raise_destroy = true }
 local NO_RAISE_REVIVE = { raise_revive = false }
 local EMPTY = tlib.EMPTY_STRICT
 
@@ -37,9 +38,9 @@ local lib = {}
 ---@field public transient_data? table Custom transient data associated with this Thing. This will NOT be blueprinted.
 ---@field public undo_refcount uint Number of undo records currently referencing this Thing.
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity when the Thing is voided or destroyed.
----@field public graph_set? {[string]: true} Set of graph names this Thing is a member of. If `nil`, the Thing is not a member of any graphs.
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
 ---@field public children? {[int|string]: int64} Map from child indices (which may be numbers or strings) to child Thing ids.
+---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
 local Thing = class("things.Thing", StateMachine)
 lib.Thing = Thing
 
@@ -71,8 +72,8 @@ function Thing:summarize()
 		status = self.state,
 		virtual_orientation = self.virtual_orientation,
 		tags = self.tags,
-		graph_set = self.graph_set,
 		parent = self.parent,
+		transient_children = self.transient_children,
 	}
 end
 
@@ -189,6 +190,21 @@ function Thing:destroy(skip_destroy, skip_deparent)
 		end
 		self.children = nil
 	end
+	-- Destroy transient children
+	if self.transient_children then
+		for child_key, child_entity in pairs(self.transient_children) do
+			if child_entity and child_entity.valid then
+				strace.trace(
+					"Thing:destroy: destroying transient child",
+					child_key,
+					"for Thing ID",
+					self.id
+				)
+				child_entity.destroy(RAISE_DESTROY)
+			end
+			self.transient_children[child_key] = nil
+		end
+	end
 	local former_entity = self.entity
 	self:set_entity(nil)
 	self:set_state("destroyed")
@@ -214,6 +230,21 @@ function Thing:void(skip_destroy, skip_destroy_children)
 		for _, child_id in pairs(self.children) do
 			local child_thing = storage.things[child_id]
 			if child_thing then child_thing:void(skip_destroy_children) end
+		end
+	end
+	-- Destroy transient children
+	if self.transient_children then
+		for child_key, child_entity in pairs(self.transient_children) do
+			if child_entity and child_entity.valid then
+				strace.trace(
+					"Thing:destroy: destroying transient child",
+					child_key,
+					"for Thing ID",
+					self.id
+				)
+				child_entity.destroy(RAISE_DESTROY)
+			end
+			self.transient_children[child_key] = nil
 		end
 	end
 	events.raise("things.thing_immediate_voided", self)
@@ -499,6 +530,30 @@ function Thing:remove_parent()
 		{ self }
 	)
 	self:raise_event("things.thing_parent_changed", self)
+	return true
+end
+
+---@param index int|string The index of the transient child.
+---@param child_entity LuaEntity A *valid* child entity.
+---@return boolean added `true` if the transient child was added, `false` if a child already existed at that index.
+function Thing:add_transient_child(index, child_entity)
+	if not self.transient_children then self.transient_children = {} end
+	if self.transient_children[index] then return false end
+	self.transient_children[index] = child_entity
+	return true
+end
+
+---@param index int|string The index of the transient child.
+---@param destroy_child boolean? If true, destroy the child entity if it is valid.
+---@return boolean removed `true` if the transient child was removed, `false` if no child existed at that index.
+function Thing:remove_transient_child(index, destroy_child)
+	if not self.transient_children then return false end
+	local child_entity = self.transient_children[index]
+	if not child_entity then return false end
+	if destroy_child and child_entity.valid then
+		child_entity.destroy(RAISE_DESTROY)
+	end
+	self.transient_children[index] = nil
 	return true
 end
 

@@ -79,6 +79,7 @@
 ---@field public virtual_orientation Core.Orientation? The current virtual orientation of the Thing, if it has one. This will always be nil for Thing types that do not virtualize orientation.
 ---@field public tags Tags? The current tags of the Thing.
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
+---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
 
 ---Options controlling how a Thing is created via `create_thing`.
 ---@class (exact) things.CreateThingParams
