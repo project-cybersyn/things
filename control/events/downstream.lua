@@ -2,6 +2,7 @@
 local events = require("lib.core.event")
 local registry = require("control.registration")
 local tlib = require("lib.core.table")
+local strace = require("lib.core.strace")
 
 local get_thing_registration = registry.get_thing_registration
 

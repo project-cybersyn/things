@@ -8,9 +8,10 @@ local constants = require("control.constants")
 local thing_lib = require("control.thing")
 local CreateOp = require("control.op.create").CreateOp
 local strace = require("lib.core.strace")
-local get_migrated_tags =
-	require("control.util.tag-migration").get_migrated_tags
+local tu_lib = require("control.util.tags")
 
+local get_migrated_tags = tu_lib.get_migrated_tags
+local get_initial_tags = tu_lib.get_initial_tags
 local get_thing_by_id = thing_lib.get_by_id
 local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local TAGS_TAG = constants.TAGS_TAG
@@ -71,6 +72,9 @@ local function handle_generic_built(ev)
 
 	-- Perform tag migration
 	local real_tags = get_migrated_tags(tags, registration)
+	if (not real_tags) or (not next(real_tags)) then
+		real_tags = get_initial_tags(entity, registration, player)
+	end
 
 	-- Generate creation op.
 	local frame = frame_lib.get_frame()

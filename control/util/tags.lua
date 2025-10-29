@@ -23,12 +23,6 @@ function lib.get_migrated_tags(tags, registration)
 			end
 		end
 		if unauthorized_tags then
-			strace.debug(
-				"Invoking tag migration callback for Thing",
-				registration.name,
-				"with unauthorized tags:",
-				unauthorized_tags
-			)
 			local migrated_tags =
 				remote.call(migrate_callback[1], migrate_callback[2], unauthorized_tags) --[[@as Tags?]]
 			if migrated_tags then
@@ -47,6 +41,18 @@ function lib.get_migrated_tags(tags, registration)
 		end
 	end
 	return real_tags
+end
+
+---@param entity LuaEntity
+---@param registration things.ThingRegistration
+function lib.get_initial_tags(entity, registration, player)
+	local initial_tags_callback = registration.initial_tags_callback
+	if initial_tags_callback then
+		local initial_tags =
+			remote.call(initial_tags_callback[1], initial_tags_callback[2], entity) --[[@as Tags?]]
+		return initial_tags
+	end
+	return nil
 end
 
 return lib

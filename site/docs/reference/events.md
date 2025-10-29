@@ -31,6 +31,7 @@ These are the events that can be bound using `custom_events`.
 ---@field public thing things.ThingSummary Summary of the Thing whose tags changed.
 ---@field public new_tags Tags The new tags of the Thing.
 ---@field public old_tags Tags The previous tags of the Thing.
+---@field public cause "api"|"engine" Source of the tag change event.
 ```
 
 ## on_orientation_changed

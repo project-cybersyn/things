@@ -21,6 +21,16 @@ The following methods are available:
 function remote_interface.get(thing_identification) end
 ```
 
+## get_thing_id
+```lua
+---Given an entity, gets the associated Thing ID.
+---@param entity LuaEntity The entity to look up.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return int64? thing_id The ID of the Thing associated with the entity, or `nil` if none exists.
+function remote_interface.get_thing_id(entity)
+end
+```
+
 ## create_thing
 ```lua
 ---Create a Thing from an entity.
@@ -78,6 +88,27 @@ function remote_interface.silent_revive(thing_identification) end
 function remote_interface.set_tags(thing_identification, tags) end
 ```
 
+## set_tag
+```lua
+---Set a single tag on a Thing.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key string The tag key to set.
+---@param value AnyBasic The tag value to set.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.set_tag(thing_identification, key, value)
+end
+```
+
+## merge_tags
+```lua
+---Shallow merges new tags into the existing tags of a Thing.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param tags Tags The tags to merge into the Thing's existing tags.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.merge_tags(thing_identification, tags)
+end
+```
+
 ## get_transient_data
 ```lua
 ---Get transient data associated with a Thing. This data is not preserved when
@@ -128,6 +159,59 @@ function remote_interface.remove_parent(child_identification) end
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 ---@return things.ThingChildrenSummary|nil children Map of child keys to child Thing summaries. `nil` if there was an error or the Thing doesn't have children.
 function remote_interface.get_children(parent_identification) end
+```
+
+## add_transient_child
+```lua
+---Adds a transient child entity to a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_index string|int The index to assign the transient child in the parent Thing.
+---@param child_entity LuaEntity The child entity to add as a transient child.
+---@param replace? boolean If `true`, will destroy and replace an existing child.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return boolean? added True if the transient child was added, false if the index was already in use, nil on error.
+function remote_interface.add_transient_child(
+	parent_identification,
+	child_index,
+	child_entity
+) end
+```
+
+## remove_transient_child
+```lua
+---Remove a transient child entity from a parent Thing, optionally destroying it.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_index string|int The index of the transient child to remove.
+---@param destroy_child boolean? If true, destroy the transient child entity after removing it. Defaults to false.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.remove_transient_child(
+	parent_identification,
+	child_index,
+	destroy_child
+) end
+```
+
+## get_transient_child
+```lua
+---Get one transient child by index from a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_index string|int The index of the transient child to get.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return LuaEntity|nil child The transient child Thing, or nil if it doesn't exist.
+function remote_interface.get_transient_child(
+	parent_identification,
+	child_index
+) end
+```
+
+## get_transient_children
+```lua
+---Get all transient children from a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return {[string|int]: LuaEntity}|nil children Map of child indices to transient child entities. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no transient children.
+function remote_interface.get_transient_children(parent_identification)
+end
 ```
 
 ## modify_edge

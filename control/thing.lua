@@ -73,7 +73,6 @@ function Thing:summarize()
 		virtual_orientation = self.virtual_orientation,
 		tags = self.tags,
 		parent = self.parent,
-		transient_children = self.transient_children,
 	}
 end
 
@@ -535,11 +534,25 @@ end
 
 ---@param index int|string The index of the transient child.
 ---@param child_entity LuaEntity A *valid* child entity.
+---@param replace boolean? If true, will destroy and replace an existing child.
 ---@return boolean added `true` if the transient child was added, `false` if a child already existed at that index.
-function Thing:add_transient_child(index, child_entity)
-	if not self.transient_children then self.transient_children = {} end
-	if self.transient_children[index] then return false end
-	self.transient_children[index] = child_entity
+function Thing:add_transient_child(index, child_entity, replace)
+	local tc = self.transient_children
+	if not tc then
+		tc = {}
+		self.transient_children = tc
+	end
+	if tc[index] then
+		if replace then
+			local existing_child = tc[index]
+			if existing_child and existing_child.valid then
+				existing_child.destroy(RAISE_DESTROY)
+			end
+		else
+			return false
+		end
+	end
+	tc[index] = child_entity
 	return true
 end
 
@@ -555,6 +568,18 @@ function Thing:remove_transient_child(index, destroy_child)
 	end
 	self.transient_children[index] = nil
 	return true
+end
+
+---Get only the valid transient children of this Thing.
+---All invalid refs will be removed.
+---@return {[int|string]: LuaEntity} transient_children Map from child indices to valid child entities.
+function Thing:get_valid_transient_children()
+	local tc = self.transient_children
+	if not tc then return EMPTY end
+	for idx, entity in pairs(tc) do
+		if not entity.valid then tc[idx] = nil end
+	end
+	return tc
 end
 
 ---If this Thing has a parent, and its relationship specifies a relative

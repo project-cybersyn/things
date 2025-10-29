@@ -52,6 +52,22 @@ local remote_interface = {}
 -- INFO AND LIFECYCLE
 --------------------------------------------------------------------------------
 
+---Given an entity, gets the associated Thing ID.
+---@param entity LuaEntity The entity to look up.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return int64? thing_id The ID of the Thing associated with the entity, or `nil` if none exists.
+function remote_interface.get_thing_id(entity)
+	if not entity or not entity.valid then
+		return {
+			code = "invalid_entity",
+			message = "The specified entity is nil or invalid.",
+		}
+	end
+	local thing = get_thing_by_unit_number(entity.unit_number)
+	if not thing then return nil, nil end
+	return nil, thing.id
+end
+
 ---Gets basic information about a Thing.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
@@ -271,6 +287,23 @@ function remote_interface.set_tags(thing_identification, tags)
 	return nil
 end
 
+---Set a single tag on a Thing.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key string The tag key to set.
+---@param value AnyBasic The tag value to set.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.set_tag(thing_identification, key, value)
+	local thing, valid_id = resolve_identification(thing_identification)
+	if not valid_id then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	local new_tags = thing.tags or {}
+	new_tags[key] = value
+	---@diagnostic disable-next-line: cast-local-type
+	if not next(new_tags) then new_tags = nil end
+	thing:set_tags(new_tags, true, nil, "api")
+	return nil
+end
+
 ---Shallow merges new tags into the existing tags of a Thing.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@param tags Tags The tags to merge into the Thing's existing tags.
@@ -399,12 +432,14 @@ end
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
 ---@param child_index string|int The index to assign the transient child in the parent Thing.
 ---@param child_entity LuaEntity The child entity to add as a transient child.
+---@param replace? boolean If `true`, will destroy and replace an existing child.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 ---@return boolean? added True if the transient child was added, false if the index was already in use, nil on error.
 function remote_interface.add_transient_child(
 	parent_identification,
 	child_index,
-	child_entity
+	child_entity,
+	replace
 )
 	local parent, valid_parent = resolve_identification(parent_identification)
 	if not valid_parent then return CANT_BE_A_THING end
@@ -415,8 +450,7 @@ function remote_interface.add_transient_child(
 			message = "The specified child entity is nil or invalid.",
 		}
 	end
-	parent:add_transient_child(child_index, child_entity)
-	return nil, parent:add_transient_child(child_index, child_entity)
+	return nil, parent:add_transient_child(child_index, child_entity, replace)
 end
 
 ---Remove a transient child entity from a parent Thing, optionally destroying it.
@@ -439,6 +473,32 @@ function remote_interface.remove_transient_child(
 			message = "Could not remove transient child; the specified index does not exist.",
 		}
 	end
+end
+
+---Get all transient children from a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return {[string|int]: LuaEntity}|nil children Map of child indices to transient child entities. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no transient children.
+function remote_interface.get_transient_children(parent_identification)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	if not valid_parent then return CANT_BE_A_THING end
+	if not parent then return NOT_A_THING end
+	return nil, parent.transient_children or EMPTY
+end
+
+---Get one transient child by index from a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_index string|int The index of the transient child to get.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return LuaEntity|nil child The transient child Thing, or nil if it doesn't exist.
+function remote_interface.get_transient_child(
+	parent_identification,
+	child_index
+)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	if not valid_parent then return CANT_BE_A_THING end
+	if not parent then return NOT_A_THING end
+	return nil, (parent.transient_children or EMPTY)[child_index]
 end
 
 --------------------------------------------------------------------------------
