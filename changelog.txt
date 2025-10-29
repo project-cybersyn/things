@@ -1,4 +1,21 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 2025-10-28
+  Features:
+    - Added preliminary support for entity settings copy/paste. Copy/paste will now correctly move tags between Things of the same name.
+    - Added new concept of transient children, children that aren't themselves Things, but are associated with a Thing and destroyed alongside it.
+    - Added API `things.add_transient_child`
+    - Added API `things.remove_transient_child`
+    - Added API `things.get_transient_child`
+    - Added API `things.get_transient_children`
+    - Added `cause` field to `things.EventData.on_tags_changed` to indicate whether the tag change was triggered by the API or the engine.
+    - Added API `things.merge_tags`
+    - Added API `things.set_tag`
+    - API `things.create_thing` now accepts an optional `tags` parameter to set initial tags on the created Thing.
+    - Added API `things.get_thing_id`
+    - Implemented `things.ThingRegistration.migrate_tags_callback` which allows migration of entities that already have stored blueprint tags into Things.
+    - Implemented `things.ThingRegistration.initial_tags_callback` which allows setting initial tags on Things with intercepted construction.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.3
 Date: 2025-10-27
   Features:
