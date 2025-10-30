@@ -15,6 +15,7 @@ local type = type
 local tunpack = table.unpack
 local UNDO_TAG = constants.UNDO_TAG
 local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
+local DEGENERATE_UNDO_ACTION_COUNT = constants.DEGENERATE_UNDO_ACTION_COUNT
 local get_undo_opset_ids = ur_util.get_undo_opset_ids
 local tag_undo_item = ur_util.tag_undo_item
 
@@ -245,13 +246,72 @@ function Frame:tag_view_for_player(
 	debug_stackname
 )
 	local player_index = player.index
+	local encountered_tagged_item = false
 	for i = 1, view.get_item_count() do
-		local actions = view.get_item(i)
+		-- Early out: try to avoid reading the `actions` table if we can.
 		local tagged, opset_id, inverse_opset_id =
-			get_undo_opset_ids(view, i, actions)
+			ur_util.fast_get_undo_opset_ids(view, i)
+		if tagged then
+			strace.trace(
+				"Fast-skipping pretagged item",
+				i,
+				"for player",
+				player_index
+			)
+			encountered_tagged_item = true
+			if opset_id then seen_ids[opset_id] = true end
+			if inverse_opset_id then seen_ids[inverse_opset_id] = true end
+			goto continue_item
+		end
+
+		-- Get actions table.
+		local actions = view.get_item(i)
+		local n_actions = #actions
+		strace.trace(
+			self.debug_string,
+			"Examining",
+			debug_stackname,
+			"item",
+			i,
+			"for player",
+			player_index,
+			"with",
+			n_actions,
+			"actions"
+		)
+		if n_actions == 0 then
+			strace.debug(
+				self.debug_string,
+				"Skipping",
+				debug_stackname,
+				"item",
+				i,
+				"for player",
+				player_index,
+				"with no actions"
+			)
+			goto continue_item
+		elseif n_actions > DEGENERATE_UNDO_ACTION_COUNT then
+			strace.warn(
+				self.debug_string,
+				"Degenerately large action count (",
+				n_actions,
+				") in",
+				debug_stackname,
+				"item",
+				i,
+				"for player",
+				player_index
+			)
+		end
+
+		tagged, opset_id, inverse_opset_id = get_undo_opset_ids(view, i, actions)
 		if opset_id then seen_ids[opset_id] = true end
 		if inverse_opset_id then seen_ids[inverse_opset_id] = true end
-		if tagged then goto continue_item end
+		if tagged then
+			encountered_tagged_item = true
+			goto continue_item
+		end
 		if i == 1 then
 			local forward_id
 			-- If inverse op was performed, no need to generate new opset.

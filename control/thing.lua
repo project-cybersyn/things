@@ -102,6 +102,7 @@ function Thing:set_entity(entity, apply_status)
 			self.id,
 			entity
 		)
+		return
 	end
 	if entity == self.entity then return end
 	if not entity or not entity.valid then

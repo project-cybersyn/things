@@ -30,4 +30,7 @@ lib.ORIENTATION_TAG = "@o"
 lib.UNDO_TAG = "@u"
 lib.GHOST_REVIVAL_TAG = "@g"
 
+---If an undo item has more actions than this, Things considers it degenerate.
+lib.DEGENERATE_UNDO_ACTION_COUNT = 20000
+
 return lib
