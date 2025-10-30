@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.1
+Date: 2025-10-30
+  Bugfixes:
+    - Fixed a performance issue involving degenerately large undo/redo items causing lag spikes on construction events.
+    - Fixed an issue where `on_orientation_changed` wasn't firing properly.
+---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2025-10-28
   Features:
