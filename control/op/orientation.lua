@@ -97,9 +97,6 @@ function OrientationOp:apply(frame)
 		self.previous_orientation = current_orientation
 	end
 	local changed, imposed = thing:set_orientation(self.orientation, true, true)
-	local delta = changed
-		or imposed
-		or not o_loose_eq(current_orientation, self.orientation)
 	strace.trace(
 		frame.debug_string,
 		"OrientationOp:apply from",
@@ -108,17 +105,15 @@ function OrientationOp:apply(frame)
 		orientation_lib.stringify(self.orientation),
 		changed and "- Thing orientation changed" or "- Thing orientation unchanged",
 		(not imposed) and "- entity was already at desired orientation"
-			or "- orientation imposed on entity",
-		delta and "- firing event" or "- no event fired"
+			or "- orientation imposed on entity"
 	)
-	if delta then
-		frame:post_event(
-			"things.thing_orientation_changed",
-			thing,
-			self.orientation,
-			self.previous_orientation
-		)
-	end
+
+	frame:post_event(
+		"things.thing_orientation_changed",
+		thing,
+		self.orientation,
+		self.previous_orientation
+	)
 end
 
 return lib
