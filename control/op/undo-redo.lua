@@ -75,7 +75,7 @@ end
 ---@param opset things.OpSet
 function UndoRedoOp:catalogue_action(frame, action, opset)
 	local player_index = self.player_index
-	if action.type == "removed-entity" then
+	if action.type == "removed-entity" and action.surface_index then
 		-- Match removal action to a CREATE op on this frame and a DESTROY or MFD
 		-- op on the undo frame.
 

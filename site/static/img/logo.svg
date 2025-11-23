@@ -1,12 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-labelledby="titleA descA">
-  <title id="titleA">Things — Node Gear logo</title>
-  <desc id="descA">Square logo: rounded slate background with three connected nodes and a small gear motif representing entity manipulation.</desc>
-  <!-- Rounded background -->
-  <rect x="2" y="2" width="124" height="124" rx="18" ry="18" fill="#1f2937"/>
-  <!-- Links -->
-  <path d="M36 72 L58 50 L90 62" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Nodes -->
-  <circle cx="36" cy="72" r="8" fill="#ffffff"/>
-  <circle cx="58" cy="50" r="6" fill="#ffffff"/>
-  <circle cx="90" cy="62" r="7" fill="#ffffff"/>
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g>
+    <path d="M0 36L0 18C0 13.0294 1.75736 8.7868 5.27208 5.27208C8.7868 1.75736 13.0294 0 18 0L106 0C110.971 0 115.213 1.75736 118.728 5.27208C122.243 8.7868 124 13.0294 124 18L124 106C124 110.971 122.243 115.213 118.728 118.728C115.213 122.243 110.971 124 106 124L18 124C13.0294 124 8.7868 122.243 5.27208 118.728C1.75736 115.213 0 110.971 0 106L0 36Z" fill="#1F2937" fill-rule="evenodd" transform="translate(2 2)" />
+    <path d="M0 22L22 0L54 12" fill="none" stroke-width="4" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" transform="translate(36 50)" />
+    <path d="M0 8C0 3.58172 3.58172 0 8 0C12.4183 0 16 3.58172 16 8C16 12.4183 12.4183 16 8 16C3.58172 16 0 12.4183 0 8Z" fill="#FFFFFF" fill-rule="evenodd" transform="translate(28 64)" />
+    <path d="M0 6C0 2.68629 2.68629 0 6 0C9.31371 0 12 2.68629 12 6C12 9.31371 9.31371 12 6 12C2.68629 12 0 9.31371 0 6Z" fill="#FFFFFF" fill-rule="evenodd" transform="translate(52 44)" />
+    <path d="M0 7C0 3.13401 3.134 0 7 0C10.866 0 14 3.13401 14 7C14 10.866 10.866 14 7 14C3.134 14 0 10.866 0 7Z" fill="#FFFFFF" fill-rule="evenodd" transform="translate(83 55)" />
+  </g>
 </svg>
