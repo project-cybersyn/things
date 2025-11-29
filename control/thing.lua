@@ -702,7 +702,7 @@ function Thing:on_changed_state(new_state, old_state)
 	end
 
 	-- Notify graph peers
-	for _, graph in pairs(graph_lib.get_graphs_containing_node(self.id)) do
+	for _, graph in graph_lib.iterate_graphs_containing_node(self.id) do
 		local out_edges, in_edges = graph:get_edges(self.id)
 		for to_id, edge in pairs(out_edges) do
 			local thing = storage.things[to_id]

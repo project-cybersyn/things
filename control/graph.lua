@@ -141,6 +141,32 @@ function lib.get_graphs_containing_node(id)
 	return result or EMPTY
 end
 
+---Create a stateless Lua iterator over all graph names containing the
+---given node.
+---@param id int
+function lib.iterate_graphs_containing_node(id)
+	---@param gset {[string]: things.Graph}
+	---@param idx string|nil
+	---@return string|nil next_idx
+	---@return things.Graph|nil graph
+	local function graph_iter(gset, idx)
+		local next_idx, graph = idx, nil
+		while true do
+			next_idx, graph = next(gset, next_idx)
+			if (not next_idx) or not graph then return nil, nil end
+			local out_edges = graph.out_edges
+			local in_edges = graph.in_edges
+			if
+				(out_edges[id] and next(out_edges[id]))
+				or (in_edges[id] and next(in_edges[id]))
+			then
+				return next_idx, graph
+			end
+		end
+	end
+	return graph_iter, storage.graphs, nil
+end
+
 ---Connect two Things in the given graph.
 ---@param graph things.Graph
 ---@param from things.Thing
