@@ -36,6 +36,7 @@
 ---@field public no_void_children_on_void? boolean If `true`, when a Thing of this type is voided, its children will NOT be automatically voided. (default: false)
 ---@field public children? {[string|int]: things.ThingRegistration.Child} Specifications for automatic child creation.
 ---@field public allow_in_cursor? "never" Controls the behavior of entity-pipette and cursor stack for this Thing. If set to "never", Things of this type cannot be picked up into the player's cursor. (default: nil, meaning Things of this type use normal Factorio behavior.)
+---@field public custom_blueprint_geometry? Core.CustomEntityGeometry If provided, Things will use this custom geometry data when computing bounding boxes and snapping for blueprint entities of this type.
 
 ---@class (exact) things.ThingRegistration.Child
 ---@field public create? LuaSurface.create_entity_param

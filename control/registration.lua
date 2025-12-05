@@ -1,10 +1,17 @@
 local tlib = require("lib.core.table")
+local custom_geometry_lib = require("lib.core.blueprint.custom-geometry")
 
 ---@type {[string]: things.ThingRegistration}
 local thing_names = {}
 for name, reg in pairs(prototypes.mod_data["things-names"].data) do
-	thing_names[name] =
-		tlib.deep_copy(reg --[[@as things.ThingRegistration]], true)
+	---@cast reg things.ThingRegistration
+	if reg.custom_blueprint_geometry then
+		custom_geometry_lib.set_custom_geometry_for_name(
+			name,
+			reg.custom_blueprint_geometry
+		)
+	end
+	thing_names[name] = tlib.deep_copy(reg, true)
 	thing_names[name].name = name
 end
 
