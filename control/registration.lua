@@ -5,14 +5,23 @@ local custom_geometry_lib = require("lib.core.blueprint.custom-geometry")
 local thing_names = {}
 for name, reg in pairs(prototypes.mod_data["things-names"].data) do
 	---@cast reg things.ThingRegistration
-	if reg.custom_blueprint_geometry then
-		custom_geometry_lib.set_custom_geometry_for_name(
-			name,
-			reg.custom_blueprint_geometry
-		)
+	local reg_copy = tlib.deep_copy(reg, true)
+	reg_copy.name = name
+	local custom_blueprint_geometry = reg_copy.custom_blueprint_geometry
+	if custom_blueprint_geometry then
+		-- Keys need to be numeric, but Factorio serializes them as strings
+		-- across Lua environments.
+		local fixed_geom = {}
+		for k, v in pairs(custom_blueprint_geometry) do
+			if type(k) == "string" then
+				fixed_geom[tonumber(k)] = v
+			else
+				fixed_geom[k] = v
+			end
+		end
+		custom_geometry_lib.set_custom_geometry_for_name(name, fixed_geom)
 	end
-	thing_names[name] = tlib.deep_copy(reg, true)
-	thing_names[name].name = name
+	thing_names[name] = reg_copy
 end
 
 ---@type {[string]: things.GraphRegistration}
