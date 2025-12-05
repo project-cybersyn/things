@@ -56,7 +56,9 @@ function ParentOp:apply(frame)
 			frame.debug_string,
 			"ParentOp.apply: could not resolve child or parent Thing:",
 			self.child_thing_id,
-			self.parent_thing_id
+			self.parent_thing_id,
+			self.key,
+			self.secondary_key
 		)
 	end
 end
