@@ -252,12 +252,6 @@ function Frame:tag_view_for_player(
 		local tagged, opset_id, inverse_opset_id =
 			ur_util.fast_get_undo_opset_ids(view, i)
 		if tagged then
-			strace.trace(
-				"Fast-skipping pretagged item",
-				i,
-				"for player",
-				player_index
-			)
 			encountered_tagged_item = true
 			if opset_id then seen_ids[opset_id] = true end
 			if inverse_opset_id then seen_ids[inverse_opset_id] = true end
