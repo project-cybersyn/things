@@ -147,7 +147,7 @@ function BlueprintOp:init_catalogue_positions(
 		orientation.flip_vertical,
 		snap_absolute and snap or nil,
 		snap_offset,
-		mod_settings.debug and surface or nil
+		mod_settings.render_blueprint_bboxes and surface or nil
 	)
 	self.bbox = world_bbox
 

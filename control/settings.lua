@@ -2,6 +2,7 @@ local events = require("lib.core.event")
 
 ---@class (exact) things.ModSettings
 ---@field public debug boolean Enable debug mode.
+---@field public render_blueprint_bboxes boolean Whether to render blueprint entity bounding boxes for debugging.
 
 ---@type things.ModSettings
 ---@diagnostic disable-next-line: missing-fields
@@ -10,6 +11,8 @@ _G.mod_settings = mod_settings
 
 local function update_mod_settings()
 	mod_settings.debug = settings.global["things-setting-debug"].value --[[@as boolean]]
+	mod_settings.render_blueprint_bboxes =
+		settings.global["things-setting-debug-render-blueprint-bboxes"].value --[[@as boolean]]
 end
 
 update_mod_settings()

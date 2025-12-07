@@ -10,4 +10,11 @@ data:extend({
 		setting_type = "runtime-global",
 		default_value = false,
 	},
+	{
+		type = "bool-setting",
+		name = "things-setting-debug-render-blueprint-bboxes",
+		order = "ab",
+		setting_type = "runtime-global",
+		default_value = false,
+	},
 })
