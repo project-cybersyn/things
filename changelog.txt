@@ -5,8 +5,10 @@ Date: 2025-12-05
     - Added `ThingRegistration.custom_blueprint_geometry` option to specify custom blueprint geometry for Things.
   Changes:
     - Added "Debug: render blueprint bounding boxes" flag to settings.
+    - Added "Debug: calculate geometry for blueprints with no Things" flag to settings.
   Bugfixes:
     - Fixed a rare rounding issue in blueprint bbox computation.
+    - Fixed several issues in blueprint relative snapping computation.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.2
 Date: 2025-11-23

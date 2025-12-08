@@ -151,7 +151,7 @@ events.bind(
 		-- Early out if no Things
 		if not next(by_index) then
 			strace.debug("things.pre_build_blueprint: no Things found in blueprint")
-			return
+			if not mod_settings.calc_unthing_blueprints then return end
 		end
 
 		-- Generate frame and op
