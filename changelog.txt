@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.4
+Date: 2025-12-25
+  Bugfixes:
+    - Fixed an issue involving the orientation of Things in rotated/flipped blueprints.
+    - Fixed further issues in relative blueprint snapping.
+---------------------------------------------------------------------------------------------------
 Version: 0.2.3
 Date: 2025-12-05
   Features:
