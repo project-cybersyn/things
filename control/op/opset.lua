@@ -68,6 +68,19 @@ function OpSet:filter(filter_fn)
 	return OpSet:new(new_ops)
 end
 
+---Find the first operation at the given key with the given type.
+---@param key Core.WorldKey
+---@param ty things.OpType
+function OpSet:findkt_first(key, ty)
+	local key_list = self.by_key[key]
+	if not key_list then return nil end
+	for i = 1, #key_list do
+		local op = key_list[i]
+		if op.type == ty then return op end
+	end
+	return nil
+end
+
 ---Find a unique operation at the given key also matching the given filter.
 ---@param key Core.WorldKey
 ---@param filter_fn fun(op: things.Op): boolean

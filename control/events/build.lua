@@ -21,6 +21,7 @@ local EMPTY = tlib.EMPTY_STRICT
 local get_world_state = ws_lib.get_world_state
 local get_thing_registration = registration_lib.get_thing_registration
 local should_intercept_build = registration_lib.should_intercept_build
+local CREATE_OP = op_lib.OpType.CREATE
 
 --------------------------------------------------------------------------------
 -- Unify game events into generic build event, and generate creation ops.
@@ -76,9 +77,28 @@ local function handle_generic_built(ev)
 		real_tags = get_initial_tags(entity, registration, player)
 	end
 
-	-- Generate creation op.
 	local frame = frame_lib.get_frame()
-	local op = CreateOp:new(entity)
+	local ws = nil
+
+	-- Check for a create_op already existing for this entity.
+	-- This means a ghost was snap-revived.
+	if not is_ghost then
+		ws = get_world_state(entity)
+		local existing_create_op = frame.op_set:findkt_first(ws.key, CREATE_OP) --[[@as things.CreateOp?]]
+		if existing_create_op then
+			strace.debug(
+				frame.debug_string,
+				"Found existing CreateOp for entity; assuming inline snap-revival",
+				ws.key
+			)
+			existing_create_op.entity = entity
+			existing_create_op.tags = real_tags
+			return
+		end
+	end
+
+	-- Generate creation op.
+	local op = CreateOp:new(entity, ws)
 	op.player_index = ev.player_index
 	op.name = registration.name
 	op.tags = real_tags
