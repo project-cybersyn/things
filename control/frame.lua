@@ -72,7 +72,7 @@ end
 
 ---Mark a world key as prebuilt by a player in this construction frame.
 ---@param key Core.WorldKey The world key to mark.
----@param player_index uint The player index who prebuilt the object.
+---@param player_index int The player index who prebuilt the object. `-1` can be used to indicate an unknown player.
 function Frame:mark_prebuild(key, player_index)
 	local prebuild = self.prebuild
 	local record = prebuild[key]
@@ -247,6 +247,8 @@ function Frame:tag_view_for_player(
 )
 	local player_index = player.index
 	local encountered_tagged_item = false
+	local stored_new_opset = false
+
 	for i = 1, view.get_item_count() do
 		-- Early out: try to avoid reading the `actions` table if we can.
 		local tagged, opset_id, inverse_opset_id =
@@ -320,6 +322,7 @@ function Frame:tag_view_for_player(
 					end
 				)
 				forward_id = filtered_opset:store(player_index)
+				stored_new_opset = true
 			end
 			---@cast forward_id int64
 			local inv_id = inverse_op and inverse_op.opset_id
@@ -354,6 +357,8 @@ function Frame:tag_view_for_player(
 		end
 		::continue_item::
 	end
+
+	if stored_new_opset then events.raise("things.stored_opsets_changed") end
 end
 
 ---@param player LuaPlayer
@@ -391,6 +396,7 @@ function Frame:tag_stacks()
 		self.debug_string,
 		"-----------------TAG_STACKS PHASE-----------------"
 	)
+	local garbage_collected_opsets = 0
 	local player_set = self.op_set:get_player_index_set()
 	for player_index, _ in pairs(player_set) do
 		local player = game.get_player(player_index)
@@ -423,9 +429,19 @@ function Frame:tag_stacks()
 						id
 					)
 					stored_opset:unstore()
+					garbage_collected_opsets = garbage_collected_opsets + 1
 				end
 			end
 		end
+	end
+	if garbage_collected_opsets > 0 then
+		strace.info(
+			self.debug_string,
+			"Garbage collected",
+			garbage_collected_opsets,
+			"unreferenced opsets"
+		)
+		events.raise("things.stored_opsets_changed")
 	end
 end
 

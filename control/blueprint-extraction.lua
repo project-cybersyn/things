@@ -4,6 +4,7 @@ local constants = require("control.constants")
 local tlib = require("lib.core.table")
 local strace = require("lib.core.strace")
 local graph_lib = require("control.graph")
+local events = require("lib.core.event")
 
 local EMPTY = tlib.EMPTY_STRICT
 local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
@@ -190,5 +191,16 @@ function Extraction:finish()
 end
 
 function Extraction:destroy() lib.running_extraction = nil end
+
+---@param bp Core.Blueprintish
+---@param bp_to_world { [integer]: LuaEntity }
+function lib.extract_user_blueprint(bp, bp_to_world)
+	strace.debug("*** Extract blueprint")
+	local extraction = Extraction:new(bp, bp_to_world)
+	events.raise("things.blueprint_extraction", extraction)
+	extraction:finish()
+	events.raise("things.blueprint_extraction_finished", extraction)
+	strace.debug("*** Extract blueprint: finished")
+end
 
 return lib

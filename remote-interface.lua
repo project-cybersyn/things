@@ -7,6 +7,8 @@ local thing_lib = require("control.thing")
 local reg_lib = require("control.registration")
 local graph_lib = require("control.graph")
 local tlib = require("lib.core.table")
+local extraction_lib = require("control.blueprint-extraction")
+local bpop_lib = require("control.op.blueprint")
 
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
 local get_thing = thing_lib.get_by_id
@@ -247,6 +249,46 @@ function remote_interface.silent_revive(thing_identification)
 	return nil, r1, r2, r3
 end
 
+---When a blueprint is extracted by user code calling `create_blueprint`,
+---no event is raised that Things can intercept. Therefore, this method must
+---be called to tag the Things in the blueprint with the appropriate data.
+---@param bp Core.Blueprintish The LuaItemStack or LuaRecord on which `create_blueprint` was called.
+---@param bp_to_world {[integer]: LuaEntity} The mapping from blueprint entity indices to world entities returned by `create_blueprint`.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.script_create_blueprint(bp, bp_to_world)
+	-- TODO: better valid checks/error handling here
+	extraction_lib.extract_user_blueprint(bp, bp_to_world)
+	return nil
+end
+
+---When a blueprint is built by user code calling `build_blueprint`, no
+---prebuild event is given by Factorio. Therefore, this method must be called
+---BEFORE calling `build_blueprint` to allow Things to properly restore state.
+---Note that when calling `build_blueprint` you must also enable `raise_built`.
+---@param bp Core.Blueprintish The LuaItemStack or LuaRecord on which `create_blueprint` will be called.
+---@param player LuaPlayer? The player for whom the blueprint is being built. Can be nil if the blueprint is being built by script.
+---@param surface LuaSurface
+---@param orientation_data Core.BlueprintOrientationData
+---@param build_mode defines.build_mode
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return boolean was_prebuilt True if the blueprint was prebuilt (i.e. a prebuild op was generated and applied), false if it was not (e.g. because there were no Things in the blueprint).
+function remote_interface.script_prebuild_blueprint(
+	bp,
+	player,
+	surface,
+	orientation_data,
+	build_mode
+)
+	local was_prebuilt = bpop_lib.maybe_generate_blueprint_op(
+		bp,
+		player,
+		surface,
+		orientation_data,
+		build_mode
+	)
+	return nil, was_prebuilt
+end
+
 --------------------------------------------------------------------------------
 -- POS AND ORIENTATION
 --------------------------------------------------------------------------------
@@ -298,6 +340,23 @@ function remote_interface.set_tag(thing_identification, key, value)
 	if not thing then return NOT_A_THING end
 	local new_tags = thing.tags or {}
 	new_tags[key] = value
+	---@diagnostic disable-next-line: cast-local-type
+	if not next(new_tags) then new_tags = nil end
+	thing:set_tags(new_tags, true, nil, "api")
+	return nil
+end
+
+---Remove a single tag from a Thing.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key string The tag key to remove.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function remote_interface.remove_tag(thing_identification, key)
+	local thing, valid_id = resolve_identification(thing_identification)
+	if not valid_id then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	local new_tags = thing.tags
+	if not new_tags or not new_tags[key] then return nil end
+	new_tags[key] = nil
 	---@diagnostic disable-next-line: cast-local-type
 	if not next(new_tags) then new_tags = nil end
 	thing:set_tags(new_tags, true, nil, "api")

@@ -27,7 +27,7 @@ local lib = {}
 local OverlapOp = class("things.OverlapOp", op_lib.Op)
 lib.OverlapOp = OverlapOp
 
----@param player_index int
+---@param player_index int?
 ---@param entity LuaEntity
 ---@param name string Prototype name of the entity.
 ---@param pos MapPosition

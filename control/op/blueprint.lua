@@ -13,6 +13,8 @@ local pos_lib = require("lib.core.math.pos")
 local overlap_op_lib = require("control.op.overlap")
 local CreateEdgeOp = require("control.op.edge").CreateEdgeOp
 local ParentOp = require("control.op.parent").ParentOp
+local registration_lib = require("control.registration")
+local frame_lib = require("control.frame")
 
 local Op = op_lib.Op
 local OverlapOp = overlap_op_lib.OverlapOp
@@ -34,6 +36,9 @@ local deep_copy = tlib.deep_copy
 local o_stringify = orientation_lib.stringify
 local o_loose_eq = orientation_lib.loose_eq
 local get_thing_by_id = thing_lib.get_by_id
+local LOCAL_ID_TAG = constants.LOCAL_ID_TAG
+local NAME_TAG = constants.NAME_TAG
+local get_thing_registration = registration_lib.get_thing_registration
 
 local lib = {}
 
@@ -69,23 +74,34 @@ local BlueprintOp = class("things.BlueprintOp", Op)
 lib.BlueprintOp = BlueprintOp
 
 ---@param frame things.Frame The current frame.
----@param ev EventData.on_pre_build The on_pre_build event data.
----@param player LuaPlayer The player who is building the blueprint.
+---@param orientation_data Core.BlueprintOrientationData The orientation data for the blueprint.
+---@param build_mode defines.build_mode The build mode in which the blueprint is being built.
+---@param player LuaPlayer? The player who is building the blueprint.
 ---@param bp Core.Blueprintish The blueprint being built.
 ---@param surface LuaSurface The surface the blueprint is being built on.
 ---@param entities BlueprintEntity[] The entities in the blueprint.
 ---@param by_index table<uint, things.InternalBlueprintEntityInfo> Index info collected at construction phase.
-function BlueprintOp:new(frame, ev, player, bp, surface, entities, by_index)
+function BlueprintOp:new(
+	frame,
+	orientation_data,
+	build_mode,
+	player,
+	bp,
+	surface,
+	entities,
+	by_index
+)
 	local obj = Op.new(self, op_lib.OpType.BLUEPRINT) --[[@as things.BlueprintOp]]
 	obj.local_id = frame:generate_id()
 	obj.surface = surface
-	obj.player_index = player.index
+	obj.player_index = player and player.index
 	obj.by_index = by_index
-	obj.build_mode = ev.build_mode
-	obj.transform_index = orientation_lib.get_blueprint_transform_index(ev)
+	obj.build_mode = build_mode
+	obj.transform_index =
+		orientation_lib.get_blueprint_transform_index(orientation_data)
 
 	obj:init_generate_local_ids(frame)
-	obj:init_catalogue_positions(frame, bp, surface, ev, entities)
+	obj:init_catalogue_positions(frame, bp, surface, orientation_data, entities)
 	obj:init_catalogue_orientations()
 	obj:init_catalogue_overlaps(frame)
 
@@ -167,7 +183,7 @@ function BlueprintOp:init_catalogue_positions(
 		info.pos = pos
 		by_world_key[key] = info
 		-- Mark key as matching a prebuilt object
-		frame:mark_prebuild(key, self.player_index)
+		frame:mark_prebuild(key, self.player_index or -1)
 	end
 	self.by_world_key = by_world_key
 	strace.debug(
@@ -397,7 +413,7 @@ function BlueprintOp:resolve_create_ops(frame)
 		"BlueprintOp:resolve_create_ops: resolving ",
 		#crops,
 		" create ops for player ",
-		self.player_index
+		self.player_index or "(SCRIPT)"
 	)
 	for i = 1, #crops do
 		local op = crops[i] --[[@as things.CreateOp]]
@@ -446,5 +462,84 @@ function BlueprintOp:resolve_create_ops(frame)
 end
 
 function BlueprintOp:apply(frame) self:resolve_create_ops(frame) end
+
+--------------------------------------------------------------------------------
+-- API HELPERS
+--------------------------------------------------------------------------------
+
+---Generate a blueprint prebuild op from the given data if possible.
+---@param bp Core.Blueprintish
+---@param player LuaPlayer? The player for whom the blueprint is being built. Can be nil if the blueprint is being built by script.
+---@param surface LuaSurface
+---@param orientation_data Core.BlueprintOrientationData
+---@param build_mode defines.build_mode
+---@return boolean generated_op True if an op was generated, false if not (e.g. because there were no Things in the blueprint and `calc_unthing_blueprints` is false).
+function lib.maybe_generate_blueprint_op(
+	bp,
+	player,
+	surface,
+	orientation_data,
+	build_mode
+)
+	local entities = bp.get_blueprint_entities()
+	if (not entities) or (#entities == 0) then return false end
+
+	-- Check for Things
+	---@type table<uint, things.InternalBlueprintEntityInfo>
+	local by_index = nil
+	for i, bp_entity in pairs(entities) do
+		local tags = bp_entity.tags
+		if not tags then goto continue end
+		local bplid = tags[LOCAL_ID_TAG]
+		if bplid then
+			local thing_name = tags[NAME_TAG] --[[@as string?]]
+			if not thing_name then thing_name = bp_entity.name end
+			local registration = get_thing_registration(thing_name)
+			if registration then
+				local info = {
+					bp_entity = bp_entity,
+					bp_index = i,
+					bplid = bplid,
+					thing_name = thing_name,
+				}
+				by_index = by_index or {}
+				by_index[i] = info
+			else
+				strace.debug(
+					"things.maybe_generate_blueprint_op: entity",
+					bp_entity,
+					"has unregistered thing name",
+					thing_name,
+					"ignoring."
+				)
+			end
+		end
+		::continue::
+	end
+
+	-- Early out if no Things
+	if not by_index then
+		strace.debug(
+			"things.maybe_generate_blueprint_op: no Things found in blueprint"
+		)
+		if not mod_settings.calc_unthing_blueprints then return false end
+	end
+	by_index = by_index or {}
+
+	-- Generate frame and op
+	local frame = frame_lib.get_frame()
+	local op = BlueprintOp:new(
+		frame,
+		orientation_data,
+		build_mode,
+		player,
+		bp,
+		surface,
+		entities,
+		by_index
+	)
+	frame:add_op(op)
+	return true
+end
 
 return lib

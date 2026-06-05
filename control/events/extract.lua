@@ -13,7 +13,6 @@ events.bind(
 		if not player then return end
 		local bp = actual.get_actual_blueprint(player, ev.record, ev.stack)
 		if not bp then return end
-		strace.debug("Extract blueprint", ev)
 		local lazy_bp_to_world = ev.mapping
 		if not lazy_bp_to_world or not lazy_bp_to_world.valid then
 			strace.debug("Extract blueprint: no mapping")
@@ -25,9 +24,6 @@ events.bind(
 			return
 		end
 
-		local extraction = extraction_lib.Extraction:new(bp, bp_to_world)
-		events.raise("things.blueprint_extraction", extraction)
-		extraction:finish()
-		events.raise("things.blueprint_extraction_finished", extraction)
+		extraction_lib.extract_user_blueprint(bp, bp_to_world)
 	end
 )
