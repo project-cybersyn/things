@@ -23,15 +23,9 @@ local lib = {}
 ---@field public bp Core.Blueprintish The blueprint being extracted.
 ---@field public by_index {[int]: things.ExtractedEntity} Mapping from blueprint entity index to internal info.
 ---@field public by_thing_id {[int64]: things.ExtractedEntity} Mapping from Thing id to internal info.
----@field public next_index int The next available blueprint entity index.
 ---@field public has_things boolean True if the blueprint has any Things.
 local Extraction = class("things.Extraction")
 lib.Extraction = Extraction
-
----@type things.Extraction|nil
-lib.running_extraction = nil
----@type LuaProfiler|nil
-lib.running_extraction_profiler = nil
 
 ---@param bp Core.Blueprintish The blueprint being extracted.
 ---@param index_to_world {[int]: LuaEntity} The mapping from bp indices to world entities. Comes from factorio api via `event.mapping`
@@ -87,8 +81,6 @@ function Extraction:new(bp, index_to_world)
 	obj:init_map_edges()
 	obj:init_map_entities()
 
-	lib.running_extraction = obj
-	lib.running_extraction_profiler = game.create_profiler()
 	return obj
 end
 
@@ -190,7 +182,7 @@ function Extraction:finish()
 	self:destroy()
 end
 
-function Extraction:destroy() lib.running_extraction = nil end
+function Extraction:destroy() end
 
 ---@param bp Core.Blueprintish
 ---@param bp_to_world { [integer]: LuaEntity }

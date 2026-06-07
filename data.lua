@@ -29,4 +29,8 @@ data:extend({
 		key_sequence = "",
 		linked_game_control = "flip-vertical",
 	},
+	{
+		type = "custom-event",
+		name = "things-cooperative_blueprint_edit",
+	},
 })

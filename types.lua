@@ -98,7 +98,7 @@
 ---@class (exact) things.ExtractedEntity
 ---@field public index int The index of the entity within the extraction process.
 ---@field public bp_entity BlueprintEntity The blueprint entity data.
----@field public entity LuaEntity The in-world entity this blueprint entity represents.
+---@field public entity? LuaEntity The in-world entity this blueprint entity represents.
 ---@field public thing_id things.Id? The Thing this blueprint entity represents.
 ---@field public deleted true? If `true`, this entity was deleted by an atomic blueprint operation.
 
