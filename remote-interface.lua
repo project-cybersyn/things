@@ -9,12 +9,16 @@ local graph_lib = require("control.graph")
 local tlib = require("lib.core.table")
 local extraction_lib = require("control.blueprint-extraction")
 local bpop_lib = require("control.op.blueprint")
+local constants = require("control.constants")
 
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
 local get_thing = thing_lib.get_by_id
-
 local type = _G.type
-local EMPTY = {}
+
+local EMPTY = tlib.EMPTY
+local NAME_TAG = constants.NAME_TAG
+local PARENT_TAG = constants.PARENT_TAG
+local TAGS_TAG = constants.TAGS_TAG
 
 ---@param identification things.ThingIdentification
 ---@return things.Thing? thing
@@ -226,7 +230,7 @@ end
 ---Silently revive a ghosted Thing. Returns the same values as `LuaEntity.silent_revive`.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return ItemWithQualityCounts?
+---@return ItemWithQualityCount[]?
 ---@return LuaEntity?
 ---@return LuaEntity?
 function remote_interface.silent_revive(thing_identification)
@@ -338,7 +342,7 @@ function remote_interface.set_tag(thing_identification, key, value)
 	local thing, valid_id = resolve_identification(thing_identification)
 	if not valid_id then return CANT_BE_A_THING end
 	if not thing then return NOT_A_THING end
-	local new_tags = thing.tags or {}
+	local new_tags = tlib.assign({}, thing.tags)
 	new_tags[key] = value
 	---@diagnostic disable-next-line: cast-local-type
 	if not next(new_tags) then new_tags = nil end
@@ -409,7 +413,7 @@ end
 
 ---Adds a child Thing to a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@param child_key string|int|nil The key to assign the child in the parent Thing. If `nil`, uses the smallest free numeric key as determined by the Lua `#` operator.
+---@param child_key string The key to assign the child in the parent Thing.
 ---@param child_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The child Thing.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 function remote_interface.add_child(
@@ -443,7 +447,12 @@ function remote_interface.add_child(
 			message = "The specified child Thing does not exist.",
 		}
 	end
-	if child_key == nil then child_key = #(parent.children or EMPTY) + 1 end
+	if type(child_key) ~= "string" then
+		return {
+			code = "invalid_child_key",
+			message = "The child key must be a string.",
+		}
+	end
 	local added = parent:add_child(child_key, child)
 	if not added then
 		return {
@@ -485,6 +494,17 @@ function remote_interface.get_children(parent_identification)
 		if child_thing then result[key] = child_thing:summarize() end
 	end
 	return nil, result
+end
+
+---Get the number of children of a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return uint? count The number of children of the parent Thing, or `nil` if there was an error or the Thing doesn't exist.
+function remote_interface.get_num_children(parent_identification)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	if not valid_parent then return CANT_BE_A_THING end
+	if not parent then return NOT_A_THING end
+	return nil, parent.children and table_size(parent.children) or 0
 end
 
 ---Adds a transient child entity to a parent Thing.
@@ -658,3 +678,70 @@ function remote_interface.get_edge(graph_name, from, to)
 end
 
 remote.add_interface("things", remote_interface)
+
+--------------------------------------------------------------------------------
+-- METADATA
+--------------------------------------------------------------------------------
+
+local metadata_v1 = {}
+
+metadata_v1.get = remote_interface.get
+
+metadata_v1.get_thing_id = remote_interface.get_thing_id
+
+---Get the given Thing's status.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return things.Status? status The status of the Thing, or `nil` if there was an error or the Thing doesn't exist.
+function metadata_v1.get_status(thing_identification)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	return nil, thing.state
+end
+
+---Given a set of Factorio blueprint tags attached to a Thing, retrieve the
+---tags of the actual underlying Thing. You must call this method instead of
+---decoding the change yourself to avoid being dependent on Things' undocumented
+---internal data formats.
+---@param blueprint_tags Tags The tags attached to a blueprint entity.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return string? thing_name The registration name of the Thing encoded by these tags. Will always be present if there is no error.
+---@return Tags? thing_tags The tags assigned to underlying Thing, or `nil` if this has no tags.
+---@return uint? parent_index If the Thing encoded by these tags has a parent Thing within the blueprint, the index of the parent entity in the blueprint. Will be `nil` if there is no parent.
+function metadata_v1.decode_blueprint_tags(blueprint_tags)
+	if not blueprint_tags then
+		return {
+			code = "invalid_argument",
+			message = "The provided tags are nil.",
+		}
+	end
+	local thing_name = blueprint_tags[NAME_TAG]
+	if type(thing_name) ~= "string" then return NOT_A_THING end
+	local thing_tags = blueprint_tags[TAGS_TAG] --[[@as Tags?]]
+	local parent_index = nil
+	local parent_info = blueprint_tags[PARENT_TAG]
+	if parent_info then parent_index = parent_info[1] end
+	return nil, thing_name, thing_tags, parent_index
+end
+
+remote.add_interface("things-metadata-v1", metadata_v1)
+
+--------------------------------------------------------------------------------
+-- TAGS
+--------------------------------------------------------------------------------
+
+local tags_v1 = {}
+
+---Get the given tag of a Thing.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key string The tag key to retrieve.
+function tags_v1.get_tag(thing_identification, key)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	local tags = thing.tags
+	return nil, tags and tags[key]
+end
+
+remote.add_interface("things-tags-v1", tags_v1)

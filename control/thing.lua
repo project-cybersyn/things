@@ -281,7 +281,7 @@ end
 
 ---Scripted revive for a ghosted thing. Triggers only Things-internal events.
 ---Returns the values of the `LuaEntity.silent_revive` Lua API call.
----@return ItemWithQualityCounts?
+---@return ItemWithQualityCount[]?
 ---@return LuaEntity?
 ---@return LuaEntity?
 function Thing:revive()

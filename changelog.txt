@@ -4,10 +4,15 @@ Date: ????
   Features:
     - Mods that call `create_blueprint` and `build_blueprint` internally do not raise Factorio events and so must call compatibility shims if these blueprints involve Things. These shims are now availalble via the remote interface.
     - Added API `things.remove_tag`
+    - Added API `things.get_num_children`
     - Added API `things.script_create_blueprint`
     - Added API `things.script_prebuild_blueprint`
+    - Added API `things-metadata-v1.decode_blueprint_tags`
+    - Added API `things-metadata-v1.get`
+    - Added API `things-metadata-v1.get_thing_id`
+    - Added API `things-tags-v1.get_tag`
   Optimizations:
-    - Small optimizations in build events for blueprints and items not involving Things.
+    - Various optimizations in build events for blueprints and items not involving Things.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.5
 Date: 2026-01-20

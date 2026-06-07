@@ -70,7 +70,7 @@
 ---@alias things.ParentRelationshipInfo [int64, string|int, MapPosition?, Core.Dihedral?]
 
 ---A summary of a Thing's children, indexed by child key.
----@alias things.ThingChildrenSummary {[string|int]: things.ThingSummary}
+---@alias things.ThingChildrenSummary {[string]: things.ThingSummary}
 
 ---Serializable summary information about a Thing.
 ---@class (exact) things.ThingSummary
@@ -89,7 +89,7 @@
 ---@field public name? string If given, the new Thing will be created as an instance of the registered Thing type with this name. If not given, name will be inferred from the entity type.
 ---@field public tags? Tags Initial tags to set on the created Thing.
 ---@field public parent? things.ThingIdentification If given, create the new Thing as a child of this Thing.
----@field public child_index? int|string The index of the new Thing within its parent's children, if any. If not given, the new Thing will be added at the end of the parent's children.
+---@field public child_index? string The index of the new Thing within its parent's children. Required if `parent` is given.
 ---@field public relative_pos? MapPosition The position of the new Thing relative to its parent, if any.
 ---@field public relative_orientation? Core.Dihedral The orientation of the new Thing relative to its parent, if any.
 ---@field public devoid? things.ThingIdentification If given, instead of creating a new Thing, devoid the given voided Thing. Cannot be given with `parent`; the new Thing will retain the parent of the voided Thing.
