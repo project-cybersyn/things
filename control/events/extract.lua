@@ -24,6 +24,6 @@ events.bind(
 			return
 		end
 
-		extraction_lib.extract_user_blueprint(bp, bp_to_world)
+		extraction_lib.extract_blueprint(bp, bp_to_world)
 	end
 )

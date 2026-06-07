@@ -261,7 +261,7 @@ end
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 function remote_interface.script_create_blueprint(bp, bp_to_world)
 	-- TODO: better valid checks/error handling here
-	extraction_lib.extract_user_blueprint(bp, bp_to_world)
+	extraction_lib.extract_blueprint(bp, bp_to_world)
 	return nil
 end
 
