@@ -27,8 +27,9 @@ events.bind(
 		local cevp = get_custom_event_name(thing, "on_initialized")
 
 		if cevp then
-			---@type things.EventData.on_initialized
-			local ev = thing:summarize()
+			local ev = thing:summarize() --[[@as things.EventData.on_initialized ]]
+			-- The "name" arg gets overwritten by Factorio when raising the event, so we need to put it in a different field and rename it before raising the event.
+			ev.thing_name = ev.name --[[@as string ]]
 			script.raise_event(cevp, ev)
 		end
 	end

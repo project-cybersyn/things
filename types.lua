@@ -102,6 +102,9 @@
 ---@field public thing_id things.Id? The Thing this blueprint entity represents.
 ---@field public deleted true? If `true`, this entity was deleted by an atomic blueprint operation.
 
+---Partial blueprint entity.
+---@alias things.PartialBlueprintEntity BlueprintEntity | { name?: string, position?: MapPosition, direction?: defines.direction, tags?: Tags, [string]: any }
+
 --------------------------------------------------------------------------------
 -- EVENT DATA TYPES
 --------------------------------------------------------------------------------
@@ -114,7 +117,9 @@
 
 ---Event fired when a Thing with a new ID is generated in the world.
 ---Does not apply to undo, revival, etc of pre-existing Things.
----@alias things.EventData.on_initialized things.ThingSummary
+---@class things.EventData.on_initialized: things.ThingSummary
+---@field public name uint The Factorio event ID of the custom event being raised.
+---@field public thing_name string The name of the Thing's registration. (Note: this is the same as the `name` field in the summary, but renamed to avoid being overwritten by Factorio when raising the event.)
 
 ---Event fired when a Thing's lifecycle status changes.
 ---@class (exact) things.EventData.on_status

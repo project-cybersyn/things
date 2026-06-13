@@ -275,7 +275,7 @@ end
 
 ---Atomically replace a blueprint entity.
 ---@param index uint
----@param new_bp_entity BlueprintEntity The new blueprint entity to replace the old one with.
+---@param new_bp_entity things.PartialBlueprintEntity The new blueprint entity to replace the old one with.
 ---@param keep_wires boolean? If `true`, keep the wires connected to the old entity, remapping them to the new entity.
 function Extraction:replace(index, new_bp_entity, keep_wires)
 	local info = self.by_index[index]
@@ -283,6 +283,10 @@ function Extraction:replace(index, new_bp_entity, keep_wires)
 	local old_bp_entity = info.bp_entity
 	local bp_entity = tlib.assign({}, new_bp_entity) --[[@as BlueprintEntity]]
 	bp_entity.entity_number = index
+	if not bp_entity.position then bp_entity.position = old_bp_entity.position end
+	if not bp_entity.direction then
+		bp_entity.direction = old_bp_entity.direction
+	end
 	if
 		old_bp_entity
 		and old_bp_entity.wires

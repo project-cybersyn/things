@@ -744,4 +744,69 @@ function tags_v1.get_tag(thing_identification, key)
 	return nil, tags and tags[key]
 end
 
+tags_v1.set_tag = remote_interface.set_tag
+
+---Get all tags of a Thing.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return Tags? tags The tags of the Thing, or `nil` if there was an error or the Thing doesn't exist. Will be `nil` if the Thing has no tags.
+function tags_v1.get_tags(thing_identification)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	return nil, thing.tags
+end
+
+tags_v1.set_tags = remote_interface.set_tags
+
 remote.add_interface("things-tags-v1", tags_v1)
+
+--------------------------------------------------------------------------------
+-- COOPERATIVE BLUEPRINT EDITING
+--------------------------------------------------------------------------------
+
+local cbe_v1 = {}
+
+---@type things.Error
+local NO_BLUEPRINT = {
+	code = "no_blueprint",
+	message = "No blueprint is currently being edited.",
+}
+
+---Get entities from the blueprint being edited.
+---@param name string? If given, returns only entities with the given prototype name.
+---@param name_prefix string? If given, returns only entities whose prototype name starts with the given prefix. Ignored if `name` is given.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return things.ExtractedEntity[]? entities The entities currently extracted from the blueprint and being edited, or `nil` if there was an error.
+function cbe_v1.get_entities(name, name_prefix)
+	local ce = extraction_lib.current_extraction
+	if not ce then return NO_BLUEPRINT end
+	if name then
+		local result = {}
+		for _, entity in pairs(ce.by_index) do
+			if entity.bp_entity.name == name then result[#result + 1] = entity end
+		end
+		return nil, result
+	elseif name_prefix then
+		local result = {}
+		for _, entity in pairs(ce.by_index) do
+			if entity.bp_entity.name:sub(1, #name_prefix) == name_prefix then
+				result[#result + 1] = entity
+			end
+		end
+		return nil, result
+	else
+		return nil, ce.by_index
+	end
+end
+
+---@param index uint Index of entity to replace, corresponding to the indices of entities returned by `get_extracted_entities`.
+---@param new_entity things.PartialBlueprintEntity The new entity to replace the old one with. Position and direction will automatically be copied if not given.
+---@param keep_wires boolean? If true, when replacing an entity, will attempt to keep the same circuit connections on the new entity as were present on the old entity, if applicable. Defaults to false.
+function cbe_v1.replace_entity(index, new_entity, keep_wires)
+	local ce = extraction_lib.current_extraction
+	if not ce then return NO_BLUEPRINT end
+	ce:replace(index, new_entity, keep_wires)
+end
+
+remote.add_interface("things-blueprint-editing-v1", cbe_v1)
