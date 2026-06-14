@@ -76,6 +76,11 @@ function Thing:summarize()
 	}
 end
 
+---Determine if a Thing is valid (not destroyed). NOTE: this does NOT mean
+---that the Thing necessarily has a valid world entity!
+---@return boolean valid `true` if the Thing is valid, `false` if it is destroyed.
+function Thing:is_valid() return self.state ~= "destroyed" end
+
 function Thing:get_registration() return get_thing_registration(self.name) end
 
 ---@param skip_validation boolean? If falsy, and the Thing has an entity, ensure the entity is still valid.
@@ -472,7 +477,7 @@ end
 -- PARENT CHILD RELATIONSHIPS
 --------------------------------------------------------------------------------
 
----@param index? int|string The index of the child. If not provided, #children+1 is used.
+---@param index string The index of the child.
 ---@param child things.Thing The child Thing to add.
 ---@param relative_pos? MapPosition The position of the child relative to this Thing.
 ---@param relative_orientation? Core.Dihedral The orientation of the child relative to this Thing.
@@ -487,7 +492,7 @@ function Thing:add_child(
 	if child.parent then return false end
 	if self.children and index and self.children[index] then return false end
 	if not self.children then self.children = {} end
-	if not index then index = #self.children + 1 end
+	if not index then error("Thing:add_child(): index is required") end
 	self.children[index] = child.id
 	child.parent = {
 		self.id,
@@ -500,6 +505,19 @@ function Thing:add_child(
 	if not suppress_event then
 		self:raise_event("things.thing_children_changed", self, child, nil)
 		child:raise_event("things.thing_parent_changed", child, self)
+	end
+end
+
+---Determine if a child is at the given index.
+---@param index string?
+---@return int64? child_id The ID of the child Thing at the given index, or `nil` if no child is present.
+function Thing:get_child_id(index)
+	if not index then return nil end
+	local children = self.children
+	if not children then
+		return nil
+	else
+		return children[index]
 	end
 end
 
@@ -637,9 +655,7 @@ function Thing:initialize()
 		frame:post_event("things.thing_initialized", self)
 	else
 		strace.trace(
-			"Raising inline Thing event",
-			"things.thing_initialized",
-			"for Thing ID",
+			"Raising inline Thing event things.thing_initialized for Thing ID",
 			self.id
 		)
 		events.raise("things.thing_initialized", self)

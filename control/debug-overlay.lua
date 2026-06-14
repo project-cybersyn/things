@@ -91,7 +91,7 @@ events.bind("things.thing_tags_changed", function(thing, tags, previous_tags)
 end)
 
 events.bind("things.thing_initialized", function(thing)
-	if mod_settings.debug then rebuild_overlay(thing) end
+	if mod_settings.debug and thing:is_valid() then rebuild_overlay(thing) end
 end)
 
 events.bind("things.thing_parent_changed", function(thing, old_parent_id)
@@ -105,6 +105,6 @@ end)
 events.bind(
 	"things.thing_orientation_changed",
 	function(thing, new_orientation, old_orientation)
-		if mod_settings.debug then update_overlay(thing) end
+		if mod_settings.debug and thing:is_valid() then update_overlay(thing) end
 	end
 )

@@ -22,6 +22,7 @@ events.bind(
 	"things.thing_initialized",
 	---@param thing things.Thing
 	function(thing)
+		if not thing:is_valid() then return end
 		thing:apply_adjusted_pos_and_orientation()
 		thing.is_silent = false
 		local cevp = get_custom_event_name(thing, "on_initialized")

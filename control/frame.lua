@@ -108,7 +108,8 @@ function Frame:mark_resolved(key, thing)
 	local resolved = self.resolved
 	local record = resolved[key]
 	if not record then
-		resolved[key] = thing
+		record = thing
+		resolved[key] = record
 	else
 		if record.id then
 			record = { record }
@@ -116,6 +117,13 @@ function Frame:mark_resolved(key, thing)
 		end
 		record[#record + 1] = thing
 	end
+	strace.trace(
+		"Frame:mark_resolved: marked key",
+		key,
+		"as resolved:",
+		#record,
+		record
+	)
 	-- Notify Ops that thing was resolved
 	local ops_at_key = self.op_set.by_key[key]
 	if ops_at_key then
@@ -167,6 +175,7 @@ end
 --------------------------------------------------------------------------------
 
 function Frame:on_subtick()
+	strace.info(self.debug_string, ">>>>>>>>>>>> SUBTICK <<<<<<<<<<<<<<")
 	self:catalogue_phase()
 	self:resolve_phase()
 	self:apply_phase()
@@ -257,6 +266,19 @@ function Frame:tag_view_for_player(
 			encountered_tagged_item = true
 			if opset_id then seen_ids[opset_id] = true end
 			if inverse_opset_id then seen_ids[inverse_opset_id] = true end
+			if opset_id or inverse_opset_id then
+				strace.trace(
+					self.debug_string,
+					debug_stackname,
+					"item",
+					i,
+					"for player",
+					player_index,
+					"is fast-tagged with opset IDs",
+					opset_id,
+					inverse_opset_id
+				)
+			end
 			goto continue_item
 		end
 

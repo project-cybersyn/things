@@ -133,8 +133,12 @@ function CreateOp:reconcile(frame)
 	end
 
 	local thing = get_thing_by_id(self.thing_id)
-	if not thing then
-		strace.warn(frame.debug_string, "CreateOp:reconcile: thing not found", self)
+	if (not thing) or (not thing:is_valid()) then
+		strace.warn(
+			frame.debug_string,
+			"CreateOp:reconcile: thing was removed or invalidated between creation and initialization",
+			self
+		)
 		return
 	end
 
