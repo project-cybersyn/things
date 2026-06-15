@@ -336,7 +336,7 @@ end
 ---Set a single tag on a Thing.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@param key string The tag key to set.
----@param value AnyBasic The tag value to set.
+---@param value AnyBasic|nil The tag value to set. `nil` removes the tag.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 function remote_interface.set_tag(thing_identification, key, value)
 	local thing, valid_id = resolve_identification(thing_identification)
