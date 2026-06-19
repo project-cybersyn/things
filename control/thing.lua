@@ -41,6 +41,8 @@ local lib = {}
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
 ---@field public children? {[int|string]: int64} Map from child indices (which may be numbers or strings) to child Thing ids.
 ---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
+---@field public ro_keys? {[string]: LuaRenderObject} List of named attached render objects.
+---@field public ro_list? LuaRenderObject[] List of anonymous attached render objects.
 local Thing = class("things.Thing", StateMachine)
 lib.Thing = Thing
 
@@ -76,6 +78,19 @@ function Thing:summarize()
 	}
 end
 
+---Returns a short summary of a Thing.
+---@return things.ThingShortSummary
+function Thing:summarize_short()
+	local entity = self.entity
+	if entity and not entity.valid then entity = nil end
+	return {
+		id = self.id,
+		name = self.name,
+		entity = entity,
+		status = self.state,
+	}
+end
+
 ---Determine if a Thing is valid (not destroyed). NOTE: this does NOT mean
 ---that the Thing necessarily has a valid world entity!
 ---@return boolean valid `true` if the Thing is valid, `false` if it is destroyed.
@@ -98,6 +113,22 @@ local function internal_set_unit_number(self, unit_number)
 	if unit_number then storage.things_by_unit_number[unit_number] = self end
 end
 
+---@param self things.Thing
+local function internal_clear_transient_ros(self)
+	if self.ro_keys then
+		for _, ro in pairs(self.ro_keys) do
+			if ro.valid then ro.destroy() end
+		end
+		self.ro_keys = nil
+	end
+	if self.ro_list then
+		for _, ro in pairs(self.ro_list) do
+			if ro.valid then ro.destroy() end
+		end
+		self.ro_list = nil
+	end
+end
+
 ---@param entity LuaEntity?
 ---@param apply_status boolean? If true, update the thing's state inline.
 function Thing:set_entity(entity, apply_status)
@@ -110,6 +141,8 @@ function Thing:set_entity(entity, apply_status)
 		return
 	end
 	if entity == self.entity then return end
+	-- Clear render_objects on entity change.
+	internal_clear_transient_ros(self)
 	if not entity or not entity.valid then
 		self.entity = nil
 		internal_set_unit_number(self, nil)
@@ -733,6 +766,34 @@ function Thing:on_changed_state(new_state, old_state)
 			end
 		end
 	end
+end
+
+--------------------------------------------------------------------------------
+-- RENDER OBJECTS
+--------------------------------------------------------------------------------
+
+---@param key string?
+---@param ro LuaRenderObject?
+function Thing:attach_transient_ro(key, ro)
+	if key then
+		local by_key = self.ro_keys
+		if not by_key then
+			by_key = {}
+			self.ro_keys = by_key
+		end
+		local previous = by_key[key]
+		if previous and previous.valid then previous.destroy() end
+		by_key[key] = ro
+	elseif ro then
+		self.ro_list = self.ro_list or {}
+		table.insert(self.ro_list, ro)
+	end
+end
+
+---@param key string?
+---@return LuaRenderObject?
+function Thing:get_transient_ro(key)
+	return self.ro_keys and self.ro_keys[key or -1]
 end
 
 --------------------------------------------------------------------------------

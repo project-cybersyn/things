@@ -685,7 +685,16 @@ remote.add_interface("things", remote_interface)
 
 local metadata_v1 = {}
 
-metadata_v1.get = remote_interface.get
+---Gets basic information about a Thing.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return things.ThingShortSummary? summary Summary of the Thing, or `nil` if the Thing doesn't exist.
+function metadata_v1.get(thing_identification)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	return nil, thing:summarize_short()
+end
 
 metadata_v1.get_thing_id = remote_interface.get_thing_id
 
@@ -810,3 +819,46 @@ function cbe_v1.replace_entity(index, new_entity, keep_wires)
 end
 
 remote.add_interface("things-blueprint-editing-v1", cbe_v1)
+
+--------------------------------------------------------------------------------
+-- RENDER OBJECTS
+--------------------------------------------------------------------------------
+
+local ro_v1 = {}
+
+---Attach a render object to a Thing. The render object will be automatically destroyed when the Thing changes or loses its entity. Note that render objects attached to Things will not be preserved when blueprinted or copied, and must be reattached after construction.
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key string? The key to assign the render object to. If `nil`, the render object will be assigned anonymously. If a render object already exists at this key, it will be destroyed and replaced.
+---@param render_object LuaRenderObject The render object to attach to the Thing.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function ro_v1.attach_render_object(thing_identification, key, render_object)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	thing:attach_transient_ro(key, render_object)
+	return nil
+end
+
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key string? The key of the render object to retrieve.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return LuaRenderObject? render_object The render object associated with the given key, or `nil` if none exists.
+function ro_v1.get_render_object(thing_identification, key)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	return nil, thing:get_transient_ro(key)
+end
+
+---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key string? The key of the render object to destroy.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+function ro_v1.destroy_render_object(thing_identification, key)
+	local thing, valid = resolve_identification(thing_identification)
+	if not valid then return CANT_BE_A_THING end
+	if not thing then return NOT_A_THING end
+	thing:attach_transient_ro(key, nil)
+	return nil
+end
+
+remote.add_interface("things-render-object-v1", ro_v1)

@@ -83,6 +83,12 @@
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
 ---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
 
+---@class (exact) things.ThingShortSummary
+---@field public id things.Id The id of the Thing.
+---@field public name string The name of the Thing's registration.
+---@field public entity LuaEntity? The current entity of the Thing, if it has one. This entity is pre-checked for validity at the time the summary is generated.
+---@field public status things.Status The current status of the Thing.
+
 ---Options controlling how a Thing is created via `create_thing`.
 ---@class (exact) things.CreateThingParams
 ---@field public entity LuaEntity The *valid* entity to associate the new Thing with. This entity must not already be associated with an existing Thing.

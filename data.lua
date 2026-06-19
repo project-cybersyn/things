@@ -2,6 +2,10 @@
 -- THINGS DATA PHASE
 --------------------------------------------------------------------------------
 
+-- Bootstrap Relm data phase
+_G.__RELM_GRAPHICS_PATH__ = "__0-things__/lib/core/relm/graphics/"
+require("lib.core.relm.relm_data")
+
 data:extend({
 	{ type = "mod-data", name = "things-names", data = {} },
 	{ type = "mod-data", name = "things-graphs", data = {} },
