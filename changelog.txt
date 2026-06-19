@@ -10,10 +10,14 @@ Date: ????
     - Added API `things-metadata-v1.decode_blueprint_tags`
     - Added API `things-metadata-v1.get`
     - Added API `things-metadata-v1.get_thing_id`
+    - Added API `things-metadata-v1.get_status`
     - Added API `things-tags-v1.get_tag`
     - Added API `things-tags-v1.get_tags`
     - Added API `things-tags-v1.set_tag`
     - Added API `things-tags-v1.set_tags`
+    - Added API `things-render-object-v1.attach_render_object`
+    - Added API `things-render-object-v1.get_render_object`
+    - Added API `things-render-object-v1.destroy_render_object`
   Optimizations:
     - Various optimizations in build events for blueprints and items not involving Things.
   Bugfixes:
