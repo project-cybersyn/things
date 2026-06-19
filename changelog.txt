@@ -2,7 +2,6 @@
 Version: 0.2.6
 Date: ????
   Features:
-    - Added framework for cooperative blueprint editing.
     - Added API `things.remove_tag`
     - Added API `things.get_num_children`
     - Added API `things.script_create_blueprint`
@@ -23,6 +22,7 @@ Date: ????
   Bugfixes:
     - Fixed an issue where mods registering for the `on_initialized` event would not be able to decode Thing names due to Factorio overwriting the `name` field. `name` is now available as `thing_name` in the event data.
     - Fixed some issues involving orphaned Things in parent-child setups.
+    - Fixed a crash caused by a rare circumstance in which an undo/redo stack item could have zero actions.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.5
 Date: 2026-01-20

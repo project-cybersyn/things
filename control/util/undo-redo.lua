@@ -1,4 +1,5 @@
 local pairs = pairs
+local pcall = pcall
 local constants = require("control.constants")
 local strace = require("lib.core.strace")
 local UNDO_TAG = constants.UNDO_TAG
@@ -12,9 +13,9 @@ local lib = {}
 ---@return int64|nil #The forward opset id. (undo if this is undo)
 ---@return int64|nil #The inverse opset id. (redo if this is undo)
 function lib.fast_get_undo_opset_ids(view, i)
-	local tag = view.get_tag(i, 1, UNDO_TAG)
+	local err, tag = pcall(view.get_tag, i, 1, UNDO_TAG)
+	if err then return false, nil, nil end
 	if tag then return true, tag[1], tag[2] end
-
 	return false, nil, nil
 end
 
