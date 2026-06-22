@@ -32,6 +32,8 @@ require("control.automatic-children")
 require("control.debug-overlay")
 require("control.util.undo-stack-debugger")
 
+require("control.doctor")
+
 require("remote-interface")
 
 -- Enable support for the Global Variable Viewer debugging mod, if it is
