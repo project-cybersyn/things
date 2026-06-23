@@ -27,7 +27,7 @@ local CREATE_OP = op_lib.OpType.CREATE
 -- Unify game events into generic build event, and generate creation ops.
 --------------------------------------------------------------------------------
 
----@param ev EventData.script_raised_built|EventData.script_raised_revive|EventData.on_built_entity|EventData.on_robot_built_entity|EventData.on_entity_cloned|EventData.on_space_platform_built_entity
+---@param ev EventData.script_raised_built|EventData.script_raised_revive|EventData.on_built_entity|EventData.on_robot_built_entity|EventData.on_space_platform_built_entity
 local function handle_generic_built(ev)
 	local player = ev.player_index and game.get_player(ev.player_index) or nil
 	local entity = ev.entity

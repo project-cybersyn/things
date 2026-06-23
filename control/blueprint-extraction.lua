@@ -48,7 +48,7 @@ function Extraction:new(bp, index_to_world)
 		bp = bp,
 		by_index = {},
 		by_thing_id = {},
-		profiler = game.create_profiler(),
+		profiler = helpers.create_profiler(),
 		index_to_world = index_to_world,
 	}, self) --[[@as things.Extraction]]
 

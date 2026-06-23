@@ -64,7 +64,7 @@ function Frame:new()
 		debug_string,
 		"vvvvvvvvvvvvvvvvvvvvvvvvvBEGIN FRAMEvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
 	)
-	frame_profiler = game.create_profiler()
+	frame_profiler = helpers.create_profiler()
 	events.dynamic_subtick_trigger("frame", "frame", obj)
 	events.raise("things.frame_phase_build", obj)
 	return obj
