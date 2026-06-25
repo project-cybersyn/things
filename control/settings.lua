@@ -7,14 +7,14 @@ local events = require("lib.core.event")
 
 ---@type things.ModSettings
 ---@diagnostic disable-next-line: missing-fields
-local mod_settings = {}
-_G.mod_settings = mod_settings
+local l_mod_settings = {}
+mod_settings = l_mod_settings
 
 local function update_mod_settings()
-	mod_settings.debug = settings.global["things-setting-debug"].value --[[@as boolean]]
-	mod_settings.render_blueprint_bboxes =
+	l_mod_settings.debug = settings.global["things-setting-debug"].value --[[@as boolean]]
+	l_mod_settings.render_blueprint_bboxes =
 		settings.global["things-setting-debug-render-blueprint-bboxes"].value --[[@as boolean]]
-	mod_settings.calc_unthing_blueprints =
+	l_mod_settings.calc_unthing_blueprints =
 		settings.global["things-setting-debug-calc-unthing-blueprints"].value --[[@as boolean]]
 end
 

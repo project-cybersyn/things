@@ -184,6 +184,7 @@ local function doctor_reachability(report)
 	for thing_id, thing in pairs(storage.things) do
 		if reachable_things[thing_id] then goto continue end
 		if thing.parent then
+			---@type int64?
 			local parent_thing_id = thing.parent[1]
 			while parent_thing_id do
 				if reachable_things[parent_thing_id] then

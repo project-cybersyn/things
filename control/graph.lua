@@ -16,6 +16,8 @@ local lib = {}
 local Graph = class("things.Graph")
 lib.Graph = Graph
 
+---@param name string
+---@return things.Graph
 function Graph:new(name)
 	local obj = setmetatable({
 		name = name,

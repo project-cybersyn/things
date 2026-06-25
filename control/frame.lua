@@ -38,6 +38,7 @@ lib.Frame = Frame
 ---@type LuaProfiler
 local frame_profiler
 
+---@return things.Frame
 function Frame:new()
 	if storage.current_frame then
 		error(
@@ -47,6 +48,7 @@ function Frame:new()
 	local t = game.ticks_played
 	local id = counters.next("frame")
 	local debug_string = string.format("Frame[%d.%d]", t, id)
+	---@type Partial<things.Frame>
 	local obj = {}
 	setmetatable(obj, self)
 	obj.id = id
@@ -59,7 +61,7 @@ function Frame:new()
 	obj.post_events = {}
 
 	-- Begin frame
-	storage.current_frame = obj
+	storage.current_frame = obj --[[@as things.Frame]]
 	strace.info(
 		debug_string,
 		"vvvvvvvvvvvvvvvvvvvvvvvvvBEGIN FRAMEvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
@@ -67,7 +69,7 @@ function Frame:new()
 	frame_profiler = helpers.create_profiler()
 	events.dynamic_subtick_trigger("frame", "frame", obj)
 	events.raise("things.frame_phase_build", obj)
-	return obj
+	return obj --[[@as things.Frame]]
 end
 
 ---Mark a world key as prebuilt by a player in this construction frame.
@@ -112,8 +114,10 @@ function Frame:mark_resolved(key, thing)
 		resolved[key] = record
 	else
 		if record.id then
+			-- I got 99 problems and emmylua is all 99
+			---@diagnostic disable-next-line: missing-fields
 			record = { record }
-			resolved[key] = record
+			resolved[key] = record --[[@as things.Thing[] ]]
 		end
 		record[#record + 1] = thing
 	end
@@ -134,11 +138,12 @@ function Frame:mark_resolved(key, thing)
 end
 
 ---Determine if a Thing or Things was resolved at the given key.
----@param key Core.WorldKey
+---@param key Core.WorldKey?
 ---@return boolean found Whether any Thing was resolved at the key.
 ---@return things.Thing? unique The resolved Thing, if only one was resolved.
 ---@return things.Thing[]? multiple The list of resolved Things, if multiple were resolved.
 function Frame:get_resolved(key)
+	if not key then return false, nil, nil end
 	local res = self.resolved[key]
 	if not res then
 		return false, nil, nil
@@ -153,6 +158,8 @@ end
 function Frame:add_op(op)
 	if not op then return end
 	self.op_set:add(op)
+	-- EmmyLua mismatch with double-role enums
+	---@diagnostic disable-next-line: undefined-field
 	strace.debug(self.debug_string, "added", OpType[op.type], "op:", op)
 end
 

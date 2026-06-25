@@ -67,7 +67,7 @@
 ---[2]: The key under which this Thing is registered in its parent's children.
 ---[3]: The position of this Thing relative to its parent, if any.
 ---[4]: The orientation of this Thing relative to its parent, if any.
----@alias things.ParentRelationshipInfo [int64, string|int, MapPosition?, Core.Dihedral?]
+---@alias things.ParentRelationshipInfo [int64, string, MapPosition?, Core.Dihedral?]
 
 ---A summary of a Thing's children, indexed by child key.
 ---@alias things.ThingChildrenSummary {[string]: things.ThingSummary}

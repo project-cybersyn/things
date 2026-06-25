@@ -169,7 +169,7 @@ function remote_interface.create_thing(create_thing_params)
 	local child_was_added = false
 	if parent_thing then
 		child_was_added = parent_thing:add_child(
-			create_thing_params.child_index,
+			create_thing_params.child_index --[[@as string]],
 			thing,
 			create_thing_params.relative_pos,
 			create_thing_params.relative_orientation,

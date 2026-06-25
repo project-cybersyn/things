@@ -54,7 +54,7 @@ end
 ---@param entity LuaEntity
 ---@param name? string
 ---@param parent_thing things.Thing
----@param index string|int
+---@param index string
 ---@param relative_pos? MapPosition
 ---@param relative_orientation? Core.Orientation
 local function create_child_thing(
@@ -100,7 +100,7 @@ local function create_child_thing(
 end
 
 ---@param parent_thing things.Thing
----@param reg_children {[string|int]: things.ThingRegistration.Child}
+---@param reg_children {[string]: things.ThingRegistration.Child}
 local function check_children(parent_thing, reg_children)
 	local parent_entity = parent_thing:get_entity()
 	if not parent_entity then return end

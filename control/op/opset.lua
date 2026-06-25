@@ -19,6 +19,7 @@ local OpSet = class("things.OpSet")
 lib.OpSet = OpSet
 
 ---@param ops? things.Op[]
+---@return things.OpSet
 function OpSet:new(ops)
 	local obj
 	if not ops then
@@ -30,7 +31,9 @@ function OpSet:new(ops)
 	else
 		obj = {
 			by_index = tlib.assign({}, ops),
-			by_type = tlib.group_by(ops, function(op) return op.type end),
+			by_type = tlib.group_by(ops, function(op)
+				return op.type --[[@as number]]
+			end),
 			by_key = tlib.group_by(ops, function(op) return op.key end),
 		}
 	end
@@ -202,7 +205,8 @@ end
 ---@param opset_id int64?
 ---@return things.OpSet|nil #The stored OpSet, or nil if not found.
 function lib.get_stored_opset(opset_id)
-	return storage.stored_opsets[opset_id or ""]
+	if not opset_id then return nil end
+	return storage.stored_opsets[opset_id]
 end
 
 return lib

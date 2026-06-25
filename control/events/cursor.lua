@@ -16,6 +16,6 @@ events.bind(
 		local reg = reg_lib.get_thing_registration(cursor_stack.name)
 		if not reg then return end
 
-		if reg.allow_in_cursor == "never" then player.cursor_stack.clear() end
+		if reg.allow_in_cursor == "never" then cursor_stack.clear() end
 	end
 )

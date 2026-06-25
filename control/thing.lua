@@ -499,10 +499,16 @@ end
 ---@param key string
 ---@param value AnyBasic?
 function Thing:set_transient_data(key, value)
-	if value and not self.transient_data then self.transient_data = {} end
-	self.transient_data[key] = value
-	if self.transient_data and not next(self.transient_data) then
-		self.transient_data = nil
+	local transient_data = self.transient_data
+	if transient_data then
+		transient_data[key] = value
+		if not next(transient_data) then self.transient_data = nil end
+	else
+		if value then
+			transient_data = { [key] = value }
+			self.transient_data = transient_data
+		end
+		return
 	end
 end
 
@@ -539,6 +545,8 @@ function Thing:add_child(
 		self:raise_event("things.thing_children_changed", self, child, nil)
 		child:raise_event("things.thing_parent_changed", child, self)
 	end
+
+	return true
 end
 
 ---Determine if a child is at the given index.
@@ -572,6 +580,8 @@ function Thing:remove_parent()
 	end
 
 	self.parent = nil
+	-- No nilcheck needed here as it would have been rejected above.
+	---@diagnostic disable-next-line: need-check-nil
 	parent_thing.children[child_key] = nil
 
 	parent_thing:raise_event(
@@ -793,7 +803,8 @@ end
 ---@param key string?
 ---@return LuaRenderObject?
 function Thing:get_transient_ro(key)
-	return self.ro_keys and self.ro_keys[key or -1]
+	if not key then return nil end
+	return self.ro_keys and self.ro_keys[key]
 end
 
 --------------------------------------------------------------------------------
@@ -801,16 +812,20 @@ end
 --------------------------------------------------------------------------------
 
 ---Get a Thing by its unique gamewide ID.
----@param id int64
+---@param id int64?
 ---@return things.Thing|nil
-function lib.get_by_id(id) return storage.things[id] end
+function lib.get_by_id(id)
+	if not id then return nil end
+	return storage.things[id]
+end
 _G.get_thing_by_id = lib.get_by_id
 
 ---Get a Thing by the unit number of its entity.
 ---@param unit_number uint64?
 ---@return things.Thing|nil
 function lib.get_by_unit_number(unit_number)
-	return storage.things_by_unit_number[unit_number or ""]
+	if not unit_number then return nil end
+	return storage.things_by_unit_number[unit_number]
 end
 _G.get_thing_by_unit_number = lib.get_by_unit_number
 
@@ -822,7 +837,9 @@ _G.get_thing_by_unit_number = lib.get_by_unit_number
 ---@return boolean was_created True if a new Thing was created, false if an existing Thing was found.
 ---@return string|nil err An error message if something went wrong.
 function lib.make_thing(entity, thing_name)
-	local prev_thing = storage.things_by_unit_number[entity.unit_number or ""]
+	local prev_thing = storage.things_by_unit_number[
+		entity.unit_number --[[@as int64]]
+	]
 	if prev_thing then
 		if prev_thing.name == thing_name then
 			return prev_thing, false, nil

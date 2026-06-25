@@ -254,9 +254,9 @@ function BlueprintOp:init_catalogue_overlaps(frame)
 		end
 
 		-- Generate Overlap op.
-		overlapped = overlapped[1]
-		if overlapped then
-			local thing = thing_lib.get_by_unit_number(overlapped.unit_number)
+		local first_overlapped = overlapped[1]
+		if first_overlapped then
+			local thing = thing_lib.get_by_unit_number(first_overlapped.unit_number)
 			if thing then
 				local imposed_tags = nil
 				local bp_tags = info.bp_entity.tags
@@ -266,7 +266,7 @@ function BlueprintOp:init_catalogue_overlaps(frame)
 				frame:add_op(
 					OverlapOp:new(
 						self.player_index,
-						overlapped,
+						first_overlapped,
 						bp_entity_name,
 						pos,
 						info.world_key,
