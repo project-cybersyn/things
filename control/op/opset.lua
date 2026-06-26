@@ -38,7 +38,7 @@ function OpSet:new(ops)
 		}
 	end
 	setmetatable(obj, self)
-	return obj
+	return obj --[[@as things.OpSet]]
 end
 
 local function add_key(opset, key, op)
@@ -104,6 +104,7 @@ end
 ---Find a unique operation of the given type also matching the given filter.
 ---@param type things.OpType
 ---@param filter_fn fun(op: things.Op): boolean
+---@return things.Op?
 function OpSet:findt_unique(type, filter_fn)
 	local type_list = self.by_type[type]
 	if not type_list then return nil end
