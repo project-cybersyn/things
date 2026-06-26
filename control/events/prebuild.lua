@@ -56,7 +56,7 @@ events.bind(defines.events.on_pre_build, function(ev)
 		end
 	end
 	-- Ghost cursor
-	local cursor_ghost = player.cursor_ghost
+	local cursor_ghost = player.cursor_ghost --[[@as ItemIDAndQualityIDPair?]]
 	if cursor_ghost then
 		local entity_placed = cursor_ghost.name.place_result
 		if entity_placed then
