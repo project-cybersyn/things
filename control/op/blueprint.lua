@@ -64,7 +64,6 @@ local lib = {}
 ---@field public local_id uint A local ID for this operation, unique within the frame.
 ---@field public surface LuaSurface The surface the blueprint is being built on.
 ---@field public by_index table<uint, things.InternalBlueprintEntityInfo> Mapping from blueprint entity index to internal info about that entity.
----@field public by_flid table<string, things.InternalBlueprintEntityInfo> Mapping from framelocal ID to internal info about that entity.
 ---@field public by_bplid table<int, things.InternalBlueprintEntityInfo> Mapping from blueprint local ID to internal info about that entity.
 ---@field public by_world_key table<Core.WorldKey, things.InternalBlueprintEntityInfo> Mapping from world key to internal info about that entity.
 ---@field public transform_index 0|1|2|3|4|5|6|7 D8 element index representing the blueprint's overall transform.
@@ -108,29 +107,15 @@ function BlueprintOp:new(
 	return obj
 end
 
----@param bp_local_id string|integer The local ID within the blueprint.
----@return string #The local ID unique within the frame.
-function BlueprintOp:to_frame_local_id(bp_local_id)
-	return strformat("%d:%s", self.local_id, tostring(bp_local_id))
-end
-
 ---Generate IDs local to both the frame and the blueprint.
 ---@param frame things.Frame The current frame.
 function BlueprintOp:init_generate_local_ids(frame)
-	local op_local_id = self.local_id
-
-	-- Generate local IDs
-	for _, info in pairs(self.by_index) do
-		info.flid = strformat("%d:%d", op_local_id, info.bplid)
-	end
-
 	-- Generate local ID index
-	local by_flid, by_bplid = {}, {}
+	local by_bplid = {}
 	for _, info in pairs(self.by_index) do
-		by_flid[info.flid] = info
 		by_bplid[info.bplid] = info
 	end
-	self.by_flid = by_flid
+
 	self.by_bplid = by_bplid
 end
 
