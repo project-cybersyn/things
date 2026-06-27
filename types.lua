@@ -127,6 +127,7 @@
 ---@class things.EventData.on_initialized: things.ThingSummary
 ---@field public name uint The Factorio event ID of the custom event being raised.
 ---@field public thing_name string The name of the Thing's registration. (Note: this is the same as the `name` field in the summary, but renamed to avoid being overwritten by Factorio when raising the event.)
+---@field from_blueprint boolean? If true, this Thing was initialized from a blueprint.
 
 ---Event fired when a Thing's lifecycle status changes.
 ---@class (exact) things.EventData.on_status

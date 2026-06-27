@@ -21,7 +21,8 @@ end
 events.bind(
 	"things.thing_initialized",
 	---@param thing things.Thing
-	function(thing)
+	---@param from_blueprint boolean? If true, this Thing was initialized from a blueprint.
+	function(thing, from_blueprint)
 		if not thing:is_valid() then return end
 		thing:apply_adjusted_pos_and_orientation()
 		thing.is_silent = false
@@ -31,6 +32,7 @@ events.bind(
 			local ev = thing:summarize() --[[@as things.EventData.on_initialized ]]
 			-- The "name" arg gets overwritten by Factorio when raising the event, so we need to put it in a different field and rename it before raising the event.
 			ev.thing_name = ev.name --[[@as string ]]
+			ev.from_blueprint = from_blueprint
 			script.raise_event(cevp, ev)
 		end
 	end

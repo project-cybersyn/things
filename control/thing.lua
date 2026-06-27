@@ -693,16 +693,19 @@ end
 -- EVENT HANDLING
 --------------------------------------------------------------------------------
 
-function Thing:initialize()
+---@param from_blueprint boolean? If true, this Thing was initialized from a blueprint.
+function Thing:initialize(from_blueprint)
 	local frame = in_frame()
 	if frame then
-		frame:post_event("things.thing_initialized", self)
+		frame:post_event("things.thing_initialized", self, from_blueprint)
 	else
 		strace.trace(
 			"Raising inline Thing event things.thing_initialized for Thing ID",
-			self.id
+			self.id,
+			"from_blueprint",
+			from_blueprint
 		)
-		events.raise("things.thing_initialized", self)
+		events.raise("things.thing_initialized", self, from_blueprint)
 	end
 end
 

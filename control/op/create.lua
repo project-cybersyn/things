@@ -148,7 +148,7 @@ function CreateOp:reconcile(frame)
 		"CreateOp:reconcile: deferring thing_initialized for Thing",
 		thing.id
 	)
-	thing:initialize()
+	thing:initialize(self.from_blueprint)
 end
 
 return lib
