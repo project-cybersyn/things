@@ -420,6 +420,8 @@ function BlueprintOp:resolve_create_ops(frame)
 		local info = self.by_world_key[op.key or ""]
 		if info and not op.skip then
 			-- This op corresponds to a Thing built from our blueprint.
+			op.from_blueprint = true
+
 			-- Check if orientation matches intended orientation.
 			local thing = get_thing_by_id(op.thing_id)
 			if not thing then

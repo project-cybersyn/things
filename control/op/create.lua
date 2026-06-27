@@ -19,6 +19,7 @@ local lib = {}
 ---@field public tags? Tags Initial tags to set on the created Thing.
 ---@field public skip? true `true` if the creation is to be skipped due to invalidity
 ---@field public no_init? true `true` if the Thing should not fire initialization events
+---@field public from_blueprint? true `true` if the Thing was created from a blueprint.
 local CreateOp = class("things.CreateOp", op_lib.Op)
 lib.CreateOp = CreateOp
 
