@@ -88,6 +88,7 @@ function Thing:summarize_short()
 		name = self.name,
 		entity = entity,
 		status = self.state,
+		virtual_orientation = self.virtual_orientation,
 	}
 end
 
