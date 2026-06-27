@@ -2,6 +2,9 @@
 Version: 0.3.1
 Date: ????
   Changes:
+    - `on_initialized` event now includes a `from_blueprint` field indicating whether the Thing was initialized from a blueprint.
+    - Removed some restrictions on possible virtual orientations that could be assigned to Things.
+    - Updated some internal orientation handling to be more consistent with Factorio 2.1.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: 2026-06-25

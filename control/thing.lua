@@ -443,6 +443,26 @@ function Thing:set_orientation(orientation, impose, suppress_event)
 	return false, false
 end
 
+---Make this Thing's orientation virtual, if it isn't already. The orientation
+---will be inferred from the entity.
+---@param vo_class Core.OrientationClass
+function Thing:virtualize_orientation(vo_class)
+	local existing_vo = self.virtual_orientation
+	if existing_vo and orientation_lib.get_class(existing_vo) == vo_class then
+		return
+	end
+	local new_vo = orientation_lib.create(vo_class)
+	local entity = self.entity
+	if entity and entity.valid then
+		local entity_orientation = orientation_lib.extract(entity)
+		if entity_orientation then
+			local _, direction, mirroring = orientation_lib.to_cdm(entity_orientation)
+			new_vo = orientation_lib.from_cdm(vo_class, direction, mirroring)
+		end
+	end
+	self.virtual_orientation = new_vo
+end
+
 ---@param next_pos MapPosition
 function Thing:teleport(next_pos)
 	local entity = self:get_entity()
@@ -870,25 +890,7 @@ function lib.make_thing(entity, thing_name)
 	thing.is_silent = true
 	thing:set_entity(entity, true)
 	if reg.virtualize_orientation then
-		local entity_orientation = orientation_lib.extract(entity)
-		if not entity_orientation then
-			error("Could not extract orientation from entity")
-		end
-		local eclass, order, r, s = orientation_lib.decode_wide(entity_orientation)
-		local eprops = oclass_lib.get_class_properties(eclass)
-		local vprops = oclass_lib.get_class_properties(reg.virtualize_orientation)
-		if eprops.dihedral_r_order ~= vprops.dihedral_r_order then
-			error(
-				"Entity orientation class "
-					.. oclass_lib.stringify(eclass)
-					.. " incompatible with Thing virtual orientation class "
-					.. oclass_lib.stringify(reg.virtualize_orientation)
-					.. ". Cannot raise dihedral_r_order."
-			)
-		end
-		local vo =
-			orientation_lib.encode_wide(reg.virtualize_orientation, order, r, s)
-		thing.virtual_orientation = vo
+		thing:virtualize_orientation(reg.virtualize_orientation)
 	end
 	return thing, true, nil
 end
