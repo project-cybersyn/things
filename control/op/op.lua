@@ -38,6 +38,12 @@ local OpType = {
 	ORIENTATION = 10,
 	---Paste-settings
 	PASTE_SETTINGS = 11,
+	---Impose tags, as when overlapped
+	IMPOSE_TAGS = 12,
+	---Impose orientation, as when overlapped
+	IMPOSE_VIRTUAL_ORIENTATION = 13,
+	---Impose nonvirtual orientation, as when overlapped
+	IMPOSE_NONVIRTUAL_ORIENTATION = 14,
 	"CREATE",
 	"MFD",
 	"CREATE_EDGE",
@@ -49,6 +55,9 @@ local OpType = {
 	"OVERLAP",
 	"ORIENTATION",
 	"PASTE_SETTINGS",
+	"IMPOSE_TAGS",
+	"IMPOSE_VIRTUAL_ORIENTATION",
+	"IMPOSE_NONVIRTUAL_ORIENTATION",
 }
 lib.OpType = OpType
 

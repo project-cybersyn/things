@@ -2,8 +2,6 @@ local events = require("lib.core.event")
 
 ---@class (exact) things.ModSettings
 ---@field public debug boolean Enable debug mode.
----@field public render_blueprint_bboxes boolean Whether to render blueprint entity bounding boxes for debugging.
----@field public calc_unthing_blueprints boolean Whether to calculate geometry for blueprints with no Things for debugging.
 
 ---@type things.ModSettings
 ---@diagnostic disable-next-line: missing-fields
@@ -12,10 +10,6 @@ mod_settings = l_mod_settings
 
 local function update_mod_settings()
 	l_mod_settings.debug = settings.global["things-setting-debug"].value --[[@as boolean]]
-	l_mod_settings.render_blueprint_bboxes =
-		settings.global["things-setting-debug-render-blueprint-bboxes"].value --[[@as boolean]]
-	l_mod_settings.calc_unthing_blueprints =
-		settings.global["things-setting-debug-calc-unthing-blueprints"].value --[[@as boolean]]
 end
 
 update_mod_settings()

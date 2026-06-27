@@ -83,7 +83,7 @@ function UndoRedoOp:catalogue_action(frame, action, opset)
 		local removed_key = make_world_key(
 			action.target.position,
 			action.surface_index,
-			action.target.name
+			action.target.name --[[@as string]]
 		)
 		local create_op = frame.op_set:findk_unique(
 			removed_key,

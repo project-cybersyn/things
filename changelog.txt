@@ -2,6 +2,11 @@
 Version: 0.3.1
 Date: ????
   Changes:
+    - Updated orientation metadata for new entity orientations available in Factorio 2.1.
+    - Increased the number of possible virtual orientation classes for Things.
+    - Removed the "Debug: render blueprint bounding boxes" and "Debug: calculate geometry for blueprints with no Things" settings, as they are no longer applicable.
+  Optimizations:
+    - Removed Lua-side geometry calculations in favor of using the new `on_blueprint_settings_pasted` event, saving considerable CPU time during blueprint builds.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: 2026-06-25

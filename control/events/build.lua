@@ -9,6 +9,7 @@ local thing_lib = require("control.thing")
 local CreateOp = require("control.op.create").CreateOp
 local strace = require("lib.core.strace")
 local tu_lib = require("control.util.tags")
+local orientation_lib = require("lib.core.orientation.orientation")
 
 local get_migrated_tags = tu_lib.get_migrated_tags
 local get_initial_tags = tu_lib.get_initial_tags
@@ -17,6 +18,7 @@ local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local TAGS_TAG = constants.TAGS_TAG
 local NAME_TAG = constants.NAME_TAG
 local BLUEPRINT_TAG_SET = constants.BLUEPRINT_TAG_SET
+local ORIENTATION_TAG = constants.ORIENTATION_TAG
 local EMPTY = tlib.EMPTY_STRICT
 local get_world_state = ws_lib.get_world_state
 local get_thing_registration = registration_lib.get_thing_registration
@@ -80,6 +82,21 @@ local function handle_generic_built(ev)
 	local frame = frame_lib.get_frame()
 	local ws = nil
 
+	-- Get virtual orientation
+	local virtual_orientation = tags[ORIENTATION_TAG] --[[@as Core.Orientation?]]
+	-- VOs need to be transformed by the blueprint transform.
+	if virtual_orientation then
+		local bp_op = frame.op_set:findt_unique(
+			op_lib.OpType.BLUEPRINT,
+			function() return true end
+		) --[[@as things.BlueprintOp?]]
+		if bp_op then
+			local transform_index = bp_op.transform_index
+			virtual_orientation =
+				orientation_lib.apply_blueprint(virtual_orientation, transform_index)
+		end
+	end
+
 	-- Check for a create_op already existing for this entity.
 	-- This means a ghost was snap-revived.
 	if not is_ghost then
@@ -93,6 +110,7 @@ local function handle_generic_built(ev)
 			)
 			existing_create_op.entity = entity
 			existing_create_op.tags = real_tags
+			existing_create_op.virtual_orientation = virtual_orientation
 			return
 		end
 	end
@@ -102,6 +120,7 @@ local function handle_generic_built(ev)
 	op.player_index = ev.player_index
 	op.name = registration.name
 	op.tags = real_tags
+	op.virtual_orientation = virtual_orientation
 	frame:add_op(op)
 end
 
