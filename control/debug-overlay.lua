@@ -27,10 +27,7 @@ local function update_overlay(thing)
 	end
 	local O = thing:get_orientation()
 	if O then table.insert(lines, orientation_lib.stringify(O)) end
-	-- XXX: remove this
-	if thing.tags and thing.tags.clicker then
-		table.insert(lines, "Clicker: " .. thing.tags.clicker)
-	end
+
 	debug_overlay:set_text(lines)
 end
 
