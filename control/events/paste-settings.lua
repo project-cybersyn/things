@@ -60,34 +60,43 @@ events.bind(
 	defines.events.on_blueprint_settings_pasted,
 	---@param ev EventData.on_blueprint_settings_pasted
 	function(ev)
-		local entity = ev.entity
-		local thing = thing_lib.get_by_unit_number(entity.unit_number)
-		if not thing then return end
+		local overlapped_entity = ev.entity
+		local overlapped_thing =
+			thing_lib.get_by_unit_number(overlapped_entity.unit_number)
+		strace.trace(
+			"Entity",
+			overlapped_entity.unit_number,
+			"overlapped Thing",
+			overlapped_thing and overlapped_thing.id or "nil"
+		)
+		if not overlapped_thing then return end
 
 		local frame = frame_lib.get_frame()
-		local world_key = ws_lib.get_world_key(entity)
-		frame:mark_resolved(world_key, thing)
+		local world_key = ws_lib.get_world_key(overlapped_entity)
+		frame:mark_resolved(world_key, overlapped_thing)
 
 		-- Imposition of tags
-		local is_ghost = (entity.type == "entity-ghost")
-		local base_new_tags = ((is_ghost and entity.tags or ev.tags) or EMPTY) --[[@as Tags]]
+		local is_ghost = (overlapped_entity.type == "entity-ghost")
+		local base_new_tags = (
+			(is_ghost and overlapped_entity.tags or ev.tags) or EMPTY
+		) --[[@as Tags]]
 		local imposed_tags = base_new_tags[TAGS_TAG] --[[@as Tags?]]
-		local overlapped_tags = thing.tags
+		local overlapped_tags = overlapped_thing.tags
 
 		if imposed_tags or overlapped_tags then
 			frame:add_op(
 				ImposeTagsOp:new(
 					ev.player_index,
-					entity,
+					overlapped_entity,
 					world_key,
-					thing.id,
+					overlapped_thing.id,
 					overlapped_tags,
 					imposed_tags
 				)
 			)
 		end
 
-		if thing.virtual_orientation then
+		if overlapped_thing.virtual_orientation then
 			-- Possible imposition of virtual orientation
 			-- We must calculate the intended virtual orientation from the orientation stored in the thing tags and the BP placement orientation.
 			local bp_op = frame.op_set:findt_unique(
@@ -107,24 +116,29 @@ events.bind(
 					blueprinted_orientation,
 					transform_index
 				)
-				if not o_loose_eq(intended_orientation, thing.virtual_orientation) then
+				if
+					not o_loose_eq(
+						intended_orientation,
+						overlapped_thing.virtual_orientation
+					)
+				then
 					strace.debug(
 						"on_blueprint_settings_pasted: virtual orientation of Thing",
-						thing.id,
+						overlapped_thing.id,
 						"was",
-						function() return o_stringify(thing.virtual_orientation) end,
+						function() return o_stringify(overlapped_thing.virtual_orientation) end,
 						"but intended orientation from blueprint was",
 						function() return o_stringify(intended_orientation) end,
 						"; adding ImposeOrientationOp"
 					)
-					local world_key = ws_lib.get_world_key(entity)
+					local world_key = ws_lib.get_world_key(overlapped_entity)
 					frame:add_op(
 						ImposeVirtualOrientationOp:new(
 							ev.player_index,
-							entity,
+							overlapped_entity,
 							world_key,
-							thing.id,
-							thing.virtual_orientation,
+							overlapped_thing.id,
+							overlapped_thing.virtual_orientation,
 							intended_orientation
 						)
 					)
@@ -133,7 +147,7 @@ events.bind(
 				-- TODO: virtually oriented thing has no orientation tag; what do? probs nothing
 				strace.warn(
 					"on_blueprint_settings_pasted: virtually oriented Thing",
-					thing.id,
+					overlapped_thing.id,
 					"was overlapped by an entity with no orientation tag; skipping virtual orientation calcs."
 				)
 			end
@@ -141,11 +155,11 @@ events.bind(
 			-- Imposition of nonvirtual orientation
 			if ev.previous_direction or ev.mirrored then
 				-- Get current orientation
-				local current_orientation = orientation_lib.extract(entity)
+				local current_orientation = orientation_lib.extract(overlapped_entity)
 				if not current_orientation then
 					strace.warn(
 						"on_blueprint_settings_pasted: nonvirtually oriented Thing",
-						thing.id,
+						overlapped_thing.id,
 						"was overlapped, but couldn't calculate its new orientation."
 					)
 					return
@@ -154,10 +168,11 @@ events.bind(
 				-- Get previous orientation
 				local oc = orientation_lib.get_class(current_orientation)
 				local oc_props = oc_lib.get_class_properties(oc)
-				local previous_direction = ev.previous_direction or entity.direction
+				local previous_direction = ev.previous_direction
+					or overlapped_entity.direction
 				local previous_mirroring = nil
 				if ev.mirrored and oc_props.can_mirror then
-					if entity.mirroring then
+					if overlapped_entity.mirroring then
 						previous_mirroring = false
 					else
 						previous_mirroring = true
@@ -169,9 +184,9 @@ events.bind(
 				frame:add_op(
 					ImposeNonvirtualOrientationOp:new(
 						ev.player_index,
-						entity,
-						ws_lib.get_world_key(entity),
-						thing.id,
+						overlapped_entity,
+						ws_lib.get_world_key(overlapped_entity),
+						overlapped_thing.id,
 						previous_orientation,
 						current_orientation
 					)
