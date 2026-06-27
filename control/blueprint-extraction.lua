@@ -291,7 +291,7 @@ function Extraction:replace(index, new_bp_entity, keep_wires)
 		old_bp_entity
 		and old_bp_entity.wires
 		and keep_wires
-		and md_lib.can_connect_to_circuit_network(bp_entity.name)
+		and md_lib.can_connect_to_circuit_network(bp_entity.name --[[@as string]])
 	then
 		bp_entity.wires = old_bp_entity.wires
 	end

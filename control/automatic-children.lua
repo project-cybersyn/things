@@ -16,7 +16,7 @@ local function to_ghost(args)
 	local original_name = args.name
 	args.name = "entity-ghost"
 	-- TODO: support prototype values for name here?
-	args.inner_name = original_name
+	args.inner_name = original_name --[[@as string]]
 	return args
 end
 

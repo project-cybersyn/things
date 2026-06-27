@@ -86,7 +86,7 @@ local Stack = relm.define_element({
 					entries[#entries + 1] = ultros.Label(
 						serpent.line(action.type, { comment = false, nocode = true })
 					)
-					counter = counter - 1
+					counter = (counter - 1) --[[@as int]]
 				else
 					entries[#entries + 1] = ultros.Label("nil")
 					entries[#entries + 1] = ultros.Label("NIL")

@@ -145,6 +145,7 @@ local function doctor_reachability(report)
 			for _, action in pairs(actions) do
 				local undo_tag = action.tags and action.tags[UNDO_TAG]
 				if undo_tag then
+					---@diagnostic disable-next-line: param-type-mismatch
 					for _, opset_id in pairs(undo_tag) do
 						reachable_opsets[opset_id] = true
 						unreachable_opsets[opset_id] = nil
@@ -157,6 +158,7 @@ local function doctor_reachability(report)
 			for _, action in pairs(actions) do
 				local undo_tag = action.tags and action.tags[UNDO_TAG]
 				if undo_tag then
+					---@diagnostic disable-next-line: param-type-mismatch
 					for _, opset_id in pairs(undo_tag) do
 						reachable_opsets[opset_id] = true
 						unreachable_opsets[opset_id] = nil

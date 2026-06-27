@@ -177,7 +177,7 @@ function BlueprintOp:init_catalogue_positions(
 				info.bp_entity
 			)
 		end
-		local bp_entity_name = info.bp_entity.name
+		local bp_entity_name = info.bp_entity.name --[[@as string]]
 		local key = make_world_key(pos, surface.index, bp_entity_name)
 		info.world_key = key
 		info.pos = pos
@@ -232,7 +232,7 @@ function BlueprintOp:init_catalogue_overlaps(frame)
 	for _, info in pairs(self.by_index) do
 		-- Check for identical overlap
 		local pos = info.pos
-		local bp_entity_name = info.bp_entity.name
+		local bp_entity_name = info.bp_entity.name --[[@as string]]
 		local overlapped = tlib.filter_in_place(
 			surface.find_entities_filtered({
 				position = pos,
@@ -486,7 +486,7 @@ function lib.maybe_generate_blueprint_op(
 
 	-- Check for Things
 	---@type table<uint, things.InternalBlueprintEntityInfo>
-	local by_index = nil
+	local by_index
 	for i, bp_entity in pairs(entities) do
 		local tags = bp_entity.tags
 		if not tags then goto continue end
