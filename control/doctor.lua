@@ -16,12 +16,14 @@ local function report_new() return {} end
 ---@param message LocalisedString
 local function report_append(report, message) table.insert(report, message) end
 
-local function doctor_demographics(report)
+---@param report things.DoctorReport
+---@param fix boolean?
+local function doctor_lifecycle(report, fix)
 	-- Basic storage
 	local n_things = table_size(storage.things)
 	local n_things_un = table_size(storage.things_by_unit_number)
 
-	report_append(report, "[font=default-bold]Things Lifecycle:[/font]")
+	report_append(report, "LIFECYCLE:")
 
 	report_append(
 		report,
@@ -85,10 +87,21 @@ local function doctor_demographics(report)
 			report_append(
 				report,
 				string.format(
-					"[color=red]Thing ID %d is a ghost but has no valid ghost entity![/color]",
-					thing.id
+					"[color=red]Thing ID %d is a ghost but has no valid ghost entity![/color] %s",
+					thing.id,
+					serpent.line(thing:summarize(), { comment = false, nocode = true })
 				)
 			)
+			if fix then
+				thing:destroy()
+				report_append(
+					report,
+					string.format(
+						"[color=green]Thing ID %d destroyed to fix lifecycle state mismatch.[/color]",
+						thing.id
+					)
+				)
+			end
 		end
 	end
 
@@ -109,12 +122,17 @@ end
 ---@alias things.DoctorReachabilityType "entity" | "undo" | "child"
 
 ---@param report things.DoctorReport
-local function doctor_reachability(report)
+---@param fix boolean?
+local function doctor_reachability(report, fix)
+	report_append(report, "REACHABILITY:")
+
 	---@type {[int64]: true}
 	local unreachable_things = tlib.t_map_t(
 		storage.things,
 		function(id) return id, true end
 	) --[[@as {[int64]: true} ]]
+	local n_initial_things = table_size(unreachable_things)
+
 	---@type {[int64]: things.DoctorReachabilityType}
 	local reachable_things = {}
 
@@ -174,9 +192,21 @@ local function doctor_reachability(report)
 		if opset then
 			local thing_ids = opset:get_thing_id_set()
 			for thing_id in pairs(thing_ids) do
-				if not reachable_things[thing_id] then
-					reachable_things[thing_id] = "undo"
-					unreachable_things[thing_id] = nil
+				local thing = storage.things[thing_id]
+				if thing then
+					if not reachable_things[thing_id] then
+						reachable_things[thing_id] = "undo"
+						unreachable_things[thing_id] = nil
+					end
+				else
+					report_append(
+						report,
+						string.format(
+							"[color=yellow]Opset ID %d references Thing ID %d which does not exist in storage![/color]",
+							opset_id,
+							thing_id
+						)
+					)
 				end
 			end
 		end
@@ -211,7 +241,8 @@ local function doctor_reachability(report)
 	report_append(
 		report,
 		string.format(
-			"Reachability: %d reachable things, %d unreachable things; %d reachable opsets, %d unreachable opsets.",
+			"Reachability: %d initial things, %d reachable things, %d unreachable things; %d reachable opsets, %d unreachable opsets.",
+			n_initial_things,
 			n_reachable_things,
 			n_unreachable_things,
 			table_size(reachable_opsets),
@@ -233,6 +264,31 @@ local function doctor_reachability(report)
 		cat_tbl[#cat_tbl + 1] = string.format("    %s: %d", type, count)
 	end
 	report_append(report, table.concat(cat_tbl))
+
+	-- Dump all unreachable things
+	for thing_id in pairs(unreachable_things) do
+		local thing = storage.things[thing_id]
+		if thing then
+			report_append(
+				report,
+				string.format(
+					"[color=red]Thing ID %d is unreachable![/color] %s",
+					thing.id,
+					serpent.line(thing:summarize(), { comment = false, nocode = true })
+				)
+			)
+			if fix then
+				thing:destroy()
+				report_append(
+					report,
+					string.format(
+						"[color=green]Unreachable Thing ID %d destroyed.[/color]",
+						thing.id
+					)
+				)
+			end
+		end
+	end
 end
 
 ---@param report things.DoctorReport
@@ -249,11 +305,13 @@ end
 commands.add_command(
 	"things-doctor",
 	{ "things-commands.doctor-command-help" },
-	function()
+	function(data)
 		local report = report_new()
 
-		doctor_demographics(report)
-		doctor_reachability(report)
+		local fix = data.parameter == "fix"
+
+		doctor_lifecycle(report, fix)
+		doctor_reachability(report, fix)
 
 		dump_report(report)
 	end

@@ -75,6 +75,7 @@ function Thing:summarize()
 		virtual_orientation = self.virtual_orientation,
 		tags = self.tags,
 		parent = self.parent,
+		undo_refcount = self.undo_refcount,
 	}
 end
 
@@ -195,6 +196,7 @@ function Thing:undo_maybe_destroy()
 		self.id,
 		"undo_refcount is zero and no live parent; garbage collecting."
 	)
+	self:destroy()
 end
 
 --------------------------------------------------------------------------------

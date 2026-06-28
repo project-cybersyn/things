@@ -82,6 +82,7 @@
 ---@field public tags Tags? The current tags of the Thing.
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
 ---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
+---@field public undo_refcount uint The number of undo operations that reference this Thing.
 
 ---@class (exact) things.ThingShortSummary
 ---@field public id things.Id The id of the Thing.

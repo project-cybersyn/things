@@ -2,9 +2,14 @@
 Version: 0.3.1
 Date: ????
   Changes:
+    - Added `/things-doctor` console command to help diagnose issues with Things in the current save. `/things-doctor fix` can be used to automatically fix certain issues.
     - `on_initialized` event now includes a `from_blueprint` field indicating whether the Thing was initialized from a blueprint.
     - Removed some restrictions on possible virtual orientations that could be assigned to Things.
     - Updated some internal orientation handling to be more consistent with Factorio 2.1.
+    - Added `undo_refcount` to `ThingSummary`.
+  Bugfixes:
+    - Fixed a rare crash in an error handler for invalid blueprint tags.
+    - Fixed a bug where Things were not being garbage collected in some situations even when their `undo_refcount` was zero. Use `/things-doctor fix` to eliminate any unreachable Things in your save.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: 2026-06-25
