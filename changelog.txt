@@ -7,6 +7,11 @@ Date: ????
     - Removed some restrictions on possible virtual orientations that could be assigned to Things.
     - Updated some internal orientation handling to be more consistent with Factorio 2.1.
     - Added `undo_refcount` to `ThingSummary`.
+    - Added `registration.lua` data-phase helper library for registering Things.
+    - Added API `things-metadata-v1.get_things`
+    - Added API `things-metadata-v1.get_by_unit_number`
+    - API `things.get_transient_data` now accepts an optional `key` parameter to retrieve a single key from the transient data instead of the entire table.
+    - Loosened typing of transient data to `any`. Note that you must still only pass data allowed over remote interfaces.
   Bugfixes:
     - Fixed a rare crash in an error handler for invalid blueprint tags.
     - Fixed a bug where Things were not being garbage collected in some situations even when their `undo_refcount` was zero. Use `/things-doctor fix` to eliminate any unreachable Things in your save.

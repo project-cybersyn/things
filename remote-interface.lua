@@ -384,20 +384,30 @@ end
 ---Get transient data associated with a Thing. This data is not preserved when
 ---a Thing is blueprinted or copied.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
+---@param key? string If given, only the value for this key will be returned. Otherwise, all transient data will be returned.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return Tags|nil transient_data The transient data associated with this Thing, if any.
-function remote_interface.get_transient_data(thing_identification)
+---@return any transient_data The transient data associated with this Thing, if any.
+function remote_interface.get_transient_data(thing_identification, key)
 	local thing, valid = resolve_identification(thing_identification)
 	if not valid then return CANT_BE_A_THING end
 	if not thing then return NOT_A_THING end
-	return nil, thing.transient_data
+	local data = thing.transient_data
+	if key then
+		if data then
+			return nil, data[key]
+		else
+			return nil, nil
+		end
+	else
+		return nil, data
+	end
 end
 
 ---Attach transient data to a Thing. This data is not preserved when
 ---a Thing is blueprinted or copied.
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@param key string The key to set in the transient data.
----@param value AnyBasic? The value to set in the transient data.
+---@param value any The value to set in the transient data.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 function remote_interface.set_transient_data(thing_identification, key, value)
 	local thing, valid = resolve_identification(thing_identification)
@@ -709,9 +719,36 @@ function metadata_v1.get_status(thing_identification)
 	return nil, thing.state
 end
 
+---Get a Thing by its unit number.
+---@param unit_number int64? The unit number of the Thing's underlying entity.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return things.ThingShortSummary? summary Summary of the Thing, or `nil` if there was an error or the Thing doesn't exist.
+function metadata_v1.get_by_unit_number(unit_number)
+	if not unit_number then return NOT_A_THING end
+	local thing = get_thing_by_unit_number(unit_number)
+	if not thing then return NOT_A_THING end
+	return nil, thing:summarize_short()
+end
+
+---Retrieve multiple Things.
+---@param query things.ThingQuery The query to use to retrieve Things.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return things.ThingShortSummary[]? things The Things matching the query, or `nil` if there was an error.
+function metadata_v1.get_things(query)
+	local result = {}
+	for _, thing in pairs(storage.things) do
+		local match = true
+		if query.name then
+			if thing.name ~= query.name then match = false end
+		end
+		if match then result[#result + 1] = thing:summarize_short() end
+	end
+	return nil, result
+end
+
 ---Given a set of Factorio blueprint tags attached to a Thing, retrieve the
 ---tags of the actual underlying Thing. You must call this method instead of
----decoding the change yourself to avoid being dependent on Things' undocumented
+---decoding the tags yourself to avoid being dependent on Things' undocumented
 ---internal data formats.
 ---@param blueprint_tags Tags The tags attached to a blueprint entity.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.

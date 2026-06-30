@@ -110,6 +110,10 @@
 ---@field public thing_id things.Id? The Thing this blueprint entity represents.
 ---@field public deleted true? If `true`, this entity was deleted by an atomic blueprint operation.
 
+---A query for retrieving multiple Things.
+---@class (exact) things.ThingQuery
+---@field public name? string If given, only Things of this named type will be returned.
+
 ---Partial blueprint entity.
 ---@alias things.PartialBlueprintEntity BlueprintEntity | { name?: string, position?: MapPosition, direction?: defines.direction, tags?: Tags, [string]: any }
 
@@ -208,3 +212,9 @@
 ---for this event is to collect data about the Thing before its entity is
 ---destroyed.
 ---@alias things.EventData.on_immediate_voided things.ThingSummary
+
+--------------------------------------------------------------------------------
+-- EXPORTED LIBRARY TYPES
+--------------------------------------------------------------------------------
+---@class (exact) things.lib.Registration
+---@field public register fun(registration: things.ThingRegistration): void
