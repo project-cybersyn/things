@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
-Date: ????
+Date: 2026-06-30
   Changes:
     - Added `/things-doctor` console command to help diagnose issues with Things in the current save. `/things-doctor fix` can be used to automatically fix certain issues.
     - `on_initialized` event now includes a `from_blueprint` field indicating whether the Thing was initialized from a blueprint.
