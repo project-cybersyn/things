@@ -39,12 +39,10 @@ These are the core Lua data types used by the Things API.
 ---@field public migrate_tags_callback? Core.RemoteCallbackSpec A remote callback to invoke when a Thing is built with unrecognized tags. This allows mods using non-Thing custom blueprint data to migrate to Things. The callback will be invoked as `callback(unrecognized_tags: Tags) -> Tags`, and should return a set of Tags to be applied to the Thing.
 ---@field public initial_tags_callback? Core.RemoteCallbackSpec A remote callback to invoke when a Thing of this type is created through intercepting a construction event. This allows mods to set initial tags on Things of this type. The callback will be invoked as `callback(entity: LuaEntity) -> tags: Tags|nil`, and should return a set of Tags to be applied to the new Thing.
 ---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
----@field public no_garbage_collection? boolean If `true`, Things of this type will not be automatically garbage collected when Things thinks they are unreachable. You must manually destroy these Things when they are no longer needed. (default: false)
 ---@field public no_destroy_children_on_destroy? boolean If `true`, when a Thing of this type is destroyed, its children will NOT be automatically destroyed. (default: false)
 ---@field public no_void_children_on_void? boolean If `true`, when a Thing of this type is voided, its children will NOT be automatically voided. (default: false)
 ---@field public children? {[string|int]: things.ThingRegistration.Child} Specifications for automatic child creation.
 ---@field public allow_in_cursor? "never" Controls the behavior of entity-pipette and cursor stack for this Thing. If set to "never", Things of this type cannot be picked up into the player's cursor. (default: nil, meaning Things of this type use normal Factorio behavior.)
----@field public custom_blueprint_geometry? Core.CustomEntityGeometry If provided, Things will use this custom geometry data when computing bounding boxes and snapping for blueprint entities of this type.
 ```
 
 ## things.ThingRegistration.Child

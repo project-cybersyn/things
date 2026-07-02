@@ -9,6 +9,7 @@ require("lib.core.relm.relm_data")
 data:extend({
 	{ type = "mod-data", name = "things-names", data = {} },
 	{ type = "mod-data", name = "things-graphs", data = {} },
+	{ type = "mod-data", name = "things-combinators", data = {} },
 	{
 		type = "custom-input",
 		name = "things-linked-rotate",
@@ -38,3 +39,5 @@ data:extend({
 		name = "things-cooperative_blueprint_edit",
 	},
 })
+
+require("data.combinators")

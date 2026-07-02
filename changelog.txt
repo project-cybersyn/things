@@ -2,6 +2,11 @@
 Version: 0.3.2
 Date: ????
   Changes:
+    - Removed deprecated `ThingRegistration.custom_blueprint_geometry` field.
+    - Removed `ThingRegistration.no_garbage_collection` field. It is no longer possible to opt out of garbage collection.
+    - Added Things Client infrastructure.
+    - Moved to EmmyLuaLS typings. Devs wanting type checking in IDE should add `0-things/client` directory to their `library` config path.
+    - Added `client/combinators-v1` API. Current functionality is limited to registering invisible variants of combinators.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
 Date: 2026-06-30

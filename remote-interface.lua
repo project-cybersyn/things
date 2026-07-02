@@ -1,6 +1,6 @@
 -- Things API.
 
-require("types")
+require("client.types")
 
 local pos_lib = require("lib.core.math.pos")
 local thing_lib = require("control.thing")
