@@ -200,11 +200,10 @@ function remote_interface.force_destroy(
 	thing_identification,
 	dont_destroy_entity
 )
-	-- TODO: fix this.
 	local thing, valid = resolve_identification(thing_identification)
 	if not valid then return CANT_BE_A_THING end
 	if not thing then return NOT_A_THING end
-	thing:destroy(false, dont_destroy_entity)
+	thing:destroy(dont_destroy_entity)
 	return nil
 end
 
