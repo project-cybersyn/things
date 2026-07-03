@@ -1,3 +1,6 @@
 [submodule "lib/core"]
 	path = lib/core
 	url = https://github.com/wcjohnson/factorio-mod-core.git
+[submodule "lib/cooperative-blueprinting"]
+	path = lib/cooperative-blueprinting
+	url = https://github.com/project-cybersyn/cooperative-blueprinting.git
