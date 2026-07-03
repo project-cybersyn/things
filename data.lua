@@ -34,10 +34,32 @@ data:extend({
 		key_sequence = "",
 		linked_game_control = "flip-vertical",
 	},
-	{
-		type = "custom-event",
-		name = "things-cooperative_blueprint_edit",
-	},
 })
 
 require("data.combinators")
+
+-- Force Cooperative Blueprinting host to Things.
+data:extend({
+	{
+		type = "mod-data",
+		name = "cooperative-blueprinting",
+		data = { host_name = "0-things", host_protocol_version = 1 },
+	},
+	{
+		type = "custom-event",
+		name = "cooperative-blueprinting-v1-on_pre_build_blueprint",
+	},
+	{
+		type = "custom-event",
+		name = "cooperative-blueprinting-v1-on_pre_extract",
+	},
+	{ type = "custom-event", name = "cooperative-blueprinting-v1-on_extract" },
+	{
+		type = "custom-event",
+		name = "cooperative-blueprinting-v1-on_post_extract",
+	},
+})
+log({
+	"",
+	"Things: stealing Cooperative Blueprinting host: host set to '0-things'",
+})

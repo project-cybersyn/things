@@ -24,22 +24,6 @@ local BlueprintOp = bpop_lib.BlueprintOp
 events.bind(defines.events.on_pre_build, function(ev)
 	local player = game.get_player(ev.player_index)
 	if not player then return end
-	-- Blueprint
-	if player.is_cursor_blueprint() then
-		local bp = actual.get_actual_blueprint(
-			player,
-			player.cursor_record,
-			player.cursor_stack
-		)
-		if not bp then return end
-		return events.raise(
-			"things.pre_build_blueprint",
-			ev,
-			player,
-			bp,
-			player.surface
-		)
-	end
 	-- Item with entity place result
 	local stack = player.cursor_stack
 	if stack and stack.valid_for_read then
@@ -93,7 +77,7 @@ events.bind(
 		-- Mark prebuilt entity
 		local key = make_world_key(ev.position, surface.index, entity_placed.name)
 		frame:mark_prebuild(key, player.index)
-		strace.debug(
+		strace.trace(
 			frame.debug_string,
 			"prebuild by player",
 			player.index,
@@ -108,13 +92,26 @@ events.bind(
 --------------------------------------------------------------------------------
 
 events.bind(
-	"things.pre_build_blueprint",
-	---@param ev EventData.on_pre_build
-	---@param player LuaPlayer
-	---@param bp Core.Blueprintish
-	---@param surface LuaSurface
-	function(ev, player, bp, surface)
-		strace.debug("things.pre_build_blueprint by", player.name)
-		bpop_lib.maybe_generate_blueprint_op(bp, player, surface, ev, ev.build_mode)
+	"cooperative-blueprinting-v1-on_pre_build_blueprint",
+	---@param ev CooperativeBlueprinting.OnPreBuildBlueprint
+	function(ev)
+		local player = ev.player_index and game.get_player(ev.player_index)
+		local surface = game.get_surface(ev.surface_index)
+		if not surface then
+			strace.error(
+				"cooperative-blueprinting-v1-on_pre_build_blueprint: surface",
+				ev.surface_index,
+				"not found"
+			)
+			return
+		end
+
+		bpop_lib.maybe_generate_blueprint_op(
+			ev.blueprint,
+			player,
+			surface,
+			ev.orientation,
+			ev.build_mode
+		)
 	end
 )

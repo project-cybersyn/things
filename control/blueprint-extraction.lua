@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- BP EXTRACTION AND COOPERATIVE EDITING
+-- BP EXTRACTION
 --------------------------------------------------------------------------------
 
 local class = require("lib.core.class").class
@@ -22,6 +22,13 @@ local ORIENTATION_TAG = constants.ORIENTATION_TAG
 
 local lib = {}
 
+---Entity within a blueprint being extracted.
+---@class (exact) things.ExtractedEntity
+---@field public index int The index of the entity within the extraction process.
+---@field public bp_entity BlueprintEntity The blueprint entity data.
+---@field public entity? LuaEntity The in-world entity this blueprint entity represents.
+---@field public thing_id things.Id? The Thing this blueprint entity represents.
+
 ---State of a blueprint being extracted from the world.
 ---@class (exact) things.Extraction
 ---@field public id int The unique extraction id.
@@ -35,11 +42,8 @@ local lib = {}
 local Extraction = class("things.Extraction")
 lib.Extraction = Extraction
 
----@type things.Extraction?
-lib.current_extraction = nil
-
 ---@param bp Core.Blueprintish The blueprint being extracted.
----@param index_to_world {[int]: LuaEntity} The mapping from bp indices to world entities. Comes from factorio api via `event.mapping`
+---@param index_to_world table<uint32, LuaEntity> The mapping from bp indices to world entities. Comes from factorio api via `event.mapping`
 ---@return things.Extraction #The extraction manager object, or nil if there were no Things in the blueprint.
 function Extraction:new(bp, index_to_world)
 	local id = counters.next("extraction")
@@ -56,19 +60,11 @@ function Extraction:new(bp, index_to_world)
 end
 
 function Extraction:extract()
-	if lib.current_extraction then
-		return error("THINGS: invalid extraction state reached")
-	end
-	lib.current_extraction = self
 	self:enum_entities()
-	-- Cooperative editing phase
-	events.raise("things.cooperative_blueprint_edit", self)
 	self:map_things()
 	self:normalize_thing_tags()
 	self:map_parent_child()
 	self:map_edges()
-	self:rewrite_blueprint()
-	lib.current_extraction = nil
 end
 
 function Extraction:enum_entities()
@@ -88,7 +84,6 @@ function Extraction:map_things()
 	local by_thing_id = self.by_thing_id
 
 	for index, info in pairs(self.by_index) do
-		if info.deleted then goto continue end
 		local entity = info.entity
 		if not entity or not entity.valid then goto continue end
 		local thing = get_thing_by_unit_number(entity.unit_number)
@@ -123,20 +118,22 @@ function Extraction:normalize_thing_tags()
 		local index = info.index
 		-- We know this is not nil from above.
 		local thing = get_thing_by_id(info.thing_id) --[[@as things.Thing]]
+
+		local tags = self.bp.get_blueprint_entity_tags(index)
 		-- Normalize by clearing all tags including possible residual tags from
 		-- previous blueprint ghosts.
 		for tag in pairs(BLUEPRINT_TAG_SET) do
-			self:set_tag(index, tag, nil)
+			tags[tag] = nil
 		end
 		-- Apply basic tags.
-		self:set_tag(index, NAME_TAG, thing.name)
-		self:set_tag(index, LOCAL_ID_TAG, index)
-		if thing.tags and next(thing.tags) then
-			self:set_tag(index, TAGS_TAG, thing.tags)
-		end
+		tags[NAME_TAG] = thing.name
+		tags[LOCAL_ID_TAG] = index
+		if thing.tags and next(thing.tags) then tags[TAGS_TAG] = thing.tags end
 		if thing.virtual_orientation then
-			self:set_tag(index, ORIENTATION_TAG, thing.virtual_orientation)
+			tags[ORIENTATION_TAG] = thing.virtual_orientation
 		end
+
+		self.bp.set_blueprint_entity_tags(index, tags)
 	end
 end
 
@@ -166,7 +163,7 @@ function Extraction:map_edges()
 			end
 		end
 		if edge_tags and next(edge_tags) then
-			self:set_tag(info.index, GRAPH_EDGES_TAG, edge_tags)
+			self.bp.set_blueprint_entity_tag(info.index, GRAPH_EDGES_TAG, edge_tags)
 		end
 	end
 end
@@ -181,7 +178,7 @@ function Extraction:map_parent_child()
 		if parent_relationship then
 			local parent_info = self.by_thing_id[parent_relationship[1]]
 			if parent_info then
-				self:set_tag(info.index, PARENT_TAG, {
+				self.bp.set_blueprint_entity_tag(info.index, PARENT_TAG, {
 					parent_info.index,
 					parent_relationship[2],
 					parent_relationship[3],
@@ -193,130 +190,17 @@ function Extraction:map_parent_child()
 	end
 end
 
----Rewrite edited blueprints using `set_blueprint_entities`
-function Extraction:rewrite_blueprint()
-	if not self.is_edited then return end
-
-	strace.trace(
-		"Extraction:rewrite_blueprint: blueprint was edited; rewriting..."
-	)
-
-	---@type BlueprintEntity[]
-	local new_entities = {}
-	---@type {[uint]: uint}
-	local index_map = {}
-	for index, info in pairs(self.by_index) do
-		if not info.deleted and info.bp_entity then
-			local new_index = #new_entities + 1
-			index_map[index] = new_index
-			new_entities[new_index] = info.bp_entity
-		end
-	end
-
-	-- TODO: rewiring/wire elimination pass
-
-	self.bp.set_blueprint_entities(new_entities)
-end
-
---------------------------------------------------------------------------------
--- ATOMIC EDITING OPS
---------------------------------------------------------------------------------
-
----@param index uint
----@param key string
----@param value (AnyBasic|Tags)?
-function Extraction:set_tag(index, key, value)
-	local info = self.by_index[index]
-	if (not info) or info.deleted then return end
-
-	-- If the blueprint isn't edited, it's better to call the native factorio
-	-- tag setting API as it has less chance to mangle the blueprint than
-	-- `set_blueprint_entities`.
-	if not self.is_edited then
-		-- FMTK and/or the factorio API has wrong typing for the 3rd arg here.
-		---@diagnostic disable-next-line: param-type-mismatch
-		self.bp.set_blueprint_entity_tag(index, key, value)
-	end
-
-	-- Update cached tags for entity
-	local bp_entity = info.bp_entity
-	local tags = bp_entity.tags
-	if value then
-		if not tags then
-			tags = {}
-			bp_entity.tags = tags
-		end
-		tags[key] = value
-	else
-		if tags then
-			tags[key] = nil
-			if not next(tags) then bp_entity.tags = nil end
-		end
-	end
-end
-
----@param index uint
----@param tags Tags?
-function Extraction:set_tags(index, tags)
-	local info = self.by_index[index]
-	if (not info) or info.deleted then return end
-
-	-- If the blueprint isn't edited, it's better to call the native factorio
-	-- tag setting API as it has less chance to mangle the blueprint than
-	-- `set_blueprint_entities`.
-	if not self.is_edited then
-		self.bp.set_blueprint_entity_tags(index, tags or EMPTY)
-	end
-
-	-- Update cached tags for entity
-	local bp_entity = info.bp_entity
-	bp_entity.tags = tags
-end
-
----Atomically replace a blueprint entity.
----@param index uint
----@param new_bp_entity things.PartialBlueprintEntity The new blueprint entity to replace the old one with.
----@param keep_wires boolean? If `true`, keep the wires connected to the old entity, remapping them to the new entity.
-function Extraction:replace(index, new_bp_entity, keep_wires)
-	local info = self.by_index[index]
-	if (not info) or info.deleted then return end
-	local old_bp_entity = info.bp_entity
-	local bp_entity = tlib.assign({}, new_bp_entity) --[[@as BlueprintEntity]]
-	bp_entity.entity_number = index
-	if not bp_entity.position then bp_entity.position = old_bp_entity.position end
-	if not bp_entity.direction then
-		bp_entity.direction = old_bp_entity.direction
-	end
-	if
-		old_bp_entity
-		and old_bp_entity.wires
-		and keep_wires
-		and md_lib.can_connect_to_circuit_network(bp_entity.name --[[@as string]])
-	then
-		bp_entity.wires = old_bp_entity.wires
-	end
-	self.is_edited = true
-	info.bp_entity = bp_entity
-end
-
 --------------------------------------------------------------------------------
 -- EXTERNAL INTERFACE
 --------------------------------------------------------------------------------
 
 ---@param bp Core.Blueprintish
----@param bp_to_world { [integer]: LuaEntity }
+---@param bp_to_world table<uint32, LuaEntity> Mapping from blueprint entity index to world entity.
 function lib.extract_blueprint(bp, bp_to_world)
 	strace.debug("*** Extract blueprint")
 	local extraction = Extraction:new(bp, bp_to_world)
 	extraction:extract()
 	strace.debug("*** Extract blueprint: finished")
 end
-
-events.bind(
-	"things.cooperative_blueprint_edit",
-	function(extraction)
-		script.raise_event("things-cooperative_blueprint_edit", {})
-	end
-)
 
 return lib

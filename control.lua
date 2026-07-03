@@ -5,6 +5,8 @@
 local strace = require("lib.core.strace")
 local relm = require("lib.core.relm.relm")
 local event = require("lib.core.event")
+local cbp =
+	require("lib.cooperative-blueprinting.cooperative-blueprinting-control")
 require("lib.core.debug-log") -- for debug_crash
 
 relm.bootstrap_with_core_events(event)
@@ -16,6 +18,14 @@ require("client.types")
 require("control.settings")
 require("control.storage")
 require("control.registration")
+
+-- Bind Cooperative Blueprinting events first.
+local binds = cbp.cooperative_blueprinting_control_phase()
+if binds then
+	for name, binding in ipairs(binds) do
+		event.bind(name, binding)
+	end
+end
 
 require("control.events.prebuild")
 require("control.events.build")
