@@ -9,7 +9,7 @@ local powered_arithmetic = tlib.deep_copy(arithmetic, true)
 powered_arithmetic.name = "things-arithmetic-combinator-invisible-powered"
 powered_arithmetic.energy_source =
 	{ type = "electric", usage_priority = "secondary-input" }
-powered_arithmetic.active_energy_usage = "1KW"
+powered_arithmetic.active_energy_usage = "1kW"
 
 local decider = comb_reg.get_invisible_combinator_prototype()
 decider.type = "decider-combinator"
@@ -19,7 +19,7 @@ local powered_decider = tlib.deep_copy(decider, true)
 powered_decider.name = "things-decider-combinator-invisible-powered"
 powered_decider.energy_source =
 	{ type = "electric", usage_priority = "secondary-input" }
-powered_decider.active_energy_usage = "1KW"
+powered_decider.active_energy_usage = "1kW"
 
 local selector = comb_reg.get_invisible_combinator_prototype()
 selector.type = "selector-combinator"
@@ -29,7 +29,7 @@ local powered_selector = tlib.deep_copy(selector, true)
 powered_selector.name = "things-selector-combinator-invisible-powered"
 powered_selector.energy_source =
 	{ type = "electric", usage_priority = "secondary-input" }
-powered_selector.active_energy_usage = "1KW"
+powered_selector.active_energy_usage = "1kW"
 
 local constant = comb_reg.get_invisible_constant_combinator_prototype()
 constant.type = "constant-combinator"
