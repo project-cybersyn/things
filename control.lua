@@ -22,7 +22,7 @@ require("control.registration")
 -- Bind Cooperative Blueprinting events first.
 local binds = cbp.cooperative_blueprinting_control_phase()
 if binds then
-	for name, binding in ipairs(binds) do
+	for name, binding in pairs(binds) do
 		event.bind(name, binding)
 	end
 end

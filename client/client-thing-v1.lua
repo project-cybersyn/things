@@ -34,4 +34,21 @@ function ClientThingV1:refresh()
 	end
 end
 
+---Get the value of a tag on this Thing.
+---@param tag_name string The name of the tag to get.
+---@param skip_cache? boolean If `true`, this will skip the cache and get the tag value directly from the server. This is slower, but more accurate.
+---@return AnyBasic? tag_value The value of the tag, or `nil` if the Thing or the tag does not exist.
+function ClientThingV1:get_tag(tag_name, skip_cache)
+	---@type nil, string?
+	local _, tag_value = rcall("things-tags-v1", "get_tag", self.id, tag_name)
+	return tag_value
+end
+
+---Set the value of a tag on this Thing. If the Thing does not exist, this will do nothing.
+---@param tag_name string The name of the tag to set.
+---@param tag_value AnyBasic? The value to set the tag to. If `nil`, the tag will be removed.
+function ClientThingV1:set_tag(tag_name, tag_value)
+	rcall("things-tags-v1", "set_tag", self.id, tag_name, tag_value)
+end
+
 return ClientThingV1

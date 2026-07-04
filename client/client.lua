@@ -30,7 +30,7 @@ function lib.register(registration)
 	data.raw["mod-data"]["things-names"].data[registration.name] = registration
 end
 
----Create a client-side representation of a Thing without querying the server. Because no checks are done, the Thing may not exist or may be invalid.
+---Create a client-side representation of a Thing without querying the service. Because no checks are done, the Thing may not exist or may be invalid.
 ---@param id things.Id The id of the Thing to represent.
 ---@return things.client.ThingV1 client_thing A client side object representing the Thing.
 function lib.represent(id) return ClientThing:new(id) end
