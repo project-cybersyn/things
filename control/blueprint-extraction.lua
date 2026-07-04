@@ -119,7 +119,7 @@ function Extraction:normalize_thing_tags()
 		-- We know this is not nil from above.
 		local thing = get_thing_by_id(info.thing_id) --[[@as things.Thing]]
 
-		local tags = self.bp.get_blueprint_entity_tags(index)
+		local tags = self.bp.get_blueprint_entity_tags(index) or {}
 		-- Normalize by clearing all tags including possible residual tags from
 		-- previous blueprint ghosts.
 		for tag in pairs(BLUEPRINT_TAG_SET) do
