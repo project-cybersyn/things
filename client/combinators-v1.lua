@@ -2,9 +2,10 @@
 
 local tlib = require("lib.core.table")
 
+local lib = {}
+
 local TINY_BOX_SIZE = 0.0001
 local ZERO_VECTOR = { 0, 0 }
-
 ---@type data.WireConnectionPoint
 local ZERO_CONNECTION_POINT = {
 	wire = { green = ZERO_VECTOR, red = ZERO_VECTOR },
@@ -29,10 +30,14 @@ local invisible_combinator_prototype = {
 		"hide-alt-info",
 	},
 	collision_mask = { layers = {} },
+	-- XXX: TYPES: FMTK vector bug
+	---@diagnostic disable-next-line: missing-fields
 	collision_box = {
 		{ -TINY_BOX_SIZE, -TINY_BOX_SIZE },
 		{ TINY_BOX_SIZE, TINY_BOX_SIZE },
 	},
+	-- XXX: TYPES: FMTK vector bug
+	---@diagnostic disable-next-line: missing-fields
 	selection_box = { { -0.01, -0.01 }, { 0.01, 0.01 } },
 	minable = nil,
 	selectable_in_game = false,
@@ -104,10 +109,14 @@ local invisible_constant_combinator_prototype = {
 		"hide-alt-info",
 	},
 	collision_mask = { layers = {} },
+	-- XXX: TYPES: FMTK vector bug
+	---@diagnostic disable-next-line: missing-fields
 	collision_box = {
 		{ -TINY_BOX_SIZE, -TINY_BOX_SIZE },
 		{ TINY_BOX_SIZE, TINY_BOX_SIZE },
 	},
+	-- XXX: TYPES: FMTK vector bug
+	---@diagnostic disable-next-line: missing-fields
 	selection_box = { { -0.01, -0.01 }, { 0.01, 0.01 } },
 	minable = nil,
 	selectable_in_game = false,
@@ -140,8 +149,6 @@ local invisible_constant_combinator_prototype = {
 ---@field public type string Type of the combinator registration. This should be the entity type of the combinator.
 ---@field public invisible_variants? things.CombinatorInvisibleVariants If given, specifies the invisible combinator variants associated with this combinator.
 ---@field public private? boolean If true, this indicates to other mods that this combinator is not intended for player use. This is merely a hint and it is up to mod implementations to honor it appropriately.
-
-local lib = {}
 
 ---Register a combinator type during the data phase.
 ---@param registration things.CombinatorRegistration
@@ -181,6 +188,7 @@ end
 ---@param base_name string The base name of the combinator to create an invisible variant for. This should be the name of a registered combinator.
 ---@param is_powered boolean If true, a powered variant will be used when possible.
 ---@param create_args Partial<LuaSurface.create_entity_param> Args to pass to `LuaSurface.create_entity` when creating the invisible combinator. Note that many fields will be overridden to ensure proper behavior.
+---@return string? err If the combinator could not be created, this will be a string describing the error.
 ---@return LuaEntity? invisible_combinator The invisible combinator entity, or nil if it could not be created.
 function lib.create_invisible_combinator(
 	surface,
@@ -189,9 +197,9 @@ function lib.create_invisible_combinator(
 	create_args
 )
 	local reg = control_cc_registry[base_name]
-	if not reg then return nil end
+	if not reg then return "Combinator not registered", nil end
 	local variants = reg.invisible_variants
-	if not variants then return nil end
+	if not variants then return "Combinator has no invisible variants", nil end
 	local variant = variants.unpowered
 	if is_powered and variants.powered then variant = variants.powered end
 
@@ -201,9 +209,39 @@ function lib.create_invisible_combinator(
 	create_args.raise_built = true
 	create_args.create_build_effect_smoke = false
 
-	return surface.create_entity(
-		create_args --[[@as LuaSurface.create_entity_param]]
-	)
+	local e =
+		surface.create_entity(create_args --[[@as LuaSurface.create_entity_param]])
+	if not e then return "Failed to create invisible combinator", nil end
+	return nil, e
 end
+
+---@class things.CombinatorNetwork
+---@field public combinators things.NetworkCombinator[] The combinators in the network.
+---@field public networks ["red"|"green", any...] The wire networks.
+
+---@class things.NetworkCombinator
+---@field public name string Combinator entity name
+---@field public type string Combinator entity type
+---@field public control table Circuit network control behavior
+---@field public in_red? uint Input red wire network
+---@field public in_green? uint Input green wire network
+---@field public out_red? uint Output red wire network
+---@field public out_green? uint Output green wire network
+
+---@class things.NetworkConstantCombinator : things.NetworkCombinator
+---@field public type "constant-combinator"
+---@field public control LogisticSections
+
+---@class things.NetworkArithmeticCombinator : things.NetworkCombinator
+---@field public type "arithmetic-combinator"
+---@field public control ArithmeticCombinatorParameters
+
+---@class things.NetworkDeciderCombinator : things.NetworkCombinator
+---@field public type "decider-combinator"
+---@field public control DeciderCombinatorParameters
+
+---@class things.NetworkSelectorCombinator : things.NetworkCombinator
+---@field public type "selector-combinator"
+---@field public control SelectorCombinatorParameters
 
 return lib
