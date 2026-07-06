@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.0
-Date: ????
+Date: 2026-07-06
   Changes:
     - Removed deprecated `ThingRegistration.custom_blueprint_geometry` field.
     - Removed `ThingRegistration.no_garbage_collection` field. It is no longer possible to opt out of garbage collection.
