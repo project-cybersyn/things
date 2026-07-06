@@ -6,10 +6,12 @@ Date: ????
     - Removed `ThingRegistration.no_garbage_collection` field. It is no longer possible to opt out of garbage collection.
     - Added Things Client infrastructure.
     - Moved to EmmyLuaLS typings. Devs wanting type checking in IDE should add `0-things/client` directory to their `library` config path.
-    - Added `client/combinators-v1` API. Current functionality is limited to registering invisible variants of combinators.
+    - Added `client/combinators-v1` API.
     - Things is now a Cooperative Blueprinting Host. See https://github.com/project-cybersyn/cooperative-blueprinting/blob/main/cooperative-blueprinting.md for details.
   Bugfixes:
     - Fixed a blueprint rail snapping issue.
+    - Blueprint snapping now correctly forces `space-platform-hub` to 0,0 in worldspace.
+    - Fixed blueprint snapping issues with `cargo-bay` and `cargo-landing-pad`.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
 Date: 2026-06-30

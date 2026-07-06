@@ -1,5 +1,4 @@
 local tlib = require("lib.core.table")
-local custom_geometry_lib = require("lib.core.blueprint.custom-geometry")
 
 ---@type {[string]: things.ThingRegistration}
 local thing_names = {}

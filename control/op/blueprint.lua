@@ -2,8 +2,7 @@ local op_lib = require("control.op.op")
 local class = require("lib.core.class").class
 local oclass_lib = require("lib.core.orientation.orientation-class")
 local orientation_lib = require("lib.core.orientation.orientation")
-local bp_bbox = require("lib.core.blueprint.bbox")
-local bp_pos = require("lib.core.blueprint.pos")
+local bp_geometry = require("lib.core.blueprint.geometry")
 local ws_lib = require("lib.core.world-state")
 local tlib = require("lib.core.table")
 local constants = require("control.constants")
@@ -16,6 +15,8 @@ local ParentOp = require("control.op.parent").ParentOp
 local registration_lib = require("control.registration")
 local frame_lib = require("control.frame")
 
+local pairs = pairs
+local tonumber = tonumber
 local Op = op_lib.Op
 local OverlapOp = overlap_op_lib.OverlapOp
 local make_world_key = ws_lib.make_world_key
@@ -136,20 +137,22 @@ function BlueprintOp:init_catalogue_positions(
 	local snap = bp.blueprint_snap_to_grid
 	local snap_offset = bp.blueprint_position_relative_to_grid
 	local snap_absolute = bp.blueprint_absolute_snapping
-	local bbox, snap_index = bp_bbox.get_blueprint_bbox(entities)
-	local entity_positions, world_bbox = bp_pos.get_blueprint_world_positions(
-		entities,
-		nil,
-		bbox,
-		snap_index,
-		orientation.position,
+	local geom = bp_geometry.BlueprintGeometry:new(entities)
+	if mod_settings.render_blueprint_bboxes then
+		geom.debug_render_surface = surface
+	end
+	geom:set_orientation(
 		orientation.direction,
 		orientation.flip_horizontal,
-		orientation.flip_vertical,
-		snap_absolute and snap or nil,
-		snap_offset,
-		mod_settings.render_blueprint_bboxes and surface or nil
+		orientation.flip_vertical
 	)
+	if snap_absolute then geom:set_snapping(snap, snap_offset) end
+	geom:compute_bbox()
+	geom:place(orientation.position)
+	geom:place_entities()
+	local world_bbox = geom.placement_bbox
+	local entity_positions = geom:get_world_positions()
+
 	self.bbox = world_bbox
 
 	-- Generate world key index
@@ -161,6 +164,7 @@ function BlueprintOp:init_catalogue_positions(
 				"BlueprintOp:init_catalogue_positions: bplib failed to compute position for entity",
 				info.bp_entity
 			)
+			return
 		end
 		local bp_entity_name = info.bp_entity.name --[[@as string]]
 		local key = make_world_key(pos, surface.index, bp_entity_name)
@@ -209,6 +213,8 @@ function BlueprintOp:init_catalogue_orientations()
 	end
 end
 
+local STATUS_MFD = defines.entity_status.marked_for_deconstruction
+
 ---Catalogue overlapped entities by this BP. We do this during the build
 ---phase to make sure the `pre_build` information is as fresh as possible.
 ---@param frame things.Frame The current frame.
@@ -223,7 +229,7 @@ function BlueprintOp:init_catalogue_overlaps(frame)
 				position = pos,
 			}),
 			function(e)
-				return e.status ~= defines.entity_status.marked_for_deconstruction
+				return e.status ~= STATUS_MFD
 					and (e.name == bp_entity_name or (e.type == "entity-ghost" and e.ghost_name == bp_entity_name))
 					and pos_close(e.position, pos)
 			end
@@ -288,6 +294,7 @@ function BlueprintOp:catalogue_graph_edges(frame)
 							from_info,
 							graph_name
 						)
+						return
 					end
 					n_edges = n_edges + 1
 					---@cast to_local_id integer
