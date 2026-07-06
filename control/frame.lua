@@ -264,8 +264,12 @@ function Frame:tag_view_for_player(
 	local player_index = player.index
 	local encountered_tagged_item = false
 	local stored_new_opset = false
+	local n_fast_paths = 0
+	local n_slow_paths = 0
+	local n_no_items = 0
+	local n_items = view.get_item_count()
 
-	for i = 1, view.get_item_count() do
+	for i = 1, n_items do
 		-- Early out: try to avoid reading the `actions` table if we can.
 		local tagged, opset_id, inverse_opset_id =
 			ur_util.fast_get_undo_opset_ids(view, i)
@@ -273,19 +277,7 @@ function Frame:tag_view_for_player(
 			encountered_tagged_item = true
 			if opset_id then seen_ids[opset_id] = true end
 			if inverse_opset_id then seen_ids[inverse_opset_id] = true end
-			if opset_id or inverse_opset_id then
-				strace.trace(
-					self.debug_string,
-					debug_stackname,
-					"item",
-					i,
-					"for player",
-					player_index,
-					"is fast-tagged with opset IDs",
-					opset_id,
-					inverse_opset_id
-				)
-			end
+			if opset_id or inverse_opset_id then n_fast_paths = n_fast_paths + 1 end
 			goto continue_item
 		end
 
@@ -305,6 +297,7 @@ function Frame:tag_view_for_player(
 			"actions"
 		)
 		if n_actions == 0 then
+			n_no_items = n_no_items + 1
 			strace.debug(
 				self.debug_string,
 				"Skipping",
@@ -334,6 +327,7 @@ function Frame:tag_view_for_player(
 		if opset_id then seen_ids[opset_id] = true end
 		if inverse_opset_id then seen_ids[inverse_opset_id] = true end
 		if tagged then
+			n_slow_paths = n_slow_paths + 1
 			encountered_tagged_item = true
 			goto continue_item
 		end
@@ -386,6 +380,22 @@ function Frame:tag_view_for_player(
 		end
 		::continue_item::
 	end
+
+	strace.debug(
+		self.debug_string,
+		"Completed",
+		debug_stackname,
+		"stack tagging for player",
+		player_index,
+		"n_items=",
+		n_items,
+		"n_fast_paths=",
+		n_fast_paths,
+		"n_slow_paths=",
+		n_slow_paths,
+		"n_no_items=",
+		n_no_items
+	)
 
 	if stored_new_opset then events.raise("things.stored_opsets_changed") end
 end
