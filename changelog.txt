@@ -2,6 +2,8 @@
 Version: 0.4.3
 Date: ????
   Changes:
+    - Parent-child groups now respond to `script_raised_teleported` events. This should enable automatic support for mods like Picker Dollies. (Experimental)
+    - Added `movable` option to `ThingRegistration` to control whether Things can be moved by external forces. (Experimental)
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.2
 Date: 2026-07-06

@@ -1,4 +1,5 @@
 local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 
 ---@type {[string]: things.ThingRegistration}
 local thing_names = {}
@@ -67,5 +68,18 @@ function lib.should_intercept_build(name)
 	local reg = lib.get_thing_registration(name)
 	if reg and reg.intercept_construction then return reg end
 end
+
+local function picker_dollies_blacklist()
+	if not remote.interfaces["PickerDollies"] then return end
+	-- Things that are not movable should be blacklisted from the picker dollies.
+	for _, reg in pairs(thing_names) do
+		if reg.movable == "never" then
+			remote.call("PickerDollies", "add_blacklist_name", reg.name)
+		end
+	end
+end
+
+events.bind("on_init", picker_dollies_blacklist)
+events.bind("on_load", picker_dollies_blacklist)
 
 return lib

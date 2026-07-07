@@ -485,6 +485,16 @@ function Thing:teleport(next_pos)
 	end
 end
 
+---@param prev_pos MapPosition
+function Thing:was_teleported(prev_pos)
+	local entity = self:get_entity()
+	if not entity then return false end
+	local pos = entity.position
+	if pos_lib.pos_close(pos, prev_pos) then return false end
+	self:raise_event("things.thing_position_changed", self, pos, prev_pos)
+	return true
+end
+
 --------------------------------------------------------------------------------
 -- DATA
 --------------------------------------------------------------------------------
@@ -583,6 +593,16 @@ function Thing:get_child_id(index)
 	else
 		return children[index]
 	end
+end
+
+---Find the parent-most Thing in the parent-child-tree that this Thing is part of. If this Thing has no parent, returns itself.
+---@return things.Thing root_thing The root-most Thing in the parent-child-tree that this Thing is part of.
+function Thing:get_root()
+	local parent_relationship = self.parent
+	if not parent_relationship then return self end
+	local parent_thing = storage.things[parent_relationship[1]]
+	if not parent_thing then return self end
+	return parent_thing:get_root()
 end
 
 ---Remove this Thing's parent, if any.

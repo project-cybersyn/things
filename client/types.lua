@@ -37,6 +37,7 @@ local lib = {}
 ---@field public no_void_children_on_void? boolean If `true`, when a Thing of this type is voided, its children will NOT be automatically voided. (default: false)
 ---@field public children? {[string]: things.ThingRegistration.Child} Specifications for automatic child creation. Note that child keys will be stringified when serialized, so the use of numeric keys can cause problems if not handled carefully.
 ---@field public allow_in_cursor? "never" Controls the behavior of entity-pipette and cursor stack for this Thing. If set to "never", Things of this type cannot be picked up into the player's cursor. (default: nil, meaning Things of this type use normal Factorio behavior.)
+---@field public movable? "never"|"same-surface" Controls the response of this Thing to external movement. If set to "never", Things of this type cannot be moved by any means. If set to "same-surface", Things of this type can be moved by external forces, but only if the destination is on the same surface. (If not set, defaults to "same-surface".)
 
 ---@class (exact) things.ThingRegistration.Child
 ---@field public create? LuaSurface.create_entity_param
