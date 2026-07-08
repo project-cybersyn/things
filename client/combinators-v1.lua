@@ -2,6 +2,7 @@
 
 local tlib = require("lib.core.table")
 
+---@class things.client.CombinatorsV1Lib
 local lib = {}
 
 local TINY_BOX_SIZE = 0.0001

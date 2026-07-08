@@ -1,9 +1,15 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.4.3
+Version: 0.5.0
 Date: ????
   Changes:
     - Parent-child groups now update their relative positions in response to `script_raised_teleported` events. This should enable automatic support for mods like Picker Dollies. (Experimental)
     - Added `movable` option to `ThingRegistration` to control whether Things can be moved by external forces. (Experimental)
+    - Added debug setting to force blueprints to be rewritten on extraction.
+    - Removed `no_destroy_children_on_destroy` and `no_void_children_on_void` options from `ThingRegistration`.
+    - The type of the `on_children_changed` event has changed significantly. (Breaking)
+    - The type of the `on_children_normalized` event has changed significantly. (Breaking)
+    - The type of the `on_immediate_voided` event has changed significantly. (Breaking)
+    - The types of most events that provided `things.ThingSummary` have been changed to provide `things.ThingShortSummary` instead. (Potentially breaking)
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.2
 Date: 2026-07-06

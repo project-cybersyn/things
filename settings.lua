@@ -24,4 +24,11 @@ data:extend({
 		setting_type = "runtime-global",
 		default_value = false,
 	},
+	{
+		type = "bool-setting",
+		name = "things-setting-debug-always-splice",
+		order = "ad",
+		setting_type = "runtime-global",
+		default_value = false,
+	},
 })

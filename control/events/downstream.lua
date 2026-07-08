@@ -4,6 +4,8 @@ local registry = require("control.registration")
 local tlib = require("lib.core.table")
 local strace = require("lib.core.strace")
 
+local type = type
+local pairs = pairs
 local get_thing_registration = registry.get_thing_registration
 
 local function get_custom_event_name(thing, subevent)
@@ -46,7 +48,7 @@ events.bind(
 		if cevp then
 			---@type things.EventData.on_status
 			local ev = {
-				thing = thing:summarize(),
+				thing = thing:summarize_short(),
 				new_status = thing.state,
 				old_status = old_status,
 			}
@@ -62,8 +64,14 @@ events.bind(
 		-- Apply child orientations
 		if thing.children then
 			for _, child_id in pairs(thing.children) do
-				local child_thing = get_thing_by_id(child_id)
-				if child_thing then child_thing:apply_adjusted_pos_and_orientation() end
+				if type(child_id) == "number" then
+					local child_thing = get_thing_by_id(child_id)
+					if child_thing then
+						child_thing:apply_adjusted_pos_and_orientation()
+					end
+				else
+					-- TODO: unthing child
+				end
 			end
 		end
 
@@ -72,7 +80,7 @@ events.bind(
 		if cevp then
 			---@type things.EventData.on_orientation_changed
 			local ev = {
-				thing = thing:summarize(),
+				thing = thing:summarize_short(),
 				new_orientation = new_orientation,
 				old_orientation = old_orientation,
 			}
@@ -89,7 +97,7 @@ events.bind(
 		if cevp then
 			---@type things.EventData.on_position_changed
 			local ev = {
-				thing = thing:summarize(),
+				thing = thing:summarize_short(),
 				new_position = new_position,
 				old_position = old_position,
 			}
@@ -98,8 +106,14 @@ events.bind(
 		-- Apply child positions
 		if thing.children then
 			for _, child_id in pairs(thing.children) do
-				local child_thing = get_thing_by_id(child_id)
-				if child_thing then child_thing:apply_adjusted_pos_and_orientation() end
+				if type(child_id) == "number" then
+					local child_thing = get_thing_by_id(child_id)
+					if child_thing then
+						child_thing:apply_adjusted_pos_and_orientation()
+					end
+				else
+					-- TODO: unthing child
+				end
 			end
 		end
 	end
@@ -108,12 +122,15 @@ events.bind(
 events.bind(
 	"things.thing_tags_changed",
 	---@param thing things.Thing
+	---@param new_tags Tags
+	---@param old_tags Tags
+	---@param cause "api"|"engine"
 	function(thing, new_tags, old_tags, cause)
 		local cevp = get_custom_event_name(thing, "on_tags_changed")
 		if cevp then
 			---@type things.EventData.on_tags_changed
 			local ev = {
-				thing = thing:summarize(),
+				thing = thing:summarize_short(),
 				new_tags = new_tags,
 				old_tags = old_tags,
 				cause = cause,
@@ -128,14 +145,15 @@ events.bind(
 	---@param thing things.Thing
 	---@param new_parent things.Thing|nil
 	function(thing, new_parent)
+		strace.trace("Reorienting Thing ID", thing.id, "due to parent change.")
 		thing:apply_adjusted_pos_and_orientation()
 
 		local cevp = get_custom_event_name(thing, "on_parent_changed")
 		if cevp then
 			---@type things.EventData.on_parent_changed
 			local ev = {
-				thing = thing:summarize(),
-				new_parent = new_parent and new_parent:summarize(),
+				thing = thing:summarize_short(),
+				new_parent = new_parent and new_parent:summarize_short(),
 			}
 			script.raise_event(cevp, ev)
 		end
@@ -145,23 +163,32 @@ events.bind(
 events.bind(
 	"things.thing_children_changed",
 	---@param thing things.Thing
-	---@param added_child things.Thing|nil
-	---@param removed_children things.Thing[]|nil
+	---@param added_child things.Thing | LuaEntity | nil
+	---@param removed_children (things.Thing|LuaEntity)[] | nil
 	function(thing, added_child, removed_children)
 		local cevp = get_custom_event_name(thing, "on_children_changed")
 		if cevp then
+			local added
+			if type(added_child) == "table" then
+				added = added_child.id
+			elseif added_child then
+				added = added_child
+			end
+
 			---@type things.EventData.on_children_changed
 			local ev = {
-				thing = thing:summarize(),
-				added = added_child and added_child:summarize(),
+				thing = thing:summarize_short(),
+				added = added,
 				removed = nil,
 			}
 			if removed_children then
-				ev.removed = tlib.map(
-					removed_children,
-					---@param rc things.Thing
-					function(rc) return rc:summarize() end
-				)
+				ev.removed = tlib.map(removed_children, function(rc)
+					if type(rc) == "table" then
+						return rc.id
+					else
+						return rc --[[@as LuaEntity]]
+					end
+				end)
 			end
 			script.raise_event(cevp, ev)
 		end
@@ -170,13 +197,16 @@ events.bind(
 
 events.bind(
 	"things.thing_parent_status",
+	---@param thing things.Thing
+	---@param parent things.Thing
+	---@param old_parent_status things.Status
 	function(thing, parent, old_parent_status)
 		local cevp = get_custom_event_name(thing, "on_parent_status")
 		if cevp then
 			---@type things.EventData.on_parent_status
 			local ev = {
-				thing = thing:summarize(),
-				parent = parent:summarize(),
+				thing = thing:summarize_short(),
+				parent = parent:summarize_short(),
 				old_parent_status = old_parent_status,
 			}
 			script.raise_event(cevp, ev)
@@ -186,13 +216,17 @@ events.bind(
 
 events.bind(
 	"things.thing_child_status",
+	---@param thing things.Thing
+	---@param child things.Thing
+	---@param child_index string
+	---@param old_child_status things.Status
 	function(thing, child, child_index, old_child_status)
 		local cevp = get_custom_event_name(thing, "on_child_status")
 		if cevp then
 			---@type things.EventData.on_child_status
 			local ev = {
-				thing = thing:summarize(),
-				child = child:summarize(),
+				thing = thing:summarize_short(),
+				child = child:summarize_short(),
 				child_index = child_index,
 				old_child_status = old_child_status,
 			}
@@ -208,7 +242,7 @@ events.bind(
 		local cevp = get_custom_event_name(thing, "on_immediate_voided")
 		if cevp then
 			---@type things.EventData.on_immediate_voided
-			local ev = thing:summarize()
+			local ev = { thing = thing:summarize_short() }
 			script.raise_event(cevp, ev)
 		end
 	end
@@ -228,8 +262,8 @@ events.bind(
 				change = "create",
 				graph_name = graph.name,
 				edge = edge,
-				from = from:summarize(),
-				to = to:summarize(),
+				from = from:summarize_short(),
+				to = to:summarize_short(),
 			}
 			script.raise_event(cevp, ev)
 		end
@@ -250,8 +284,8 @@ events.bind(
 				change = "delete",
 				graph_name = graph.name,
 				edge = edge,
-				from = from:summarize(),
-				to = to:summarize(),
+				from = from:summarize_short(),
+				to = to:summarize_short(),
 			}
 			script.raise_event(cevp, ev)
 		end
@@ -272,8 +306,8 @@ events.bind(
 				change = "set-data",
 				graph_name = graph.name,
 				edge = edge,
-				from = from:summarize(),
-				to = to:summarize(),
+				from = from:summarize_short(),
+				to = to:summarize_short(),
 			}
 			script.raise_event(cevp, ev)
 		end
@@ -287,8 +321,8 @@ events.bind(
 		if cevp then
 			---@type things.EventData.on_edge_status
 			local ev = {
-				thing = thing:summarize(),
-				changed_thing = changed_thing:summarize(),
+				thing = thing:summarize_short(),
+				changed_thing = changed_thing:summarize_short(),
 				graph_name = graph.name,
 				edge = edge,
 				old_status = old_status,
@@ -305,8 +339,9 @@ events.bind(
 	function(thing)
 		local cevp = get_custom_event_name(thing, "on_children_normalized")
 		if cevp then
+			local short_summary = thing:summarize_short()
 			---@type things.EventData.on_children_normalized
-			local ev = thing:summarize()
+			local ev = { thing = short_summary, entity = thing.entity }
 			script.raise_event(cevp, ev)
 		end
 	end

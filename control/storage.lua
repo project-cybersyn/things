@@ -7,6 +7,7 @@ local events = require("lib.core.event")
 ---@field public graphs {[string]: things.Graph} Graphs by graph name.
 ---@field public debug_overlays {[int64]: things.DebugOverlay} Debug overlays by thing id.
 ---@field public stored_opsets {[int64]: things.OpSet} Stored operation sets on the undo stack.
+---@field public unthing_children {[uint64]: things.ParentRelationshipInfo} Unthing children by unit_number of reified entity, if it exists.
 storage = {}
 
 local function init_storage_key(key, value)
@@ -20,6 +21,7 @@ function _G.init_storage()
 	init_storage_key("graphs")
 	init_storage_key("debug_overlays")
 	init_storage_key("stored_opsets")
+	init_storage_key("unthing_children")
 end
 
 -- TODO: eliminate for release

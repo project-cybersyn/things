@@ -33,8 +33,6 @@ local lib = {}
 ---@field public migrate_tags_callback? Core.RemoteCallbackSpec A remote callback to invoke when a Thing is built with unrecognized tags. This allows mods using non-Thing custom blueprint data to migrate to Things. The callback will be invoked as `callback(unrecognized_tags: Tags) -> Tags`, and should return a set of Tags to be applied to the Thing.
 ---@field public initial_tags_callback? Core.RemoteCallbackSpec A remote callback to invoke when a Thing of this type is created through intercepting a construction event. This allows mods to set initial tags on Things of this type. The callback will be invoked as `callback(entity: LuaEntity) -> tags: Tags|nil`, and should return a set of Tags to be applied to the new Thing.
 ---@field public custom_events? {[things.EventName]: string} Mapping of Things event names to `CustomEventPrototype` names to raise for this Thing type. If not provided, no custom events will be raised for this Thing type.
----@field public no_destroy_children_on_destroy? boolean If `true`, when a Thing of this type is destroyed, its children will NOT be automatically destroyed. (default: false)
----@field public no_void_children_on_void? boolean If `true`, when a Thing of this type is voided, its children will NOT be automatically voided. (default: false)
 ---@field public children? {[string]: things.ThingRegistration.Child} Specifications for automatic child creation. Note that child keys will be stringified when serialized, so the use of numeric keys can cause problems if not handled carefully.
 ---@field public allow_in_cursor? "never" Controls the behavior of entity-pipette and cursor stack for this Thing. If set to "never", Things of this type cannot be picked up into the player's cursor. (default: nil, meaning Things of this type use normal Factorio behavior.)
 ---@field public movable? "never"|"same-surface" Controls the response of this Thing to external movement. If set to "never", Things of this type cannot be moved by any means. If set to "same-surface", Things of this type can be moved by external forces, but only if the destination is on the same surface. (If not set, defaults to "same-surface".)
@@ -73,24 +71,20 @@ local lib = {}
 ---A summary of a Thing's children, indexed by child key.
 ---@alias things.ThingChildrenSummary {[string]: things.ThingSummary}
 
----Serializable summary information about a Thing.
----@class (exact) things.ThingSummary
----@field public id things.Id The id of the Thing.
----@field public name string The name of the Thing's registration.
----@field public entity LuaEntity? The current entity of the Thing, if it has one. This entity is pre-checked for validity at the time the summary is generated.
----@field public status things.Status The current status of the Thing.
----@field public virtual_orientation Core.Orientation? The current virtual orientation of the Thing, if it has one. This will always be nil for Thing types that do not virtualize orientation.
----@field public tags Tags? The current tags of the Thing.
----@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
----@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
----@field public undo_refcount uint The number of undo operations that reference this Thing.
-
+---Summary information about a Thing.
 ---@class (exact) things.ThingShortSummary
 ---@field public id things.Id The id of the Thing.
 ---@field public name string The name of the Thing's registration.
 ---@field public entity LuaEntity? The current entity of the Thing, if it has one. This entity is pre-checked for validity at the time the summary is generated.
 ---@field public status things.Status The current status of the Thing.
 ---@field public virtual_orientation Core.Orientation? The current virtual orientation of the Thing, if it has one. This will always be nil for Thing types that do not virtualize orientation.
+
+---Longer summary information about a Thing.
+---@class (exact) things.ThingSummary : things.ThingShortSummary
+---@field public tags Tags? The current tags of the Thing.
+---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
+---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
+---@field public undo_refcount uint The number of undo operations that reference this Thing.
 
 ---Options controlling how a Thing is created via `create_thing`.
 ---@class (exact) things.CreateThingParams
@@ -125,11 +119,11 @@ local lib = {}
 ---@class things.EventData.on_initialized: things.ThingSummary
 ---@field public name uint The Factorio event ID of the custom event being raised.
 ---@field public thing_name string The name of the Thing's registration. (Note: this is the same as the `name` field in the summary, but renamed to avoid being overwritten by Factorio when raising the event.)
----@field from_blueprint boolean? If true, this Thing was initialized from a blueprint.
+---@field public from_blueprint boolean? If true, this Thing was initialized from a blueprint.
 
 ---Event fired when a Thing's lifecycle status changes.
 ---@class (exact) things.EventData.on_status
----@field public thing things.ThingSummary Summary of the Thing whose status changed.
+---@field public thing things.ThingShortSummary Summary of the Thing whose status changed.
 ---@field public old_status things.Status The previous status of the Thing.
 ---@field public new_status things.Status The new status of the Thing.
 
@@ -137,45 +131,45 @@ local lib = {}
 ---reasons, Things does not deep compare tags, so this event may be raised
 ---in certain cases even when tags haven't meaningfully changed.
 ---@class (exact) things.EventData.on_tags_changed
----@field public thing things.ThingSummary Summary of the Thing whose tags changed.
+---@field public thing things.ThingShortSummary Summary of the Thing whose tags changed.
 ---@field public new_tags Tags The new tags of the Thing.
 ---@field public old_tags Tags The previous tags of the Thing.
 ---@field public cause "api"|"engine" Source of the tag change event.
 
 ---Event raised when the orientation of a Thing changes.
 ---@class (exact) things.EventData.on_orientation_changed
----@field public thing things.ThingSummary Summary of the Thing whose orientation changed.
+---@field public thing things.ThingShortSummary Summary of the Thing whose orientation changed.
 ---@field public old_orientation? Core.Orientation The previous orientation of the Thing.
 ---@field public new_orientation Core.Orientation The new orientation of the Thing.
 
 ---Event raised when a Thing's position changes.
 ---@class (exact) things.EventData.on_position_changed
----@field public thing things.ThingSummary Summary of the Thing whose position changed.
+---@field public thing things.ThingShortSummary Summary of the Thing whose position changed.
 ---@field public old_position? MapPosition The previous position of the Thing.
 ---@field public new_position MapPosition The new position of the Thing.
 
 ---Event raised when the composition of a Thing's children changes.
 ---@class (exact) things.EventData.on_children_changed
----@field public thing things.ThingSummary Summary of the Thing whose children changed.
----@field public added things.ThingSummary|nil If a child was added, its summary.
----@field public removed things.ThingSummary[]|nil Summary of the removed children.
+---@field public thing things.ThingShortSummary Summary of the Thing whose children changed.
+---@field public added things.Id | LuaEntity | nil If a child was added, its summary.
+---@field public removed (things.Id|LuaEntity)[] | nil List of the removed children.
 
 ---Event raised when a Thing's parent changes.
 ---@class (exact)things.EventData.on_parent_changed
----@field public thing things.ThingSummary Summary of the Thing whose parent changed.
----@field public new_parent things.ThingSummary|nil Summary of the new parent, if any.
+---@field public thing things.ThingShortSummary Summary of the Thing whose parent changed.
+---@field public new_parent things.ThingShortSummary|nil Summary of the new parent, if any.
 
 ---Event raised when a Thing's child changes status.
 ---@class (exact) things.EventData.on_child_status
----@field public thing things.ThingSummary Summary of the Thing whose children's status changed.
----@field public child things.ThingSummary Summary of the child whose status changed.
----@field public child_index string|int The key under which the child is registered in the parent.
+---@field public thing things.ThingShortSummary Summary of the Thing whose children's status changed.
+---@field public child things.ThingShortSummary If the child is a Thing, its summary. If the child is not a Thing, this will be absent.
+---@field public child_index string The key under which the child is registered in the parent.
 ---@field public old_child_status things.Status The previous status of the child.
 
 ---Event raised when a Thing's parent changes status.
 ---@class (exact) things.EventData.on_parent_status
----@field public thing things.ThingSummary Summary of the Thing whose parent's status changed.
----@field public parent things.ThingSummary Summary of the parent whose status changed.
+---@field public thing things.ThingShortSummary Summary of the Thing whose parent's status changed.
+---@field public parent things.ThingShortSummary Summary of the parent whose status changed.
 ---@field public old_parent_status things.Status The previous status of the parent.
 
 ---Notifies a graph when its edge set changes.
@@ -183,13 +177,13 @@ local lib = {}
 ---@field public change "create"|"delete"|"set-data" The type of change that occurred.
 ---@field public graph_name string The name of the graph whose edges changed.
 ---@field public edge things.GraphEdge Edge that was changed.
----@field public from things.ThingSummary Summary of the Thing at the from end of the edge.
----@field public to things.ThingSummary Summary of the Thing at the to end of the edge
+---@field public from things.ThingShortSummary Summary of the Thing at the from end of the edge.
+---@field public to things.ThingShortSummary Summary of the Thing at the to end of the edge
 
 ---Notifies a Thing when another thing connected it by a graph edge changes status.
 ---@class (exact) things.EventData.on_edge_status
----@field public thing things.ThingSummary Thing opposite the changed thing along the given edge.
----@field public changed_thing things.ThingSummary Thing whose status changed.
+---@field public thing things.ThingShortSummary Thing opposite the changed thing along the given edge.
+---@field public changed_thing things.ThingShortSummary Thing whose status changed.
 ---@field public graph_name string The name of the graph where the status changed.
 ---@field public edge things.GraphEdge Edge whose status changed.
 ---@field public old_status things.Status The previous status of the opposite Thing.
@@ -198,13 +192,16 @@ local lib = {}
 ---Event that takes place after automatically generated children are normalized.
 ---This means that all automatic children have been created, devoided, or revived
 ---as necessary to match the current state of the parent Thing.
----@alias things.EventData.on_children_normalized things.ThingSummary
+---@class (exact) things.EventData.on_children_normalized
+---@field public thing things.ThingShortSummary Summary of the Thing whose children were normalized.
+---@field public entity LuaEntity? The current entity of the Thing, equivalent to `thing.entity`.
 
 ---Event raised inline when a Thing is voided. This event occurs mid-frame and
 ---you should take care to avoid causing event cancer. The only valid use
 ---for this event is to collect data about the Thing before its entity is
 ---destroyed.
----@alias things.EventData.on_immediate_voided things.ThingSummary
+---@class (exact) things.EventData.on_immediate_voided
+---@field public thing things.ThingShortSummary Summary of the Thing that was voided.
 
 --------------------------------------------------------------------------------
 -- EXPORTED LIBRARY TYPES

@@ -12,6 +12,9 @@ local strace = require("lib.core.strace")
 local pos_lib = require("lib.core.math.pos")
 local graph_lib = require("control.graph")
 
+local pairs = pairs
+local next = next
+local type = type
 local pos_get = pos_lib.pos_get
 local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
 local get_thing_registration = registration_lib.get_thing_registration
@@ -22,6 +25,8 @@ local NO_RAISE_REVIVE = { raise_revive = false }
 local EMPTY = tlib.EMPTY_STRICT
 
 local lib = {}
+
+---@alias things.UnthingChild [int64]
 
 ---A `Thing` is the extended lifecycle of a collection of game entities that
 ---actually represent the same ultimate thing.
@@ -39,7 +44,7 @@ local lib = {}
 ---@field public undo_refcount uint Number of undo records currently referencing this Thing.
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity when the Thing is voided or destroyed.
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
----@field public children? {[int|string]: int64} Map from child indices (which may be numbers or strings) to child Thing ids.
+---@field public children? {[string]: int64 | things.UnthingChild} Map from child indices to child Thing ids.
 ---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
 ---@field public ro_keys? {[string]: LuaRenderObject} List of named attached render objects.
 ---@field public ro_list? LuaRenderObject[] List of anonymous attached render objects.
@@ -224,10 +229,14 @@ function Thing:destroy(skip_destroy, skip_deparent)
 	end
 	if self.parent and not skip_deparent then self:remove_parent() end
 	-- Destroy children
-	if self.children and not reg.no_destroy_children_on_destroy then
+	if self.children then
 		for _, child_id in pairs(self.children) do
-			local child_thing = storage.things[child_id]
-			if child_thing then child_thing:destroy(true) end
+			if type(child_id) == "number" then
+				local child_thing = storage.things[child_id]
+				if child_thing then child_thing:destroy(true) end
+			else
+				-- TODO: unthing child
+			end
 		end
 		self.children = nil
 	end
@@ -267,10 +276,14 @@ function Thing:void(skip_destroy, skip_destroy_children)
 	strace.debug("Thing:void: voiding Thing ID", self.id)
 	local reg = self:get_registration() --[[@as things.ThingRegistration]]
 	-- Void children
-	if self.children and not reg.no_void_children_on_void then
+	if self.children then
 		for _, child_id in pairs(self.children) do
-			local child_thing = storage.things[child_id]
-			if child_thing then child_thing:void(skip_destroy_children) end
+			if type(child_id) == "number" then
+				local child_thing = storage.things[child_id]
+				if child_thing then child_thing:void(skip_destroy_children) end
+			else
+				-- TODO: unthing child
+			end
 		end
 	end
 	-- Destroy transient children
@@ -561,6 +574,7 @@ function Thing:add_child(
 	relative_orientation,
 	suppress_event
 )
+	-- TODO: unthing children
 	if child.parent then return false end
 	if self.children and index and self.children[index] then return false end
 	if not self.children then self.children = {} end
@@ -582,17 +596,13 @@ function Thing:add_child(
 	return true
 end
 
----Determine if a child is at the given index.
----@param index string?
----@return int64? child_id The ID of the child Thing at the given index, or `nil` if no child is present.
-function Thing:get_child_id(index)
-	if not index then return nil end
+---@param index string The index of the child.
+---@return boolean has_child `true` if a child Thing is present at the given index, `false` otherwise.
+function Thing:has_child(index)
+	if not index then return false end
 	local children = self.children
-	if not children then
-		return nil
-	else
-		return children[index]
-	end
+	if not children then return false end
+	return children[index] ~= nil
 end
 
 ---Find the parent-most Thing in the parent-child-tree that this Thing is part of. If this Thing has no parent, returns itself.
@@ -635,6 +645,26 @@ function Thing:remove_parent()
 	)
 	self:raise_event("things.thing_parent_changed", self)
 	return true
+end
+
+---@param index string The index of the child to remove.
+---@return boolean removed `true` if a child was removed, `false` if there was no child at that index.
+function Thing:remove_child(index)
+	local children = self.children
+	if not children then return false end
+	local child_id = children[index]
+	if not child_id then return false end
+	if type(child_id) == "number" then
+		children[index] = nil
+		local child_thing = storage.things[child_id]
+		if not child_thing then return true end
+		local parent_relationship = child_thing.parent
+		if (not parent_relationship) or (parent_relationship[1] ~= self.id) then
+			return true
+		end
+	else
+		-- TODO: unthing child
+	end
 end
 
 ---@param index int|string The index of the transient child.
@@ -778,14 +808,16 @@ function Thing:on_changed_state(new_state, old_state)
 	-- Notify children first.
 	if self.children then
 		for _, child in pairs(self.children) do
-			local child_thing = storage.things[child]
-			if child_thing then
-				raise(
-					"things.thing_parent_status",
-					child_thing,
-					self,
-					old_state --[[@as string]]
-				)
+			if type(child) == "number" then
+				local child_thing = storage.things[child]
+				if child_thing then
+					raise(
+						"things.thing_parent_status",
+						child_thing,
+						self,
+						old_state --[[@as string]]
+					)
+				end
 			end
 		end
 	end

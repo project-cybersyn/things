@@ -126,8 +126,7 @@ function ParentOp:apply(frame)
 	end
 
 	-- Pre-existing children
-	local preexisting_child_id = parent_thing:get_child_id(self.child_index)
-	if preexisting_child_id then
+	if parent_thing:has_child(self.child_index) then
 		strace.warn(
 			frame.debug_string,
 			"ParentOp.apply: parent Thing already has child at index",

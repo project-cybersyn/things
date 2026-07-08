@@ -4,6 +4,7 @@ local events = require("lib.core.event")
 ---@field public debug boolean Enable debug mode.
 ---@field public render_blueprint_bboxes boolean Whether to render blueprint entity bounding boxes for debugging.
 ---@field public calc_unthing_blueprints boolean Whether to calculate geometry for blueprints with no Things for debugging.
+---@field public always_splice boolean Whether to always splice blueprints when Things is the Cooperative Blueprinting Host.
 
 ---@type things.ModSettings
 ---@diagnostic disable-next-line: missing-fields
@@ -16,6 +17,8 @@ local function update_mod_settings()
 		settings.global["things-setting-debug-render-blueprint-bboxes"].value --[[@as boolean]]
 	l_mod_settings.calc_unthing_blueprints =
 		settings.global["things-setting-debug-calc-unthing-blueprints"].value --[[@as boolean]]
+	l_mod_settings.always_splice =
+		settings.global["things-setting-debug-always-splice"].value --[[@as boolean]]
 end
 
 update_mod_settings()
