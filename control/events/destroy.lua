@@ -80,3 +80,31 @@ events.bind(
 		frame:add_op(DestroyOp:new(entity, thing, ev.player_index))
 	end
 )
+
+local TARGET_TYPE_ENTITY = defines.target_type.entity
+
+---Last-resort handler for destroyed entities that don't fire any of the above events.
+events.bind(
+	defines.events.on_object_destroyed,
+	---@param ev EventData.on_object_destroyed
+	function(ev)
+		if ev.type ~= TARGET_TYPE_ENTITY then return end
+		local unit_number = ev.useful_id
+		local thing = storage.things_by_unit_number[unit_number]
+		if thing then
+			strace.warn(
+				"on_object_destroyed: Thing ID",
+				thing.id,
+				"with unit_number",
+				unit_number,
+				"was caught by an on_object_destroyed fallthrough. This is a possible referential integrity issue, bug, or scripted silent destruction by another mod."
+			)
+
+			thing:tombstone()
+		end
+		local parent_relationship = storage.unthing_children[unit_number]
+		if parent_relationship then
+			-- TODO: unthing children
+		end
+	end
+)
