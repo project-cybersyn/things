@@ -214,7 +214,7 @@ end
 ---@param skip_deparent boolean? If true, skip removing this Thing from its parent.
 function Thing:destroy(skip_destroy, skip_deparent)
 	if self.state == "destroyed" then return end
-	strace.debug("Thing:destroy: destroying Thing ID", self.id)
+	strace.trace("Thing:destroy: destroying Thing ID", self.id)
 	local reg = self:get_registration() --[[@as things.ThingRegistration]]
 	-- Disconnect all graph edges
 	local graphs = graph_lib.get_graphs_containing_node(self.id)
@@ -620,14 +620,22 @@ end
 function Thing:remove_parent()
 	local parent_relationship = self.parent
 	if not parent_relationship then return false end
-	local parent_thing = storage.things[parent_relationship[1]]
-	local child_key = parent_relationship[2]
+	local parent_id, child_key = parent_relationship[1], parent_relationship[2]
+	local parent_thing = storage.things[parent_id]
 	local my_id = parent_thing
 		and parent_thing.children
 		and parent_thing.children[child_key]
 
 	if (not parent_thing) or (my_id ~= self.id) then
 		self.parent = nil
+		strace.warn(
+			"Thing:remove_parent: REFERENTIAL INTEGRITY FAILURE: parent Thing ID",
+			parent_id,
+			"does not have this Thing ID",
+			self.id,
+			"as its child at index",
+			child_key
+		)
 		self:raise_event("things.thing_parent_changed", self)
 		return true
 	end
@@ -657,11 +665,36 @@ function Thing:remove_child(index)
 	if type(child_id) == "number" then
 		children[index] = nil
 		local child_thing = storage.things[child_id]
-		if not child_thing then return true end
-		local parent_relationship = child_thing.parent
-		if (not parent_relationship) or (parent_relationship[1] ~= self.id) then
+		if not child_thing then
+			strace.warn(
+				"Thing:remove_child: REFERENTIAL INTEGRITY FAILURE: child Thing ID",
+				child_id,
+				"not found in storage for parent Thing ID",
+				self.id
+			)
 			return true
 		end
+		local parent_relationship = child_thing.parent
+		if (not parent_relationship) or (parent_relationship[1] ~= self.id) then
+			strace.warn(
+				"Thing:remove_child: REFERENTIAL INTEGRITY FAILURE: child Thing ID",
+				child_id,
+				"does not have this Thing ID",
+				self.id,
+				"as its parent."
+			)
+			return true
+		end
+
+		child_thing.parent = nil
+		self:raise_event(
+			"things.thing_children_changed",
+			self,
+			nil,
+			{ child_thing }
+		)
+		child_thing:raise_event("things.thing_parent_changed", child_thing)
+		return true
 	else
 		-- TODO: unthing child
 	end
@@ -734,31 +767,38 @@ function Thing:get_adjusted_pos_and_orientation()
 	)
 end
 
----If this Thing has a parent, and its relationship specifies a relative
----position or orientation, apply those if needed.
-function Thing:apply_adjusted_pos_and_orientation()
+---Recursively reorient this Thing with respect to its parent.
+---@param no_recurse? boolean? If true, do not reorient children.
+---@param no_self? boolean? If true, do not reorient self.
+function Thing:reorient(no_recurse, no_self)
+	-- Reorient self first, then children.
 	local entity = self:get_entity()
 	if not entity then return end
-	local adj_pos, adj_orientation = self:get_adjusted_pos_and_orientation()
-	if adj_pos then
-		strace.trace(
-			"Thing:apply_adjusted_pos_and_orientation: computed adjusted position for Thing ID",
-			self.id,
-			"parent-index",
-			self.parent and self.parent[2],
-			"as",
-			adj_pos
-		)
-		if self:teleport(adj_pos) then
-			strace.trace(
-				"Thing:apply_adjusted_pos_and_orientation: adjusted position for Thing ID",
-				self.id,
-				"to",
-				adj_pos
-			)
+	if not no_self then
+		local adj_pos, adj_orientation = self:get_adjusted_pos_and_orientation()
+		if adj_pos then
+			if self:teleport(adj_pos) then
+				strace.trace(
+					"Thing:reorient: adjusted position for Thing ID",
+					self.id,
+					"to",
+					adj_pos
+				)
+			end
+		end
+		if adj_orientation then self:set_orientation(adj_orientation, true) end
+	end
+
+	if (not no_recurse) and self.children then
+		for _, child in pairs(self.children) do
+			if type(child) == "number" then
+				local child_thing = storage.things[child]
+				if child_thing then child_thing:reorient() end
+			else
+				-- TODO: unthing child
+			end
 		end
 	end
-	if adj_orientation then self:set_orientation(adj_orientation, true) end
 end
 
 --------------------------------------------------------------------------------

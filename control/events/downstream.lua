@@ -26,7 +26,7 @@ events.bind(
 	---@param from_blueprint boolean? If true, this Thing was initialized from a blueprint.
 	function(thing, from_blueprint)
 		if not thing:is_valid() then return end
-		thing:apply_adjusted_pos_and_orientation()
+		thing:reorient(true)
 		thing.is_silent = false
 		local cevp = get_custom_event_name(thing, "on_initialized")
 
@@ -62,18 +62,7 @@ events.bind(
 	---@param thing things.Thing
 	function(thing, new_orientation, old_orientation)
 		-- Apply child orientations
-		if thing.children then
-			for _, child_id in pairs(thing.children) do
-				if type(child_id) == "number" then
-					local child_thing = get_thing_by_id(child_id)
-					if child_thing then
-						child_thing:apply_adjusted_pos_and_orientation()
-					end
-				else
-					-- TODO: unthing child
-				end
-			end
-		end
+		thing:reorient(false, true)
 
 		-- Raise event
 		local cevp = get_custom_event_name(thing, "on_orientation_changed")
@@ -103,19 +92,8 @@ events.bind(
 			}
 			script.raise_event(cevp, ev)
 		end
-		-- Apply child positions
-		if thing.children then
-			for _, child_id in pairs(thing.children) do
-				if type(child_id) == "number" then
-					local child_thing = get_thing_by_id(child_id)
-					if child_thing then
-						child_thing:apply_adjusted_pos_and_orientation()
-					end
-				else
-					-- TODO: unthing child
-				end
-			end
-		end
+
+		thing:reorient(false, true)
 	end
 )
 
@@ -146,7 +124,7 @@ events.bind(
 	---@param new_parent things.Thing|nil
 	function(thing, new_parent)
 		strace.trace("Reorienting Thing ID", thing.id, "due to parent change.")
-		thing:apply_adjusted_pos_and_orientation()
+		thing:reorient()
 
 		local cevp = get_custom_event_name(thing, "on_parent_changed")
 		if cevp then
