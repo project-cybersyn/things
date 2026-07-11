@@ -473,32 +473,58 @@ function Thing:virtualize_orientation(vo_class)
 end
 
 ---@param next_pos MapPosition
-function Thing:teleport(next_pos)
+---@param next_surface_index? SurfaceIndex
+function Thing:teleport(next_pos, next_surface_index)
 	local entity = self:get_entity()
 	if not entity then return false end
+	local surface_index = entity.surface_index
 	local pos = entity.position
-	if pos_lib.pos_close(pos, next_pos) then return false end
-	if entity.teleport(next_pos, nil, false) then
-		self:raise_event("things.thing_position_changed", self, next_pos, pos)
+	local same_surface = not next_surface_index
+		or (next_surface_index == surface_index)
+	if same_surface and pos_lib.pos_close(pos, next_pos) then return false end
+	local target_surface = nil
+	if not same_surface then target_surface = next_surface_index end
+	if entity.teleport(next_pos, target_surface, false) then
+		self:raise_event(
+			"things.thing_position_changed",
+			self,
+			next_pos,
+			pos,
+			target_surface or surface_index,
+			surface_index
+		)
 		return true
 	else
 		strace.error(
 			"Thing:teleport: teleport failed for Thing ID",
 			self.id,
 			"to position",
-			next_pos
+			next_pos,
+			"on surface",
+			target_surface
 		)
 		return false
 	end
 end
 
 ---@param prev_pos MapPosition
-function Thing:was_teleported(prev_pos)
+---@param prev_surface_index? SurfaceIndex
+function Thing:was_teleported(prev_pos, prev_surface_index)
 	local entity = self:get_entity()
 	if not entity then return false end
 	local pos = entity.position
-	if pos_lib.pos_close(pos, prev_pos) then return false end
-	self:raise_event("things.thing_position_changed", self, pos, prev_pos)
+	local surface_index = entity.surface_index
+	local same_surface = not prev_surface_index
+		or (surface_index == prev_surface_index)
+	if same_surface and pos_lib.pos_close(pos, prev_pos) then return false end
+	self:raise_event(
+		"things.thing_position_changed",
+		self,
+		pos,
+		prev_pos,
+		surface_index,
+		prev_surface_index or surface_index
+	)
 	return true
 end
 
@@ -778,8 +804,10 @@ function Thing:reorient(no_recurse, no_self)
 						rel[4]
 					)
 					if child_pos then
+						-- TODO: unthing child
 					end
 					if child_or then
+						-- TODO: unthing child
 					end
 				end
 			end

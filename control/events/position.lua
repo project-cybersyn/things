@@ -10,7 +10,8 @@ events.bind(
 	defines.events.script_raised_teleported,
 	---@param ev EventData.script_raised_teleported
 	function(ev)
-		local un = ev.entity.unit_number
+		local entity = ev.entity
+		local un = entity.unit_number
 
 		-- Disentangle thing vs unthing
 		local thing = get_by_unit_number(un)
@@ -30,7 +31,7 @@ events.bind(
 			end
 		end
 
-		local new_pos = ev.entity.position
+		local new_pos = entity.position
 		if is_different_root then
 			-- Make sure the offset is preserved in the new frame of reference
 			local root_entity = root_thing:get_entity()
@@ -40,9 +41,9 @@ events.bind(
 			local new_root_pos = pos_new(new_pos)
 			pos_add(new_root_pos, -1, offset)
 
-			root_thing:teleport(new_root_pos)
+			root_thing:teleport(new_root_pos, entity.surface_index)
 		else
-			root_thing:was_teleported(ev.old_position)
+			root_thing:was_teleported(ev.old_position, ev.old_surface_index)
 		end
 	end
 )

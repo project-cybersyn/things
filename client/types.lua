@@ -163,6 +163,8 @@ lib.LifecycleType = LifecycleType
 ---@field public thing things.ThingShortSummary Summary of the Thing whose position changed.
 ---@field public old_position? MapPosition The previous position of the Thing.
 ---@field public new_position MapPosition The new position of the Thing.
+---@field public old_surface_index? SurfaceIndex The previous surface index of the Thing. May not be provided if the Thing did not change surfaces.
+---@field public new_surface_index? SurfaceIndex The new surface index of the Thing. May not be provided if the Thing did not change surfaces.
 
 ---Event raised when the composition of a Thing's children changes.
 ---@class (exact) things.EventData.on_children_changed

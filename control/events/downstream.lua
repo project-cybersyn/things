@@ -81,7 +81,13 @@ events.bind(
 events.bind(
 	"things.thing_position_changed",
 	---@param thing things.Thing
-	function(thing, new_position, old_position)
+	function(
+		thing,
+		new_position,
+		old_position,
+		new_surface_index,
+		old_surface_index
+	)
 		local cevp = get_custom_event_name(thing, "on_position_changed")
 		if cevp then
 			---@type things.EventData.on_position_changed
@@ -89,6 +95,8 @@ events.bind(
 				thing = thing:summarize_short(),
 				new_position = new_position,
 				old_position = old_position,
+				old_surface_index = old_surface_index,
+				new_surface_index = new_surface_index,
 			}
 			script.raise_event(cevp, ev)
 		end
