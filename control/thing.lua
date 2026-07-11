@@ -26,7 +26,9 @@ local EMPTY = tlib.EMPTY_STRICT
 
 local lib = {}
 
----@alias things.UnthingChild [int64]
+---@alias things.UnthingChild [UnitNumber]
+
+---@alias things.ChildDescriptor things.Id | things.UnthingChild
 
 ---A `Thing` is the extended lifecycle of a collection of game entities that
 ---actually represent the same ultimate thing.
@@ -44,7 +46,7 @@ local lib = {}
 ---@field public undo_refcount uint Number of undo records currently referencing this Thing.
 ---@field public last_known_position? MapPosition The last known position of this Thing's entity when the Thing is voided or destroyed.
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
----@field public children? {[string]: int64 | things.UnthingChild} Map from child indices to child Thing ids.
+---@field public children? table<string, things.ChildDescriptor> Map from child indices to child Thing descriptors.
 ---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
 ---@field public ro_keys? {[string]: LuaRenderObject} List of named attached render objects.
 ---@field public ro_list? LuaRenderObject[] List of anonymous attached render objects.
@@ -195,8 +197,7 @@ function Thing:undo_maybe_destroy()
 		-- Parent is alive; do not destroy.
 		return
 	end
-	-- TODO: no-gc flag
-	strace.trace(
+	strace.debug(
 		"Thing:undo_maybe_destroy: Thing ID",
 		self.id,
 		"undo_refcount is zero and no live parent; garbage collecting."
@@ -215,7 +216,7 @@ end
 function Thing:destroy(skip_destroy, skip_deparent)
 	if self.state == "destroyed" then return end
 	strace.trace("Thing:destroy: destroying Thing ID", self.id)
-	local reg = self:get_registration() --[[@as things.ThingRegistration]]
+
 	-- Disconnect all graph edges
 	local graphs = graph_lib.get_graphs_containing_node(self.id)
 	for _, graph in pairs(graphs or EMPTY) do
@@ -227,7 +228,10 @@ function Thing:destroy(skip_destroy, skip_deparent)
 			graph_lib.disconnect(graph, storage.things[from_id], self)
 		end
 	end
+
+	-- Remove from parent
 	if self.parent and not skip_deparent then self:remove_parent() end
+
 	-- Destroy children
 	if self.children then
 		for _, child_id in pairs(self.children) do
@@ -235,26 +239,13 @@ function Thing:destroy(skip_destroy, skip_deparent)
 				local child_thing = storage.things[child_id]
 				if child_thing then child_thing:destroy(true) end
 			else
-				-- TODO: unthing child
+				remove_unthing_child(child_id[1], false, true)
 			end
 		end
 		self.children = nil
 	end
-	-- Destroy transient children
-	if self.transient_children then
-		for child_key, child_entity in pairs(self.transient_children) do
-			if child_entity and child_entity.valid then
-				strace.trace(
-					"Thing:destroy: destroying transient child",
-					child_key,
-					"for Thing ID",
-					self.id
-				)
-				child_entity.destroy(RAISE_DESTROY)
-			end
-			self.transient_children[child_key] = nil
-		end
-	end
+
+	-- Remove and potentially destroy self entity
 	local former_entity = self.entity
 	self:set_entity(nil)
 	self:set_state("destroyed")
@@ -270,38 +261,32 @@ end
 ---@return boolean changed `true` if the Thing was voided, `false` if it was already void.
 function Thing:void(skip_destroy, skip_destroy_children)
 	if self.state == "destroyed" then
-		error("Attempt to void a destroyed Thing. Thing ID: " .. self.id)
+		error(
+			"LOGIC ERROR: Attempt to void a destroyed Thing. Thing ID: " .. self.id
+		)
 	end
 	if self.state == "void" then return false end
-	strace.debug("Thing:void: voiding Thing ID", self.id)
-	local reg = self:get_registration() --[[@as things.ThingRegistration]]
+	strace.trace("Thing:void: voiding Thing ID", self.id)
+
 	-- Void children
 	if self.children then
-		for _, child_id in pairs(self.children) do
+		for key, child_id in pairs(self.children) do
 			if type(child_id) == "number" then
 				local child_thing = storage.things[child_id]
-				if child_thing then child_thing:void(skip_destroy_children) end
+				if child_thing then
+					child_thing:void(skip_destroy_children, skip_destroy_children)
+				end
 			else
-				-- TODO: unthing child
+				-- Unthing children get destroyed on void.
+				remove_unthing_child(child_id[1], false, true)
+				self.children[key] = nil
 			end
 		end
 	end
-	-- Destroy transient children
-	if self.transient_children then
-		for child_key, child_entity in pairs(self.transient_children) do
-			if child_entity and child_entity.valid then
-				strace.trace(
-					"Thing:destroy: destroying transient child",
-					child_key,
-					"for Thing ID",
-					self.id
-				)
-				child_entity.destroy(RAISE_DESTROY)
-			end
-			self.transient_children[child_key] = nil
-		end
-	end
+
+	-- Immediate-mode event for capturing state pre-void
 	events.raise("things.thing_immediate_voided", self)
+
 	local former_entity = self.entity
 	self:set_entity(nil)
 	self:set_state("void")
@@ -388,11 +373,20 @@ end
 
 ---@return Core.Orientation?
 function Thing:get_orientation()
-	-- TODO: allow this to run purely virtually
+	-- Pure virtual case: return the virtual orientation if it exists.
+	local vo = self.virtual_orientation
+	if vo then
+		local status = self.state
+		if status == "ghost" or status == "real" then
+			return vo
+		else
+			return nil
+		end
+	end
+
+	-- Nonvirtual case: get from realized entity.
 	local entity = self:get_entity()
 	if not entity then return nil end
-	local vo = self.virtual_orientation
-	if vo then return vo end
 	return orientation_lib.extract(entity)
 end
 
@@ -421,7 +415,7 @@ function Thing:set_orientation(orientation, impose, suppress_event)
 				return true, false
 			end
 		else
-			strace.debug(
+			strace.warn(
 				"Thing:set_orientation: called on a Thing with no current orientation. Ignoring."
 			)
 		end
@@ -563,37 +557,62 @@ end
 --------------------------------------------------------------------------------
 
 ---@param index string The index of the child.
----@param child things.Thing The child Thing to add.
+---@param child things.Thing | LuaEntity The child to add.
 ---@param relative_pos? MapPosition The position of the child relative to this Thing.
 ---@param relative_orientation? Core.Dihedral The orientation of the child relative to this Thing.
+---@param lifecycle_type? things.LifecycleType The lifecycle type of the child relative to this Thing. If not specified, defaults to "ghost-real".
 ---@param suppress_event boolean? If true, suppress parent/child change events.
 function Thing:add_child(
 	index,
 	child,
 	relative_pos,
 	relative_orientation,
+	lifecycle_type,
 	suppress_event
 )
-	-- TODO: unthing children
-	if child.parent then return false end
-	if self.children and index and self.children[index] then return false end
-	if not self.children then self.children = {} end
 	if not index then error("Thing:add_child(): index is required") end
-	self.children[index] = child.id
-	child.parent = {
-		self.id,
-		index,
-		relative_pos,
-		relative_orientation,
-	}
+	if self.children and self.children[index] then return false end
+	if type(child) == "userdata" then
+		-- Unthing child
+		---@cast child LuaEntity
+		local un = create_unthing_child(
+			child,
+			self,
+			index,
+			relative_pos,
+			relative_orientation,
+			lifecycle_type
+		)
+		if un then
+			if not self.children then self.children = {} end
+			self.children[index] = { un }
+		else
+			return false
+		end
 
-	-- Post events as needed.
-	if not suppress_event then
 		self:raise_event("things.thing_children_changed", self, child, nil)
-		child:raise_event("things.thing_parent_changed", child, self)
-	end
+		return true
+	else
+		---@cast child things.Thing
+		if child.parent then return false end
+		if not self.children then self.children = {} end
+		self.children[index] = child.id
+		child.parent = {
+			self.id,
+			index,
+			relative_pos,
+			relative_orientation,
+			lifecycle_type,
+		}
 
-	return true
+		-- Post events as needed.
+		if not suppress_event then
+			self:raise_event("things.thing_children_changed", self, child, nil)
+			child:raise_event("things.thing_parent_changed", child, self)
+		end
+
+		return true
+	end
 end
 
 ---@param index string The index of the child.
@@ -649,15 +668,16 @@ function Thing:remove_parent()
 		"things.thing_children_changed",
 		parent_thing,
 		nil,
-		{ self }
+		self
 	)
 	self:raise_event("things.thing_parent_changed", self)
 	return true
 end
 
 ---@param index string The index of the child to remove.
+---@param destroy_child boolean? If true, destroy the child Thing or Unthing. If false or nil, just remove it from the parent.
 ---@return boolean removed `true` if a child was removed, `false` if there was no child at that index.
-function Thing:remove_child(index)
+function Thing:remove_child(index, destroy_child)
 	local children = self.children
 	if not children then return false end
 	local child_id = children[index]
@@ -687,67 +707,19 @@ function Thing:remove_child(index)
 		end
 
 		child_thing.parent = nil
-		self:raise_event(
-			"things.thing_children_changed",
-			self,
-			nil,
-			{ child_thing }
-		)
-		child_thing:raise_event("things.thing_parent_changed", child_thing)
+		self:raise_event("things.thing_children_changed", self, nil, child_thing)
+		if destroy_child then
+			child_thing:destroy(false, true)
+		else
+			child_thing:raise_event("things.thing_parent_changed", child_thing)
+		end
 		return true
 	else
-		-- TODO: unthing child
+		children[index] = nil
+		local un = child_id[1]
+		remove_unthing_child(un, false, destroy_child)
+		return true
 	end
-end
-
----@param index int|string The index of the transient child.
----@param child_entity LuaEntity A *valid* child entity.
----@param replace boolean? If true, will destroy and replace an existing child.
----@return boolean added `true` if the transient child was added, `false` if a child already existed at that index.
-function Thing:add_transient_child(index, child_entity, replace)
-	local tc = self.transient_children
-	if not tc then
-		tc = {}
-		self.transient_children = tc
-	end
-	if tc[index] then
-		if replace then
-			local existing_child = tc[index]
-			if existing_child and existing_child.valid then
-				existing_child.destroy(RAISE_DESTROY)
-			end
-		else
-			return false
-		end
-	end
-	tc[index] = child_entity
-	return true
-end
-
----@param index int|string The index of the transient child.
----@param destroy_child boolean? If true, destroy the child entity if it is valid.
----@return boolean removed `true` if the transient child was removed, `false` if no child existed at that index.
-function Thing:remove_transient_child(index, destroy_child)
-	if not self.transient_children then return false end
-	local child_entity = self.transient_children[index]
-	if not child_entity then return false end
-	if destroy_child and child_entity.valid then
-		child_entity.destroy(RAISE_DESTROY)
-	end
-	self.transient_children[index] = nil
-	return true
-end
-
----Get only the valid transient children of this Thing.
----All invalid refs will be removed.
----@return {[int|string]: LuaEntity} transient_children Map from child indices to valid child entities.
-function Thing:get_valid_transient_children()
-	local tc = self.transient_children
-	if not tc then return EMPTY end
-	for idx, entity in pairs(tc) do
-		if not entity.valid then tc[idx] = nil end
-	end
-	return tc
 end
 
 ---If this Thing has a parent, and its relationship specifies a relative
@@ -760,8 +732,10 @@ function Thing:get_adjusted_pos_and_orientation()
 	if not parent_relationship then return nil, nil end
 	local parent_thing = storage.things[parent_relationship[1]]
 	if not parent_thing then return nil, nil end
+
 	return lib.get_adjusted_pos_and_orientation(
-		parent_thing,
+		parent_thing:get_entity(),
+		parent_thing:get_orientation(),
 		parent_relationship[3],
 		parent_relationship[4]
 	)
@@ -795,7 +769,19 @@ function Thing:reorient(no_recurse, no_self)
 				local child_thing = storage.things[child]
 				if child_thing then child_thing:reorient() end
 			else
-				-- TODO: unthing child
+				local rel = get_unthing_child(child[1])
+				if rel then
+					local child_pos, child_or = lib.get_adjusted_pos_and_orientation(
+						entity,
+						self:get_orientation(),
+						rel[3],
+						rel[4]
+					)
+					if child_pos then
+					end
+					if child_or then
+					end
+				end
 			end
 		end
 	end
@@ -936,7 +922,7 @@ function lib.get_by_id(id)
 	if not id then return nil end
 	return storage.things[id]
 end
-_G.get_thing_by_id = lib.get_by_id
+get_thing_by_id = lib.get_by_id
 
 ---Get a Thing by the unit number of its entity.
 ---@param unit_number uint64?
@@ -945,7 +931,7 @@ function lib.get_by_unit_number(unit_number)
 	if not unit_number then return nil end
 	return storage.things_by_unit_number[unit_number]
 end
-_G.get_thing_by_unit_number = lib.get_by_unit_number
+get_thing_by_unit_number = lib.get_by_unit_number
 
 ---General thingification procedure for generic entities. This will
 ---return a SILENT thing that needs to be initialized later.
@@ -991,15 +977,19 @@ end
 
 ---Get adjusted position and orientation values for a child Thing based on its
 ---relationship to its parent.
----@param parent_thing things.Thing
+---@param parent_entity LuaEntity? The parent entity.
+---@param parent_orientation Core.Orientation? The orientation of the parent entity.
 ---@param offset MapPosition? The position of the child relative to the parent.
 ---@param transform Core.Dihedral? The transform of the child relative to the parent.
 ---@return MapPosition? adjusted_pos The adjusted world position, or `nil` if no relative offset is specified.
 ---@return Core.Orientation? adjusted_orientation The adjusted world orientation, or `nil` if no relative offset is specified.
-function lib.get_adjusted_pos_and_orientation(parent_thing, offset, transform)
-	local parent_entity = parent_thing:get_entity()
+function lib.get_adjusted_pos_and_orientation(
+	parent_entity,
+	parent_orientation,
+	offset,
+	transform
+)
 	if not parent_entity then return nil, nil end
-	local parent_orientation = parent_thing:get_orientation()
 	if not parent_orientation then return nil, nil end
 	-- Position
 	local adj_pos = nil

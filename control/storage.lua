@@ -1,13 +1,13 @@
 local events = require("lib.core.event")
 
 ---@class (exact) things.Storage
----@field public things {[int64]: things.Thing} Things by thing id.
----@field public things_by_unit_number {[uint64]: things.Thing} Things by unit_number of reified entity, if it exists.
+---@field public things table<things.Id, things.Thing> Things by thing id.
+---@field public things_by_unit_number table<UnitNumber, things.Thing> Things by unit_number of reified entity, if it exists.
 ---@field public current_frame things.Frame? The current construction frame, if any.
----@field public graphs {[string]: things.Graph} Graphs by graph name.
----@field public debug_overlays {[int64]: things.DebugOverlay} Debug overlays by thing id.
----@field public stored_opsets {[int64]: things.OpSet} Stored operation sets on the undo stack.
----@field public unthing_children {[uint64]: things.ParentRelationshipInfo} Unthing children by unit_number of reified entity, if it exists.
+---@field public graphs table<string, things.Graph> Graphs by graph name.
+---@field public debug_overlays table<things.Id, things.DebugOverlay> Debug overlays by thing id.
+---@field public stored_opsets table<things.Id, things.OpSet> Stored operation sets on the undo stack.
+---@field public unthing_children table<UnitNumber, things.UnthingChildInfo> Unthing children by unit_number of reified entity, if it exists.
 storage = {}
 
 local function init_storage_key(key, value)

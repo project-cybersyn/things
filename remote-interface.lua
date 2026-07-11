@@ -13,7 +13,9 @@ local constants = require("control.constants")
 
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
 local get_thing = thing_lib.get_by_id
-local type = _G.type
+local type = type
+local pairs = pairs
+local tostring = tostring
 
 local EMPTY = tlib.EMPTY
 local NAME_TAG = constants.NAME_TAG
@@ -173,6 +175,7 @@ function remote_interface.create_thing(create_thing_params)
 			thing,
 			create_thing_params.relative_pos,
 			create_thing_params.relative_orientation,
+			nil,
 			true
 		)
 	end
@@ -273,7 +276,12 @@ function remote_interface.get_adjusted_pos_and_orientation(
 	if not valid then return CANT_BE_A_THING end
 	if not parent_thing then return NOT_A_THING end
 	return nil,
-		thing_lib.get_adjusted_pos_and_orientation(parent_thing, offset, transform)
+		thing_lib.get_adjusted_pos_and_orientation(
+			parent_thing:get_entity(),
+			parent_thing:get_orientation(),
+			offset,
+			transform
+		)
 end
 
 --------------------------------------------------------------------------------
@@ -303,7 +311,7 @@ function remote_interface.set_tag(thing_identification, key, value)
 	if not thing then return NOT_A_THING end
 	local new_tags = tlib.assign({}, thing.tags)
 	new_tags[key] = value
-	---@diagnostic disable-next-line: cast-local-type
+	---@diagnostic disable-next-line: assign-type-mismatch
 	if not next(new_tags) then new_tags = nil end
 	thing:set_tags(new_tags, true, nil, "api")
 	return nil
@@ -383,15 +391,10 @@ end
 ---Adds a child Thing to a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
 ---@param child_key string The key to assign the child in the parent Thing.
----@param child_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The child Thing.
+---@param child things.Id | LuaEntity Either the id of a Thing, or the LuaEntity currently representing it. The child Thing.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
-function remote_interface.add_child(
-	parent_identification,
-	child_key,
-	child_identification
-)
+function remote_interface.add_child(parent_identification, child_key, child)
 	local parent, valid_parent = resolve_identification(parent_identification)
-	local child, valid_child = resolve_identification(child_identification)
 	if not valid_parent then
 		return {
 			code = "cant_be_a_thing",
@@ -404,32 +407,56 @@ function remote_interface.add_child(
 			message = "The specified parent Thing does not exist.",
 		}
 	end
-	if not valid_child then
-		return {
-			code = "cant_be_a_thing",
-			message = "You may not use an entity that is nil, invalid, or didn't have a `unit_number` as a Thing or Thing identifier for the child.",
-		}
-	end
-	if not child then
-		return {
-			code = "not_a_thing",
-			message = "The specified child Thing does not exist.",
-		}
-	end
+
 	if type(child_key) ~= "string" then
 		return {
 			code = "invalid_child_key",
 			message = "The child key must be a string.",
 		}
 	end
-	local added = parent:add_child(child_key, child)
+
+	---@type (things.Thing|LuaEntity)?
+	local neochild
+	if type(child) == "number" then
+		neochild = get_thing_by_unit_number(child)
+	else
+		local x = get_thing_by_unit_number(child.unit_number)
+		neochild = x or child
+	end
+	if not neochild then
+		return {
+			code = "invalid_child",
+			message = "The specified child cannot be added.",
+		}
+	end
+
+	local added = parent:add_child(child_key, neochild)
 	if not added then
 		return {
 			code = "could_not_add_child",
 			message = "Could not add child; the child may already have a parent, or the key may already be in use.",
 		}
 	end
+
 	return nil
+end
+
+---Removes a child Thing from a parent Thing.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_key string The key of the child to remove from the parent Thing.
+---@param destroy_child? boolean? If true, the child object will be destroyed. If false or nil, the child object will be removed from the parent but not destroyed.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return boolean? removed `true` if a child was removed, `false` if not.
+function remote_interface.remove_child(
+	parent_identification,
+	child_key,
+	destroy_child
+)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	if not valid_parent then return CANT_BE_A_THING end
+	if not parent then return NOT_A_THING end
+	local removed = parent:remove_child(child_key, destroy_child)
+	return nil, removed
 end
 
 ---Removes a child Thing from its current parent.
@@ -437,7 +464,7 @@ end
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 function remote_interface.remove_parent(child_identification)
 	local child, valid_child = resolve_identification(child_identification)
-	if valid_child then return CANT_BE_A_THING end
+	if not valid_child then return CANT_BE_A_THING end
 	if not child then return NOT_A_THING end
 	local removed = child:remove_parent()
 	if not removed then
@@ -452,17 +479,79 @@ end
 ---Gets all children of a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return things.ThingChildrenSummary|nil children Map of child keys to child Thing summaries. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no children.
+---@return table<string, things.ThingChildInfo>? children Map of child indices to child info. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no children.}
 function remote_interface.get_children(parent_identification)
 	local parent, valid_parent = resolve_identification(parent_identification)
 	if not valid_parent then return CANT_BE_A_THING end
 	if not parent then return NOT_A_THING end
 	local result = {}
 	for key, child in pairs(parent.children or EMPTY) do
-		local child_thing = get_thing(child)
-		if child_thing then result[key] = child_thing:summarize() end
+		if type(child) == "number" then
+			local child_thing = get_thing(child --[[@as things.Id]])
+			if child_thing then
+				local summary = child_thing:summarize_short()
+				result[key] = {
+					index = key,
+					thing = summary,
+					entity = summary.entity,
+				}
+			end
+		else
+			local child_info = get_unthing_child(child[1])
+			if child_info then
+				local entity = child_info[6]
+				if entity and entity.valid then
+					result[key] = {
+						index = key,
+						thing = nil,
+						entity = entity,
+					}
+				end
+			end
+		end
 	end
 	return nil, result
+end
+
+---Gets a child of a parent Thing by its index.
+---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
+---@param child_key string The index of the child to retrieve.
+---@return things.Error? error If the operation failed, the reason why. `nil` on success.
+---@return things.ThingChildInfo? child_info The child info, or `nil` if there was an error or no child could be found.
+function remote_interface.get_child(parent_identification, child_key)
+	local parent, valid_parent = resolve_identification(parent_identification)
+	if not valid_parent then return CANT_BE_A_THING end
+	if not parent then return NOT_A_THING end
+	local child = parent.children and parent.children[child_key]
+	if not child then return nil, nil end
+	if type(child) == "number" then
+		local child_thing = get_thing(child)
+		if child_thing then
+			local summary = child_thing:summarize_short()
+			return nil,
+				{
+					index = child_key,
+					thing = summary,
+					entity = summary.entity,
+				}
+		else
+			return nil, nil
+		end
+	else
+		local child_info = get_unthing_child(child[1])
+		if child_info then
+			local entity = child_info[6]
+			if entity and entity.valid then
+				return nil,
+					{
+						index = child_key,
+						thing = nil,
+						entity = entity,
+					}
+			end
+		end
+		return nil, nil
+	end
 end
 
 ---Get the number of children of a parent Thing.
@@ -474,79 +563,6 @@ function remote_interface.get_num_children(parent_identification)
 	if not valid_parent then return CANT_BE_A_THING end
 	if not parent then return NOT_A_THING end
 	return nil, parent.children and table_size(parent.children) or 0
-end
-
----Adds a transient child entity to a parent Thing.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@param child_index string|int The index to assign the transient child in the parent Thing.
----@param child_entity LuaEntity The child entity to add as a transient child.
----@param replace? boolean If `true`, will destroy and replace an existing child.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return boolean? added True if the transient child was added, false if the index was already in use, nil on error.
-function remote_interface.add_transient_child(
-	parent_identification,
-	child_index,
-	child_entity,
-	replace
-)
-	local parent, valid_parent = resolve_identification(parent_identification)
-	if not valid_parent then return CANT_BE_A_THING end
-	if not parent then return NOT_A_THING end
-	if not child_entity or not child_entity.valid then
-		return {
-			code = "invalid_entity",
-			message = "The specified child entity is nil or invalid.",
-		}
-	end
-	return nil, parent:add_transient_child(child_index, child_entity, replace)
-end
-
----Remove a transient child entity from a parent Thing, optionally destroying it.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@param child_index string|int The index of the transient child to remove.
----@param destroy_child boolean? If true, destroy the transient child entity after removing it. Defaults to false.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
-function remote_interface.remove_transient_child(
-	parent_identification,
-	child_index,
-	destroy_child
-)
-	local parent, valid_parent = resolve_identification(parent_identification)
-	if not valid_parent then return CANT_BE_A_THING end
-	if not parent then return NOT_A_THING end
-	local removed = parent:remove_transient_child(child_index, destroy_child)
-	if not removed then
-		return {
-			code = "no_such_transient_child",
-			message = "Could not remove transient child; the specified index does not exist.",
-		}
-	end
-end
-
----Get all transient children from a parent Thing.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return {[string|int]: LuaEntity}|nil children Map of child indices to transient child entities. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no transient children.
-function remote_interface.get_transient_children(parent_identification)
-	local parent, valid_parent = resolve_identification(parent_identification)
-	if not valid_parent then return CANT_BE_A_THING end
-	if not parent then return NOT_A_THING end
-	return nil, parent.transient_children or EMPTY
-end
-
----Get one transient child by index from a parent Thing.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@param child_index string|int The index of the transient child to get.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return LuaEntity|nil child The transient child Thing, or nil if it doesn't exist.
-function remote_interface.get_transient_child(
-	parent_identification,
-	child_index
-)
-	local parent, valid_parent = resolve_identification(parent_identification)
-	if not valid_parent then return CANT_BE_A_THING end
-	if not parent then return NOT_A_THING end
-	return nil, (parent.transient_children or EMPTY)[child_index]
 end
 
 --------------------------------------------------------------------------------

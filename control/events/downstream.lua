@@ -142,8 +142,8 @@ events.bind(
 	"things.thing_children_changed",
 	---@param thing things.Thing
 	---@param added_child things.Thing | LuaEntity | nil
-	---@param removed_children (things.Thing|LuaEntity)[] | nil
-	function(thing, added_child, removed_children)
+	---@param removed_child things.Thing | LuaEntity | nil
+	function(thing, added_child, removed_child)
 		local cevp = get_custom_event_name(thing, "on_children_changed")
 		if cevp then
 			local added
@@ -153,21 +153,20 @@ events.bind(
 				added = added_child
 			end
 
+			local removed
+			if type(removed_child) == "table" then
+				removed = removed_child.id
+			elseif removed_child then
+				removed = removed_child
+			end
+
 			---@type things.EventData.on_children_changed
 			local ev = {
 				thing = thing:summarize_short(),
 				added = added,
-				removed = nil,
+				removed = removed,
 			}
-			if removed_children then
-				ev.removed = tlib.map(removed_children, function(rc)
-					if type(rc) == "table" then
-						return rc.id
-					else
-						return rc --[[@as LuaEntity]]
-					end
-				end)
-			end
+
 			script.raise_event(cevp, ev)
 		end
 	end

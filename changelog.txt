@@ -6,10 +6,10 @@ Date: ????
     - Added `movable` option to `ThingRegistration` to control whether Things can be moved by external forces. (Experimental)
     - Added debug setting to force blueprints to be rewritten on extraction.
     - Removed `no_destroy_children_on_destroy` and `no_void_children_on_void` options from `ThingRegistration`.
-    - The type of the `on_children_changed` event has changed significantly. (Breaking)
-    - The type of the `on_children_normalized` event has changed significantly. (Breaking)
-    - The type of the `on_immediate_voided` event has changed significantly. (Breaking)
-    - The types of most events that provided `things.ThingSummary` have been changed to provide `things.ThingShortSummary` instead. (Potentially breaking)
+    - Types of child indices normalized to `string`. Child indices that were previously numbers will now be converted to strings.
+    - The types of the following events have changed significantly: `on_children_changed`, `on_children_normalized`, `on_immediate_voided`.
+    - The types of the following API endpoints have changed significantly: `things.get_children`, `things.add_child`
+    - The types of most events that provided `things.ThingSummary` have been changed to provide `things.ThingShortSummary` instead.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.2
 Date: 2026-07-06

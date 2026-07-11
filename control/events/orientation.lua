@@ -19,9 +19,9 @@ events.bind(
 		local player = game.get_player(ev.player_index)
 		local entity = ev.entity
 		local thing = get_thing_by_unit_number(entity.unit_number)
-		local prev_dir = ev.previous_direction
-		local curr_dir = ev.entity.direction
 		if not thing then return end
+		local prev_dir = ev.previous_direction
+		local curr_dir = entity.direction
 		if prev_dir == curr_dir then
 			strace.debug(
 				"on_player_rotated_entity: Previous direction equals current direction; no rotation occurred"

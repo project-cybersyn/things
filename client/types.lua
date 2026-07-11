@@ -38,7 +38,7 @@ local lib = {}
 ---@field public movable? "never"|"same-surface" Controls the response of this Thing to external movement. If set to "never", Things of this type cannot be moved by any means. If set to "same-surface", Things of this type can be moved by external forces, but only if the destination is on the same surface. (If not set, defaults to "same-surface".)
 
 ---@class (exact) things.ThingRegistration.Child
----@field public create? LuaSurface.create_entity_param
+---@field public create? Partial<LuaSurface.create_entity_param>
 ---@field public offset? MapPosition Position offset of the child relative to the parent Thing's position
 ---@field public orientation? Core.Dihedral Orientation of the child relative to the parent Thing's orientation
 ---@field public lifecycle_type? "real-real"|"void-real"|"ghost-real" Determines lifecycle of child based on parent. `real-real` means child is real regardless of whether parent is ghost or real. `void-real` means child is real if parent is real, void if parent is ghost. `ghost-real` means child is real if parent is real, ghost if parent is ghost. (default: `ghost-real`)
@@ -61,15 +61,30 @@ local lib = {}
 ---A set of graph names.
 ---@alias things.GraphSet {[string]: true}
 
----Info about a Thing's relationship to its parent.
----[1]: The ID of the parent Thing.
----[2]: The key under which this Thing is registered in its parent's children.
----[3]: The position of this Thing relative to its parent, if any.
----[4]: The orientation of this Thing relative to its parent, if any.
----@alias things.ParentRelationshipInfo [int64, string, MapPosition?, Core.Dihedral?]
+---@enum things.LifecycleType
+local LifecycleType = {
+	-- Thing child: void -> void, ghost -> real, real -> real
+	VOID_REAL_REAL = 1,
+	-- Thing child: void -> void, ghost -> void, real -> real
+	VOID_VOID_REAL = 2,
+	-- Thing child: void -> void, ghost -> ghost, real -> real
+	VOID_GHOST_REAL = 3,
+	-- Unthing child: void -> destroyed, ghost -> real, real -> real
+	DESTROYED_REAL_REAL = 4,
+	-- Unthing child: void -> destroyed, ghost -> destroyed, real -> real
+	DESTROYED_DESTROYED_REAL = 5,
+}
+lib.LifecycleType = LifecycleType
+
+---@class things.ParentRelationshipInfo
+---@field public [1] things.Id The ID of the parent Thing.
+---@field public [2] string The key under which this Thing is registered in its parent's children
+---@field public [3] MapPosition? The position of this Thing relative to its parent, if any.
+---@field public [4] Core.Dihedral? The orientation of this Thing relative to its parent, if any. (Expressed as a transform applied to the parent's orientation to get the child's orientation.)
+---@field public [5] things.LifecycleType? Lifecycle flag indicating how this Thing's lifecycle is determined by its parent.
 
 ---A summary of a Thing's children, indexed by child key.
----@alias things.ThingChildrenSummary {[string]: things.ThingSummary}
+---@alias things.ThingChildrenSummary {[string]: things.ThingShortSummary}
 
 ---Summary information about a Thing.
 ---@class (exact) things.ThingShortSummary
@@ -85,6 +100,11 @@ local lib = {}
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
 ---@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
 ---@field public undo_refcount uint The number of undo operations that reference this Thing.
+
+---@class (exact) things.ThingChildInfo
+---@field public index string The key under which the child is registered in the parent.
+---@field public thing things.ThingShortSummary? Summary of the child Thing, if it is a Thing.
+---@field public entity LuaEntity? The current entity of the child, if it has one. This entity is pre-checked for validity at the time the summary is generated.
 
 ---Options controlling how a Thing is created via `create_thing`.
 ---@class (exact) things.CreateThingParams
@@ -151,8 +171,8 @@ local lib = {}
 ---Event raised when the composition of a Thing's children changes.
 ---@class (exact) things.EventData.on_children_changed
 ---@field public thing things.ThingShortSummary Summary of the Thing whose children changed.
----@field public added things.Id | LuaEntity | nil If a child was added, its summary.
----@field public removed (things.Id|LuaEntity)[] | nil List of the removed children.
+---@field public added things.Id | LuaEntity | nil The added child, if any. Note this may be either a Thing ID or a LuaEntity, depending on whether the child is a Thing or not.
+---@field public removed things.Id | LuaEntity | nil The removed child, if any. Note this may be either a Thing ID or a LuaEntity, depending on whether the child is a Thing or not.
 
 ---Event raised when a Thing's parent changes.
 ---@class (exact)things.EventData.on_parent_changed
@@ -202,9 +222,5 @@ local lib = {}
 ---destroyed.
 ---@class (exact) things.EventData.on_immediate_voided
 ---@field public thing things.ThingShortSummary Summary of the Thing that was voided.
-
---------------------------------------------------------------------------------
--- EXPORTED LIBRARY TYPES
---------------------------------------------------------------------------------
 
 return lib

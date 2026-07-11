@@ -6,6 +6,7 @@ events.bind(
 	defines.events.script_raised_teleported,
 	---@param ev EventData.script_raised_teleported
 	function(ev)
+		-- TODO: unthing children - if unthing child is moved, get root from parent Thing.
 		local thing = thing_lib.get_by_unit_number(ev.entity.unit_number)
 		if not thing then return end
 

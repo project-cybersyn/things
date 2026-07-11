@@ -2,16 +2,11 @@ local events = require("lib.core.event")
 local thing_lib = require("control.thing")
 local strace = require("lib.core.strace")
 local frame_lib = require("control.frame")
-local constants = require("control.constants")
-local ws_lib = require("lib.core.world-state")
 
 local MfdOp = require("control.op.mfd").MfdOp
 local DestroyOp = require("control.op.destroy").DestroyOp
 
-local GHOST_REVIVAL_TAG = constants.GHOST_REVIVAL_TAG
-local get_thing_by_id = thing_lib.get_by_id
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
-local get_world_state = ws_lib.get_world_state
 
 -- Handle death of a Thing that leaves behind a ghost.
 events.bind(
@@ -102,9 +97,6 @@ events.bind(
 
 			thing:tombstone()
 		end
-		local parent_relationship = storage.unthing_children[unit_number]
-		if parent_relationship then
-			-- TODO: unthing children
-		end
+		remove_unthing_child(unit_number, true, false)
 	end
 )

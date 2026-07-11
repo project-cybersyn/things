@@ -1,7 +1,17 @@
 local tlib = require("lib.core.table")
 local events = require("lib.core.event")
+local types = require("client.types")
 
----@type {[string]: things.ThingRegistration}
+local LifecycleType = types.LifecycleType
+
+---@class things.NormalizedThingRegistration : things.ThingRegistration
+---@field children table<string, things.NormalizedChildDefinition>?
+
+---@class things.NormalizedChildDefinition : things.ThingRegistration.Child
+---@field _lifecycle? things.LifecycleType
+---@field _unthing? boolean?
+
+---@type table<string, things.NormalizedThingRegistration>
 local thing_names = {}
 for name, reg in pairs(prototypes.mod_data["things-names"].data) do
 	---@cast reg things.ThingRegistration
@@ -10,7 +20,7 @@ for name, reg in pairs(prototypes.mod_data["things-names"].data) do
 	thing_names[name] = reg_copy
 end
 
----@type {[string]: things.GraphRegistration}
+---@type table<string, things.GraphRegistration>
 local thing_graphs = {}
 for name, reg in pairs(prototypes.mod_data["things-graphs"].data) do
 	thing_graphs[name] =
@@ -18,10 +28,11 @@ for name, reg in pairs(prototypes.mod_data["things-graphs"].data) do
 	thing_graphs[name].name = name
 end
 
--- Check integrity of definitions.
+-- Normalize definitions.
 for thing_key, thing_reg in pairs(thing_names) do
 	if thing_reg.children then
 		for index, child_def in pairs(thing_reg.children) do
+			-- Normalize creation
 			if child_def.create then
 				local name = child_def.create.name
 				if not name then
@@ -33,17 +44,25 @@ for thing_key, thing_reg in pairs(thing_names) do
 							.. "' with create instructions missing 'name'"
 					)
 				end
-				if not thing_names[name] then
-					error(
-						"Thing Registration for '"
-							.. thing_reg.name
-							.. "' has a child at index '"
-							.. tostring(index)
-							.. "' with create instructions referencing unregistered name '"
-							.. tostring(name)
-							.. "'"
-					)
-				end
+				if not thing_names[name] then child_def._unthing = true end
+			end
+
+			-- Normalize lifecycle
+			child_def._lifecycle = child_def._unthing
+					and LifecycleType.DESTROYED_DESTROYED_REAL
+				or LifecycleType.VOID_GHOST_REAL
+			if child_def.lifecycle_type == "real-real" then
+				child_def._lifecycle = child_def._unthing
+						and LifecycleType.DESTROYED_REAL_REAL
+					or LifecycleType.VOID_REAL_REAL
+			elseif child_def.lifecycle_type == "void-real" then
+				child_def._lifecycle = child_def._unthing
+						and LifecycleType.DESTROYED_DESTROYED_REAL
+					or LifecycleType.VOID_VOID_REAL
+			elseif child_def.lifecycle_type == "ghost-real" then
+				child_def._lifecycle = child_def._unthing
+						and LifecycleType.DESTROYED_DESTROYED_REAL
+					or LifecycleType.VOID_GHOST_REAL
 			end
 		end
 	end

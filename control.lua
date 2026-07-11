@@ -39,7 +39,7 @@ require("control.events.paste-settings")
 require("control.events.downstream")
 
 -- must be after `events.downstream`
-require("control.automatic-children")
+require("control.parent-child")
 
 require("control.debug-overlay")
 require("control.util.undo-stack-debugger")
