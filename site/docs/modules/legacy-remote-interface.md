@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Legacy Remote Interface
 
-![Stability - Stable](https://shields.io/badge/stability-stable-green)
+![Stability - Stable](https://shields.io/badge/stability-stable-green?style=for-the-badge)
 
 Experimental versions of Things (prior to 1.0.0) exposed primary API through a remote interface. That remote interface remains available for the use of mods written prior to 1.0 release. While new mods are encouraged to use the Things Client, **this interface is marked stable and will continue to be available.**
 

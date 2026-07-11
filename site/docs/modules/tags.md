@@ -1,6 +1,6 @@
 # Tags
 
-![Stability - Stable](https://shields.io/badge/stability-stable-green)
+![Stability - Stable](https://shields.io/badge/stability-stable-green?style=for-the-badge)
 
 The Tags module allows the attachment of arbitrary JSON-style key-value pairs to Things. This information is automatically retained when Things are blueprinted or copied, and will be reapplied to new or overlapped objects in the world.
 
@@ -76,7 +76,7 @@ things_client.tags_v1.get_transient_data(thing, key)
 ```
 
 ## Custom Events
-Custom events are bound to your Thing's definition during the data phase, and emitted during control phase as events happen.
+Custom events must be mapped in the data phase and bound to a handler.
 
 ### on_tags_changed
 Raised whenever something sets a Thing's tags.

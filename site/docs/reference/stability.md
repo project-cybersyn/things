@@ -8,7 +8,7 @@ The levels of stability are defined as follows:
 
 ## Stable
 
-![Stability - Stable](https://shields.io/badge/stability-stable-green)
+![Stability - Stable](https://shields.io/badge/stability-stable-green?style=for-the-badge)
 
 Stable modules are safe for use in production/released mods. These modules have a fixed API contract:
 
@@ -21,7 +21,7 @@ Stable modules are safe for use in production/released mods. These modules have 
 
 ## Beta
 
-![Stability - Stable](https://shields.io/badge/stability-beta-yellow)
+![Stability - Beta](https://shields.io/badge/stability-beta-yellow?style=for-the-badge)
 
 Beta modules are on the path to stability. The concept they express will eventually reach a stable form, but their current API surfaces are in flux.
 
@@ -34,7 +34,7 @@ Using beta modules in your mods is okay as long as you are willing to actively k
 
 ## Experimental
 
-![Stability - Experimental](https://shields.io/badge/stability-experimental-orange)
+![Stability - Experimental](https://shields.io/badge/stability-experimental-orange?style=for-the-badge)
 
 Experimental modules contain ideas and concepts that may change completely or be rejected altogether before reaching stability.
 
