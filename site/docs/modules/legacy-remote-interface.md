@@ -40,7 +40,7 @@ end
 ---Create a Thing from an entity.
 ---@param create_thing_params things.CreateThingParams Parameters controlling how the Thing is created.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return things.ThingSummary? thing Summary of the created Thing, or `nil` if there was an error.
+---@return things.ThingShortSummary? thing Summary of the created Thing, or `nil` if there was an error.
 function remote_interface.create_thing(create_thing_params) end
 ```
 
