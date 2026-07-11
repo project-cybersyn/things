@@ -1,3 +1,7 @@
+---
+sidebar_position: 3
+---
+
 # Parent-Child
 
 ![Stability - Beta](https://shields.io/badge/stability-beta-yellow?style=for-the-badge)
