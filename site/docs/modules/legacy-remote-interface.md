@@ -2,9 +2,13 @@
 sidebar_position: 3
 ---
 
-# Remote Interface
+# Legacy Remote Interface
 
-Things exposes its API as a remote interface under the name `things`. All API functions have a standard call and return signature:
+![Stability - Stable](https://shields.io/badge/stability-stable-green)
+
+Experimental versions of Things (prior to 1.0.0) exposed primary API through a remote interface. That remote interface remains available for the use of mods written prior to 1.0 release. While new mods are encouraged to use the Things Client, **this interface is marked stable and will continue to be available.**
+
+The legacy API is available as a remote interface under the name `things`. All API functions have a standard call and return signature:
 
 ```lua
 local err, ...results = remote.call("things", "api_method_name", ...args)
@@ -134,13 +138,13 @@ function remote_interface.set_transient_data(thing_identification, key, value) e
 ```lua
 ---Adds a child Thing to a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@param child_key string|int|nil The key to assign the child in the parent Thing. If `nil`, uses the smallest free numeric key as determined by the Lua `#` operator.
----@param child_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The child Thing.
+---@param child_key string The key to assign the child in the parent Thing.
+---@param child things.Id | LuaEntity The id of a Thing, or a `LuaEntity`. If the given entity represents a Thing, it will be used. Otherwise, a non-Thing child will be added.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 function remote_interface.add_child(
 	parent_identification,
 	child_key,
-	child_identification
+	child
 ) end
 ```
 
@@ -157,61 +161,8 @@ function remote_interface.remove_parent(child_identification) end
 ---Gets all children of a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return things.ThingChildrenSummary|nil children Map of child keys to child Thing summaries. `nil` if there was an error or the Thing doesn't have children.
+---@return table<string, things.ThingChildInfo>? children Map of child indices to child info. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no children.
 function remote_interface.get_children(parent_identification) end
-```
-
-## add_transient_child
-```lua
----Adds a transient child entity to a parent Thing.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@param child_index string|int The index to assign the transient child in the parent Thing.
----@param child_entity LuaEntity The child entity to add as a transient child.
----@param replace? boolean If `true`, will destroy and replace an existing child.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return boolean? added True if the transient child was added, false if the index was already in use, nil on error.
-function remote_interface.add_transient_child(
-	parent_identification,
-	child_index,
-	child_entity
-) end
-```
-
-## remove_transient_child
-```lua
----Remove a transient child entity from a parent Thing, optionally destroying it.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@param child_index string|int The index of the transient child to remove.
----@param destroy_child boolean? If true, destroy the transient child entity after removing it. Defaults to false.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
-function remote_interface.remove_transient_child(
-	parent_identification,
-	child_index,
-	destroy_child
-) end
-```
-
-## get_transient_child
-```lua
----Get one transient child by index from a parent Thing.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@param child_index string|int The index of the transient child to get.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return LuaEntity|nil child The transient child Thing, or nil if it doesn't exist.
-function remote_interface.get_transient_child(
-	parent_identification,
-	child_index
-) end
-```
-
-## get_transient_children
-```lua
----Get all transient children from a parent Thing.
----@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
----@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return {[string|int]: LuaEntity}|nil children Map of child indices to transient child entities. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no transient children.
-function remote_interface.get_transient_children(parent_identification)
-end
 ```
 
 ## modify_edge

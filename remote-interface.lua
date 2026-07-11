@@ -390,7 +390,7 @@ end
 ---Adds a child Thing to a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
 ---@param child_key string The key to assign the child in the parent Thing.
----@param child things.Id | LuaEntity Either the id of a Thing, or the LuaEntity currently representing it. The child Thing.
+---@param child things.Id | LuaEntity The id of a Thing, or a `LuaEntity`. If the given entity represents a Thing, it will be used. Otherwise, a non-Thing child will be added.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
 function remote_interface.add_child(parent_identification, child_key, child)
 	local parent, valid_parent = resolve_identification(parent_identification)
@@ -478,7 +478,7 @@ end
 ---Gets all children of a parent Thing.
 ---@param parent_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it. The parent Thing.
 ---@return things.Error? error If the operation failed, the reason why. `nil` on success.
----@return table<string, things.ThingChildInfo>? children Map of child indices to child info. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no children.}
+---@return table<string, things.ThingChildInfo>? children Map of child indices to child info. `nil` if there was an error or the Thing doesn't exist. An empty object if the Thing has no children.
 function remote_interface.get_children(parent_identification)
 	local parent, valid_parent = resolve_identification(parent_identification)
 	if not valid_parent then return CANT_BE_A_THING end

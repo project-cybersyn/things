@@ -95,7 +95,6 @@ lib.LifecycleType = LifecycleType
 ---@class (exact) things.ThingSummary : things.ThingShortSummary
 ---@field public tags Tags? The current tags of the Thing.
 ---@field public parent? things.ParentRelationshipInfo Information about this Thing's parent, if any.
----@field public transient_children? {[int|string]: LuaEntity} Map from child indices (which may be numbers or strings) to child entities that are not themselves Things.
 ---@field public undo_refcount uint The number of undo operations that reference this Thing.
 
 ---@class (exact) things.ThingChildInfo
@@ -120,9 +119,6 @@ lib.LifecycleType = LifecycleType
 ---A query for retrieving multiple Things.
 ---@class (exact) things.ThingQuery
 ---@field public name? string If given, only Things of this named type will be returned.
-
----Partial blueprint entity.
----@alias things.PartialBlueprintEntity BlueprintEntity | { name?: string, position?: MapPosition, direction?: defines.direction, tags?: Tags, [string]: any }
 
 --------------------------------------------------------------------------------
 -- EVENT DATA TYPES

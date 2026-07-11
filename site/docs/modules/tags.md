@@ -4,7 +4,7 @@
 
 The Tags module allows the attachment of arbitrary JSON-style key-value pairs to Things. This information is automatically retained when Things are blueprinted or copied, and will be reapplied to new or overlapped objects in the world.
 
-You can also store key-value pairs as transient data, which are attached to the Thing ID itself and are NOT extracted or copied by any operations.
+You can also store key-value pairs as transient data, which are attached to the Thing ID itself and are NOT extracted or copied by any player operations.
 
 ## Client Methods
 Client methods are called using the Things Client.
