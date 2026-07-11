@@ -328,7 +328,6 @@ function remote_interface.remove_tag(thing_identification, key)
 	local new_tags = thing.tags
 	if not new_tags or not new_tags[key] then return nil end
 	new_tags[key] = nil
-	---@diagnostic disable-next-line: cast-local-type
 	if not next(new_tags) then new_tags = nil end
 	thing:set_tags(new_tags, true, nil, "api")
 	return nil
