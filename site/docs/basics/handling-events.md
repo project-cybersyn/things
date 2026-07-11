@@ -10,7 +10,7 @@ This is a continuation from the previous tutorial. Code examples will assume you
 
 ## Factorio Events
 
-Where possible, Things tries to cooperate fully with Factorio's existing APIs. Therefore, when a Factorio event is sufficient to handle your mod's needs, you should use it. In the course of handling these events, it may become necessary to retrieve a Thing that you created before. We'll use the [`things.get`](../reference/remote-interface#get) remote API to do that.
+Where possible, Things tries to cooperate fully with Factorio's existing APIs. Therefore, when a Factorio event is sufficient to handle your mod's needs, you should use it. In the course of handling these events, it may become necessary to retrieve a Thing that you created before. We'll use the [`things.get`](../modules/legacy-remote-interface#get) remote API to do that.
 
 Create a `control.lua` in your `my-mod` folder and add the following code:
 
@@ -37,7 +37,7 @@ script.on_event(
 Launch the game and build your new Thing. Now, whenever you mouse over it, you should get a nice message.
 
 :::info
-The [things.get API](../reference/remote-interface#get) returns a [things.ThingSummary object](../reference/types/#thingsthingsummary) which is the primary data type returned by all API calls when describing Things.
+The [things.get API](../modules/legacy-remote-interface#get) returns a [things.ThingShortSummary object](../reference/types/#thingsthingshortsummary) which is the primary data type returned by all API calls when describing Things.
 :::
 
 ## Synthetic Events
