@@ -83,9 +83,6 @@ lib.LifecycleType = LifecycleType
 ---@field public [4] Core.Dihedral? The orientation of this Thing relative to its parent, if any. (Expressed as a transform applied to the parent's orientation to get the child's orientation.)
 ---@field public [5] things.LifecycleType? Lifecycle flag indicating how this Thing's lifecycle is determined by its parent.
 
----A summary of a Thing's children, indexed by child key.
----@alias things.ThingChildrenSummary {[string]: things.ThingShortSummary}
-
 ---Summary information about a Thing.
 ---@class (exact) things.ThingShortSummary
 ---@field public id things.Id The id of the Thing.
@@ -105,6 +102,9 @@ lib.LifecycleType = LifecycleType
 ---@field public index string The key under which the child is registered in the parent.
 ---@field public thing things.ThingShortSummary? Summary of the child Thing, if it is a Thing.
 ---@field public entity LuaEntity? The current entity of the child, if it has one. This entity is pre-checked for validity at the time the summary is generated.
+
+---Info on a Thing's children, indexed by child key.
+---@alias things.ThingChildrenInfo table<string, things.ThingChildInfo>
 
 ---Options controlling how a Thing is created via `create_thing`.
 ---@class (exact) things.CreateThingParams

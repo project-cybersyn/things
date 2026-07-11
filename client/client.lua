@@ -2,6 +2,7 @@ local ty = require("types")
 local ClientThing = require("client-thing-v1")
 local combinators_v1 = require("combinators-v1")
 local tags_v1 = require("tags-v1")
+local parent_child_v1 = require("parent-child-v1")
 
 local rcall
 if helpers.stage == "runtime" then
@@ -15,6 +16,7 @@ local lib = {}
 
 lib.combinators_v1 = combinators_v1
 lib.tags_v1 = tags_v1
+lib.parent_child_v1 = parent_child_v1
 
 ---Register a Thing type during the data phase.
 ---@param registration things.ThingRegistration
