@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 # Parent-Child
@@ -9,6 +9,10 @@ sidebar_position: 3
 The parent-child module allows a parent Thing to have one or more Things or entities as children. These children will have their lifecycle, position, and orientation managed relative to that of the parent Thing.
 
 Parent-child relationships can be created automatically for registered Things by specifying a set of children that will be automatically created alongside the parent Thing. It is also possible to add and remove children dynamically at runtime.
+
+## Registration
+
+## Client Methods
 
 ## Custom Events
 

@@ -1,8 +1,8 @@
 # Stability
 
-Each Things module has a stability level. The stability level of a module is documented at the top of a module's doc page.
+Each Things module has a stability level. The stability level of a module is documented at the top of a module's doc page. If a particular method or event has different stability, it may have a different mark next to its definition.
 
-If a particular method or event has different stability, it may have a mark next to its definition.
+Stability refers to stability of the interface endpoints from breaking changes, not necessarily stability of the underlying code. In particular, stability does NOT mean that a particular module is free of bugs.
 
 The levels of stability are defined as follows:
 

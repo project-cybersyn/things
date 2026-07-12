@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 5
 ---
 
 # Graph
@@ -10,7 +10,7 @@ The graph module manages **Thing graphs** - directed or undirected graphs in whi
 
 Named graphs are registered in the data phase. During the control phase, edges can be dynamically added to or removed from any named graph, and events can monitor edge connections and disconnections, as well as Thing lifecycle changes associated with connected vertices.
 
-## Graph Registration
+## Registration
 
 ## Client Methods
 
