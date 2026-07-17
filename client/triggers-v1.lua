@@ -10,7 +10,7 @@ local lib = {}
 ---@field public trigger_id things.Id The unique identifier for the trigger
 ---@field public entity LuaEntity The entity controlling the trigger
 ---@field public thing_id things.Id The thing ID to notify when the trigger takes place
----@field public debounce_ticks uint? The number of ticks to wait before allowing the trigger to fire again. If `nil`, the trigger will fire every tick.
+---@field public debounce_ticks uint32? The number of ticks to wait before allowing the trigger to fire again. If `nil`, the trigger will fire every tick.
 ---@field public trigger_data Any? Additional data to include in the event when the trigger fires. This can be used to pass custom information to the event handler.
 
 ---@type LandMineBlueprintControlBehavior

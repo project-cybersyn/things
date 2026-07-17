@@ -23,6 +23,9 @@ events.bind(
 			-- TODO: consider destroying trigger device here?
 			return
 		end
+		if trigger_info.debounce_ticks then
+			trigger.timeout = trigger_info.debounce_ticks
+		end
 		local reg = get_thing_registration(thing.name)
 		if (not reg) or not reg.custom_events then return nil end
 		local cevp = reg.custom_events["on_trigger"]
