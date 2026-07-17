@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.5.1
+Version: 0.6.0
 Date: ????
   Changes:
     - Non-Thing children will now delegate teleport events to their Thing parents.
