@@ -98,5 +98,6 @@ events.bind(
 			thing:tombstone()
 		end
 		remove_unthing_child(unit_number, true, false)
+		storage.trigger_entities[unit_number] = nil
 	end
 )

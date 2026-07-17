@@ -36,6 +36,7 @@ require("control.events.undo")
 require("control.events.extract")
 require("control.events.cursor")
 require("control.events.paste-settings")
+require("control.events.trigger")
 require("control.events.downstream")
 
 -- must be after `events.downstream`
@@ -46,6 +47,7 @@ require("control.util.undo-stack-debugger")
 
 require("control.doctor")
 
+require("control.client-api")
 require("remote-interface")
 
 -- Enable support for the Global Variable Viewer debugging mod, if it is

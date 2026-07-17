@@ -2,6 +2,8 @@
 
 local tlib = require("lib.core.table")
 
+local rcall = remote and remote.call --[[@as (fun(iface: string, method: string, ...: Any): Any...) ]]
+
 ---@class things.client.CombinatorsV1Lib
 local lib = {}
 
@@ -31,14 +33,10 @@ local invisible_combinator_prototype = {
 		"hide-alt-info",
 	},
 	collision_mask = { layers = {} },
-	-- XXX: TYPES: FMTK vector bug
-	---@diagnostic disable-next-line: missing-fields
 	collision_box = {
 		{ -TINY_BOX_SIZE, -TINY_BOX_SIZE },
 		{ TINY_BOX_SIZE, TINY_BOX_SIZE },
 	},
-	-- XXX: TYPES: FMTK vector bug
-	---@diagnostic disable-next-line: missing-fields
 	selection_box = { { -0.01, -0.01 }, { 0.01, 0.01 } },
 	minable = nil,
 	selectable_in_game = false,
@@ -110,14 +108,10 @@ local invisible_constant_combinator_prototype = {
 		"hide-alt-info",
 	},
 	collision_mask = { layers = {} },
-	-- XXX: TYPES: FMTK vector bug
-	---@diagnostic disable-next-line: missing-fields
 	collision_box = {
 		{ -TINY_BOX_SIZE, -TINY_BOX_SIZE },
 		{ TINY_BOX_SIZE, TINY_BOX_SIZE },
 	},
-	-- XXX: TYPES: FMTK vector bug
-	---@diagnostic disable-next-line: missing-fields
 	selection_box = { { -0.01, -0.01 }, { 0.01, 0.01 } },
 	minable = nil,
 	selectable_in_game = false,
@@ -139,6 +133,46 @@ local invisible_constant_combinator_prototype = {
 		ZERO_VECTOR,
 	},
 	circuit_wire_max_distance = 64,
+}
+
+-- Base for invisible undetonating landmines.
+---@type data.LandMinePrototype
+local invisible_land_mine_prototype = {
+	-- PrototypeBase
+	name = "DO_NOT_USE",
+	type = "land-mine",
+	hidden = true,
+	hidden_in_factoriopedia = true,
+
+	-- EntityPrototype
+	flags = {
+		"placeable-off-grid",
+		"not-on-map",
+		"not-blueprintable",
+		"not-deconstructable",
+		"not-upgradable",
+		"hide-alt-info",
+	},
+	collision_mask = { layers = {} },
+	collision_box = {
+		{ -TINY_BOX_SIZE, -TINY_BOX_SIZE },
+		{ TINY_BOX_SIZE, TINY_BOX_SIZE },
+	},
+	selection_box = { { -0.01, -0.01 }, { 0.01, 0.01 } },
+	minable = nil,
+	selectable_in_game = false,
+	allow_copy_paste = false,
+	created_smoke = nil,
+
+	-- EntityWithOwnerPrototype
+	is_military_target = false,
+
+	-- LandMinePrototype
+	trigger_radius = 0,
+	force_die_on_attack = false,
+	trigger_collision_mask = { layers = {} },
+	draw_copper_wires = false,
+	draw_circuit_wires = false,
 }
 
 ---@class (exact) things.CombinatorInvisibleVariants
@@ -178,29 +212,30 @@ function lib.get_invisible_constant_combinator_prototype()
 	return tlib.deep_copy(invisible_constant_combinator_prototype, true)
 end
 
----@type {[string]: things.CombinatorRegistration}
+--- Get a generic `LandMinePrototype` with fields filled in as appropriate for an invisible circuit-triggered landmine.
+function lib.get_invisible_land_mine_prototype()
+	return tlib.deep_copy(invisible_land_mine_prototype, true)
+end
+
+---@type table<string, things.CombinatorRegistration>
 local control_cc_registry
 
 if helpers.stage == "runtime" then
-	control_cc_registry = (prototypes.mod_data["things-combinators"].data or {}) --[[@as {[string]: things.CombinatorRegistration}]]
+	control_cc_registry = (prototypes.mod_data["things-combinators"].data or {}) --[[@as table<string, things.CombinatorRegistration>]]
 end
 
----@param surface LuaSurface The surface to create the invisible combinator on.
----@param base_name string The base name of the combinator to create an invisible variant for. This should be the name of a registered combinator.
+---Create an invisible device from a registered prototype.
+---@param surface LuaSurface The surface to create the invisible device on.
+---@param base_name string The base name of the device to create an invisible replacement for. This should be the name of a registered device.
 ---@param is_powered boolean If true, a powered variant will be used when possible.
----@param create_args Partial<LuaSurface.create_entity_param> Args to pass to `LuaSurface.create_entity` when creating the invisible combinator. Note that many fields will be overridden to ensure proper behavior.
----@return string? err If the combinator could not be created, this will be a string describing the error.
----@return LuaEntity? invisible_combinator The invisible combinator entity, or nil if it could not be created.
-function lib.create_invisible_combinator(
-	surface,
-	base_name,
-	is_powered,
-	create_args
-)
+---@param create_args table Args to pass to `LuaSurface.create_entity` when creating the invisible combinator. Note that many fields will be overridden to ensure proper behavior.
+---@return string? err If the device could not be created, this will be a string describing the error.
+---@return LuaEntity? invisible_device The invisible device entity, or nil if it could not be created.
+local function create_invisible(surface, base_name, is_powered, create_args)
 	local reg = control_cc_registry[base_name]
-	if not reg then return "Combinator not registered", nil end
+	if not reg then return "Device not registered", nil end
 	local variants = reg.invisible_variants
-	if not variants then return "Combinator has no invisible variants", nil end
+	if not variants then return "Device has no invisible variants", nil end
 	local variant = variants.unpowered
 	if is_powered and variants.powered then variant = variants.powered end
 
@@ -209,12 +244,15 @@ function lib.create_invisible_combinator(
 	create_args.fast_replace = false
 	create_args.raise_built = true
 	create_args.create_build_effect_smoke = false
+	create_args.move_stuck_players = true
+	create_args.preserve_ghosts_and_corpses = true
 
 	local e =
 		surface.create_entity(create_args --[[@as LuaSurface.create_entity_param]])
-	if not e then return "Failed to create invisible combinator", nil end
+	if not e then return "Failed to create invisible device", nil end
 	return nil, e
 end
+lib.create_invisible = create_invisible
 
 ---@class things.CombinatorNetwork
 ---@field public combinators things.NetworkCombinator[] The combinators in the network.

@@ -35,6 +35,31 @@ local constant = comb_reg.get_invisible_constant_combinator_prototype()
 constant.type = "constant-combinator"
 constant.name = "things-constant-combinator-invisible"
 
+local landmine = comb_reg.get_invisible_land_mine_prototype()
+landmine.name = "things-land-mine-invisible"
+landmine.action = {
+	type = "direct",
+	action_delivery = {
+		type = "instant",
+		source_effects = {
+			{
+				type = "script",
+				effect_id = "things-trigger",
+			},
+		},
+	},
+}
+
+---@type data.VirtualSignalPrototype
+local hidden_trigger_signal = {
+	type = "virtual-signal",
+	name = "things-signal-trigger",
+	icon = "__0-things__/graphics/invisible.png",
+	icon_size = 1,
+	hidden = true,
+	hidden_in_factoriopedia = true,
+}
+
 data:extend({
 	arithmetic,
 	powered_arithmetic,
@@ -43,6 +68,8 @@ data:extend({
 	selector,
 	powered_selector,
 	constant,
+	landmine,
+	hidden_trigger_signal,
 })
 
 comb_reg.register({
@@ -77,5 +104,13 @@ comb_reg.register({
 	type = "constant-combinator",
 	invisible_variants = {
 		unpowered = "things-constant-combinator-invisible",
+	},
+})
+
+comb_reg.register({
+	name = "land-mine",
+	type = "land-mine",
+	invisible_variants = {
+		unpowered = "things-land-mine-invisible",
 	},
 })

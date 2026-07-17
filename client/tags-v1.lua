@@ -17,7 +17,7 @@ end
 ---@return Tags? tags The tags of the Thing, or nil if there are no tags.
 function lib.get_tags(thing)
 	local _, tags = rcall("things-tags-v1", "get_tags", thing)
-	return tags
+	return tags --[[@as Tags? ]]
 end
 
 ---Set a tag on a Thing.

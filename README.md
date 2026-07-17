@@ -7,7 +7,7 @@
 
 ## Description
 
-**WARNING: THIS MOD IS CURRENTLY IN AN ALPHA STATE. API SURFACES AND EVENT DEFINITIONS ARE UNSTABLE. DO NOT USE IN RELEASE-QUALITY MODS YET. YOU HAVE BEEN WARNED!**
+**Things is a utility mod intended for use by other mod developers. It does not make gameplay changes.**
 
 **Things** provides advanced entity management services to other Factorio mods in the form of a high-level abstraction called a `Thing`.
 
@@ -52,25 +52,24 @@ As opposed to Factorio entities, a `Thing` retains its identity and data through
 
 - Through metadata, Things can be instructed to fire custom events of your choice allowing you to respond to Thing lifecycle events.
 
-### ZERO on-tick code
+### Non-polling implementation
 
-- Things does not make use of any `on_tick` handlers whatsoever.
+- Things operates internally using various event and script triggering schemes, avoiding `on_tick`.
 - This means it will not impact performance outside of monitored construction and lifecycle events.
 - This also means Things (and by extension the `Thing`s you make with it) fully works while the game is paused in the editor.
 
 ## Credits
 
-The only way to succinctly describe how Things works internally is by saying it warps the laws of Factorio through the use of *incredibly cursed dark magic*. Therefore:
+- **protocol_1903** and **boskid** for technical knowledge relating to subtick events.
+- **hgschmie** and **Telkine2018** for a helpful string hash representation of entities.
+- **TalShar** and **Tekbox** for technical contributions relating to circuit script triggers.
+- **boskid**, **protocol_1903**, and **PennyJim** for technical knowledge relating to virtual rotation of entities.
+- **Bilka** for fixing a Factorio bug that negatively impacted Things.
+- **Kryzeth** for being brave enough to use Things while it was still in Alpha.
 
-- Special thanks to **protocol_1903** and **boskid** for lending me their subtick-event Time-Turners.
-- Special thanks to **Bilka** for adding the spell *blueprintus revelio* to Factorio.
-- Special thanks to the following members of Slytherin House for teaching me *rotata kedavra*, which may not be Unforgivable but is definitely very cursed: **boskid**, **protocol_1903**, **PennyJim**
-- Special thanks to **hgschmie** and **Telkine2018** for the idea of world keys, which are almost as useful as portkeys.
-
-Thanks also to the following in no particular order:
+Thanks also to the following indirect contributors:
 - justarandomgeek (for FMTK, as well answering a number of my weird questions in modding discord)
 - thesixthroc (for helping me find and fix bugs in bplib, the intellectual precursor to this library)
-- Heroes that braved the perils of Alpha to help me find bugs and add features: Kryzeth
 
 ## Contributing
 

@@ -125,7 +125,7 @@ lib.LifecycleType = LifecycleType
 --------------------------------------------------------------------------------
 
 ---Thing event names that can be rebroadcasted as Factorio custom events.
----@alias things.EventName "on_initialized"|"on_status"|"on_tags_changed"|"on_orientation_changed"|"on_position_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"|"on_edge_status"|"on_children_normalized"|"on_immediate_voided"
+---@alias things.EventName "on_initialized"|"on_status"|"on_tags_changed"|"on_orientation_changed"|"on_position_changed"|"on_children_changed"|"on_parent_changed"|"on_child_status"|"on_parent_status"|"on_edge_status"|"on_children_normalized"|"on_immediate_voided"|"on_trigger"
 
 ---Graph event names that can be rebroadcasted as Factorio custom events.
 ---@alias things.GraphEventName "on_edge_changed"
@@ -220,5 +220,11 @@ lib.LifecycleType = LifecycleType
 ---destroyed.
 ---@class (exact) things.EventData.on_immediate_voided
 ---@field public thing things.ThingShortSummary Summary of the Thing that was voided.
+
+---Event raised when a trigger device is activated.
+---@class (exact) things.EventData.on_trigger
+---@field public thing_id things.Id The ID of the Thing that owns the trigger device.
+---@field public trigger_id things.Id The ID of the trigger device that was activated.
+---@field public trigger_data Any? Additional data associated with the trigger event. This will be absent if no additional data was provided when the trigger was created.
 
 return lib

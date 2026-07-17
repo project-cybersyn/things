@@ -487,6 +487,8 @@ end
 function Frame:terminate()
 	events.raise("things.frame_will_end", self)
 	local t = game.ticks_played
+	-- XXX: TYPES: FMTK bug (LocalisedString doesn't support LuaProfiler)
+	---@diagnostic disable-next-line: param-type-mismatch
 	log({
 		"",
 		self.debug_string,

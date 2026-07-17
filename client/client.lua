@@ -3,6 +3,7 @@ local ClientThing = require("client-thing-v1")
 local combinators_v1 = require("combinators-v1")
 local tags_v1 = require("tags-v1")
 local parent_child_v1 = require("parent-child-v1")
+local triggers_v1 = require("triggers-v1")
 
 local rcall
 if helpers.stage == "runtime" then
@@ -17,6 +18,7 @@ local lib = {}
 lib.combinators_v1 = combinators_v1
 lib.tags_v1 = tags_v1
 lib.parent_child_v1 = parent_child_v1
+lib.triggers_v1 = triggers_v1
 
 ---Register a Thing type during the data phase.
 ---@param registration things.ThingRegistration
@@ -42,8 +44,8 @@ function lib.represent(id) return ClientThing:new(id) end
 ---@param thing_identification things.ThingIdentification Either the id of a Thing, or the LuaEntity currently representing it.
 ---@return things.client.ThingV1? client_thing A client side object representing the Thing, or nil if the Thing does not exist.
 function lib.get(thing_identification)
-	---@type nil, things.ThingShortSummary?
 	local _, short = rcall("things-metadata-v1", "get", thing_identification)
+	---@cast short things.ThingShortSummary?
 	if short then
 		local ct = ClientThing:new(short.id)
 		ct.name = short.name

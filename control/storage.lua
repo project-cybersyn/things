@@ -8,6 +8,7 @@ local events = require("lib.core.event")
 ---@field public debug_overlays table<things.Id, things.DebugOverlay> Debug overlays by thing id.
 ---@field public stored_opsets table<things.Id, things.OpSet> Stored operation sets on the undo stack.
 ---@field public unthing_children table<UnitNumber, things.UnthingChildInfo> Unthing children by unit_number of reified entity, if it exists.
+---@field public trigger_entities table<UnitNumber, things.TriggerInfo> Trigger mines by unit_number of reified entity, if it exists.
 storage = {}
 
 local function init_storage_key(key, value)
@@ -22,6 +23,7 @@ function _G.init_storage()
 	init_storage_key("debug_overlays")
 	init_storage_key("stored_opsets")
 	init_storage_key("unthing_children")
+	init_storage_key("trigger_entities")
 end
 
 -- TODO: eliminate for release
