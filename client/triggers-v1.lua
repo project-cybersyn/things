@@ -10,6 +10,8 @@ local lib = {}
 ---@field public trigger_id things.Id The unique identifier for the trigger
 ---@field public entity LuaEntity The entity controlling the trigger
 ---@field public thing_id things.Id The thing ID to notify when the trigger takes place
+---@field public fired_tick? int64 The tick at which the trigger was last fired. This is updated each time the trigger fires.
+---@field public trigger_after? int64 Don't fire again until after this tick. If `nil`, the trigger can fire every tick.
 ---@field public debounce_ticks uint32? The number of ticks to wait before allowing the trigger to fire again. If `nil`, the trigger will fire every tick.
 ---@field public trigger_data Any? Additional data to include in the event when the trigger fires. This can be used to pass custom information to the event handler.
 
@@ -94,10 +96,11 @@ end
 lib.create_trigger = create_trigger
 
 ---Arm or disarm a previously created trigger object. (Note that due to integer size limitations, disarming a mine trigger will set its timeout to approximately 974 days, after which time it will rearm. True permanent disarming requires calling this method again before then or destroying the trigger.)
----@param trigger_id things.Id The unique identifier for the trigger to arm or disarm. This is the value returned by `create_trigger`.
+---@param trigger_id things.Id? The unique identifier for the trigger to arm or disarm. This is the value returned by `create_trigger`.
 ---@param is_armed boolean Whether to arm (`true`) or disarm (`false`) the trigger.
 ---@return boolean success Returns `true` if the trigger was successfully armed or disarmed, or `false` if the trigger does not exist or could not be modified.
 local function arm_trigger(trigger_id, is_armed)
+	if not trigger_id then return false end
 	return rcall("things-ca-v1", "set_trigger_armed", trigger_id, is_armed) --[[@as boolean ]]
 end
 lib.arm_trigger = arm_trigger

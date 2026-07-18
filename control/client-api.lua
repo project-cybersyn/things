@@ -2,6 +2,10 @@
 -- These methods are intended to be called by the Client and are considered undocumented.
 -- There are no stability guarantees for these methods, and they may change or be removed at any time.
 
+local nlib = require("lib.core.math.numeric")
+
+local BIG_INT = nlib.BIG_INT
+
 local api = {}
 
 ---@param thing_id things.Id?
@@ -22,8 +26,6 @@ function api.set_trigger_info(trigger_id, trigger_info)
 	end
 end
 
-local UINT32_MAX = 4294967295
-
 ---@param trigger_id things.Id?
 ---@param is_armed boolean
 ---@return boolean success
@@ -31,13 +33,12 @@ function api.set_trigger_armed(trigger_id, is_armed)
 	if not trigger_id then return false end
 	local trigger_info = storage.trigger_entities[trigger_id]
 	if not trigger_info then return false end
-	local entity = trigger_info.entity
-	if not entity or not entity.valid then return false end
 	if is_armed then
-		entity.timeout = 0
+		trigger_info.trigger_after = 0
 	else
-		entity.timeout = UINT32_MAX
+		trigger_info.trigger_after = BIG_INT
 	end
+
 	return true
 end
 
