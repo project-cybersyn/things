@@ -33,10 +33,12 @@ function api.set_trigger_armed(trigger_id, is_armed)
 	if not trigger_id then return false end
 	local trigger_info = storage.trigger_entities[trigger_id]
 	if not trigger_info then return false end
+	local entity = trigger_info.entity
+	if not entity or not entity.valid then return false end
 	if is_armed then
-		trigger_info.trigger_after = 0
+		entity.disabled_by_script = false
 	else
-		trigger_info.trigger_after = BIG_INT
+		entity.disabled_by_script = true
 	end
 
 	return true

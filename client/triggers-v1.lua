@@ -95,7 +95,7 @@ local function create_trigger(
 end
 lib.create_trigger = create_trigger
 
----Arm or disarm a previously created trigger object. (Note that due to integer size limitations, disarming a mine trigger will set its timeout to approximately 974 days, after which time it will rearm. True permanent disarming requires calling this method again before then or destroying the trigger.)
+---Arm or disarm a previously created trigger object. Disarming trigger objects when they are not needed will *considerably* improve performance.
 ---@param trigger_id things.Id? The unique identifier for the trigger to arm or disarm. This is the value returned by `create_trigger`.
 ---@param is_armed boolean Whether to arm (`true`) or disarm (`false`) the trigger.
 ---@return boolean success Returns `true` if the trigger was successfully armed or disarmed, or `false` if the trigger does not exist or could not be modified.

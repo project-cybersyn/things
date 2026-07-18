@@ -29,8 +29,7 @@ local trigger_id, trigger_entity = things_client.triggers_v1.create_trigger(
 ```
 
 ### triggers_v1.arm_trigger
-Arm or disarm a previously created trigger object. (Note that due to integer size limitations, disarming a trigger will set its timeout to approximately 974 days, after which time it will rearm. True permanent disarming requires calling this method again before then or destroying the trigger.)
-
+Arm or disarm a previously created trigger object. Disarming trigger objects when they are not needed will *considerably* improve performance.
 ```lua
 ---@param trigger_id things.Id The unique identifier for the trigger to arm or disarm. This is the value returned by `create_trigger`.
 ---@param is_armed boolean Whether to arm (`true`) or disarm (`false`) the trigger.
