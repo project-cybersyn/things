@@ -5,6 +5,7 @@ local strace = require("lib.core.strace")
 local pairs = pairs
 local TAGS_TAG = constants.TAGS_TAG
 local BLUEPRINT_TAG_SET = constants.BLUEPRINT_TAG_SET
+local rcall = remote.call --[[@as fun(iface: string, method: string, ...: Any): Any]]
 
 local lib = {}
 
@@ -24,7 +25,7 @@ function lib.get_migrated_tags(tags, registration)
 		end
 		if unauthorized_tags then
 			local migrated_tags =
-				remote.call(migrate_callback[1], migrate_callback[2], unauthorized_tags) --[[@as Tags?]]
+				rcall(migrate_callback[1], migrate_callback[2], unauthorized_tags) --[[@as Tags?]]
 			if migrated_tags then
 				if real_tags then
 					tlib.assign(real_tags, migrated_tags)
@@ -49,7 +50,7 @@ function lib.get_initial_tags(entity, registration, player)
 	local initial_tags_callback = registration.initial_tags_callback
 	if initial_tags_callback then
 		local initial_tags =
-			remote.call(initial_tags_callback[1], initial_tags_callback[2], entity) --[[@as Tags?]]
+			rcall(initial_tags_callback[1], initial_tags_callback[2], entity) --[[@as Tags?]]
 		return initial_tags
 	end
 	return nil
