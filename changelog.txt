@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.0
-Date: ????
+Date: 2026-07-18
   Changes:
     - Non-Thing children will now delegate teleport events to their Thing parents.
     - Teleportation events and calls now support cross-surface teleportation.
