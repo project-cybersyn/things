@@ -6,7 +6,7 @@ Date: ????
     - Teleportation events and calls now support cross-surface teleportation.
     - `thing_position_changed` event now includes current and previous surface indices.
     - Combinators: added invisible trigger mines (`land-mine`) to the menu of predefined available hidden entities.
-    - Added `triggers-v1` module. See the online docs for details.
+    - Added `triggers-v1` module. Stability level is experimental. See the online docs for details.
 ---------------------------------------------------------------------------------------------------
 Version: 0.5.0
 Date: 2026-07-10
