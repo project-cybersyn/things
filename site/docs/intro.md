@@ -48,9 +48,8 @@ As opposed to Factorio entities, a `Thing` retains its identity and data through
 
 - Through metadata, Things can be instructed to fire custom events of your choice allowing you to respond to Thing lifecycle events.
 
-### ZERO on-tick code
+### Non-polling implementation
 
-- Things does not make use of any `on_tick` handlers whatsoever.
+- Things operates internally using various event and script triggering schemes, avoiding `on_tick`.
 - This means it will not impact performance outside of monitored construction and lifecycle events.
 - This also means Things (and by extension the `Thing`s you make with it) fully works while the game is paused in the editor.
-
