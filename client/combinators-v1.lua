@@ -1,6 +1,7 @@
 -- Combinator module, client side
 
 local tlib = require("lib.core.table")
+local create = require("lib.core.orientation.orientation").create
 
 local rcall = remote and remote.call --[[@as (fun(iface: string, method: string, ...: Any): Any...) ]]
 
@@ -224,6 +225,26 @@ if helpers.stage == "runtime" then
 	control_cc_registry = (prototypes.mod_data["things-combinators"].data or {}) --[[@as table<string, things.CombinatorRegistration>]]
 end
 
+---Create an invisible device directly using `create_entity`. This does not use the registered combinators database.
+---@param surface LuaSurface The surface to create the invisible device on.
+---@param prototype_name string The name of the prototype to create
+---@param create_args table Args to pass to `LuaSurface.create_entity` when creating the invisible combinator. Note that many fields will be overridden to ensure proper behavior.
+---@return LuaEntity? invisible_device The invisible device entity, or nil if it could not be created.
+local function create_invisible_raw(surface, prototype_name, create_args)
+	create_args.name = prototype_name
+	create_args.snap_to_grid = false
+	create_args.fast_replace = false
+	create_args.raise_built = true
+	create_args.create_build_effect_smoke = false
+	create_args.move_stuck_players = true
+	create_args.preserve_ghosts_and_corpses = true
+
+	return surface.create_entity(
+		create_args --[[@as LuaSurface.create_entity_param]]
+	)
+end
+lib.create_invisible_raw = create_invisible_raw
+
 ---Create an invisible device from a registered prototype.
 ---@param surface LuaSurface The surface to create the invisible device on.
 ---@param base_name string The base name of the device to create an invisible replacement for. This should be the name of a registered device.
@@ -238,17 +259,10 @@ local function create_invisible(surface, base_name, is_powered, create_args)
 	if not variants then return "Device has no invisible variants", nil end
 	local variant = variants.unpowered
 	if is_powered and variants.powered then variant = variants.powered end
+	if not variant then return "Device has no appropriate variant", nil end
 
-	create_args.name = variant
-	create_args.snap_to_grid = false
-	create_args.fast_replace = false
-	create_args.raise_built = true
-	create_args.create_build_effect_smoke = false
-	create_args.move_stuck_players = true
-	create_args.preserve_ghosts_and_corpses = true
+	local e = create_invisible_raw(surface, variant, create_args)
 
-	local e =
-		surface.create_entity(create_args --[[@as LuaSurface.create_entity_param]])
 	if not e then return "Failed to create invisible device", nil end
 	return nil, e
 end
