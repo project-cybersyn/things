@@ -41,11 +41,9 @@ local function get_trigger_event_prototype(thing_name)
 end
 
 events.bind(
-	defines.events.on_script_trigger_effect,
+	"things-trigger",
 	---@param ev EventData.on_script_trigger_effect
 	function(ev)
-		if ev.effect_id ~= "things-trigger" then return end
-
 		-- Retrieve trigger info
 		local trigger = ev.source_entity
 		if not trigger then return end

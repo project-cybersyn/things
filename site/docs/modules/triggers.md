@@ -31,10 +31,42 @@ local trigger_id, trigger_entity = things_client.triggers_v1.create_trigger(
 ### triggers_v1.arm_trigger
 Arm or disarm a previously created trigger object. Disarming trigger objects when they are not needed will *considerably* improve performance.
 ```lua
----@param trigger_id things.Id The unique identifier for the trigger to arm or disarm. This is the value returned by `create_trigger`.
+---@param trigger_id things.Id? The unique identifier for the trigger to arm or disarm. This is the value returned by `create_trigger`.
 ---@param is_armed boolean Whether to arm (`true`) or disarm (`false`) the trigger.
 ---@return boolean success Returns `true` if the trigger was successfully armed or disarmed, or `false` if the trigger does not exist or could not be modified.
 local success = things_client.triggers_v1.arm_trigger(trigger_id, is_armed)
+```
+
+### triggers_v1.create_custom_trigger
+Create a custom trigger object and attach it to a parent Thing.
+
+No event management is done for this trigger; you must handle the trigger mine's custom event yourself and call `handle_custom_trigger_event` in your event handler.
+
+```lua
+---@param trigger_mine_prototype string The name of the trigger mine prototype to create.
+---@param parent_thing_id things.Id The thing id of the parent thing to attach the trigger to.
+---@param child_index string? The key to use for the trigger child entity. If `nil`, the default key "_trigger" will be used.
+---@param control_behavior? LandMineBlueprintControlBehavior The control behavior to use for the trigger mine. If not given, a default control behavior will be used that triggers on the "things-signal-trigger" hidden virtual signal.
+---@return things.Id? trigger_id An ID for the trigger. This is the trigger entity's `unit_number`. Returns `nil` if the trigger could not be created.
+---@return LuaEntity? trigger_entity The entity controlling the trigger. Returns `nil` if trigger could not be created.
+local trigger_id, trigger_entity = things_client.triggers_v1.create_custom_trigger(
+	trigger_mine_prototype,
+	parent_thing_id,
+	child_index,
+	control_behavior
+)
+```
+
+### triggers_v1.handle_custom_trigger_event
+Check whether a trigger event from a custom trigger should fire.
+
+Use this in your custom trigger event handler to apply debouncing and trigger validation.
+
+```lua
+---@param ev EventData.on_script_trigger_effect The event data from the custom trigger event.
+---@return things.Id? triggered_thing_id The parent Thing ID if the trigger should fire, or `nil`.
+---@return things.Id? trigger_id The trigger ID if the trigger should fire, or `nil`.
+local triggered_thing_id, trigger_id = things_client.triggers_v1.handle_custom_trigger_event(ev)
 ```
 
 ### triggers_v1.create_circuit_change_detector
@@ -47,6 +79,28 @@ Create a specialized trigger designed to detect changes in circuit inputs. You m
 ---@param green_circuit LuaWireConnector? The green wire connector to monitor for changes. If `nil`, no green wire monitoring will be performed.
 ---@return things.Id? trigger_id The unique identifier for the created trigger. Returns `nil` if the trigger could not be created.
 local trigger_id = things_client.triggers_v1.create_circuit_change_detector(
+	parent_thing_id,
+	prefix,
+	red_circuit,
+	green_circuit
+)
+```
+
+### triggers_v1.create_custom_circuit_change_detector
+Create a custom circuit-change trigger detector that uses a custom trigger mine prototype.
+
+You must handle the trigger mine's custom event yourself and call `handle_custom_trigger_event` in your event handler.
+
+```lua
+---@param trigger_mine_prototype string The name of the trigger mine prototype to create.
+---@param parent_thing_id things.Id The thing id of the parent thing to attach the circuit change detector to.
+---@param prefix string A prefix to use for the names of the invisible children created.
+---@param red_circuit LuaWireConnector? The red wire connector to monitor for changes. If `nil`, no red wire monitoring will be performed.
+---@param green_circuit LuaWireConnector? The green wire connector to monitor for changes. If `nil`, no green wire monitoring will be performed.
+---@return things.Id? trigger_id The unique identifier for the created trigger. Returns `nil` if the trigger could not be created.
+---@return LuaEntity? trigger_entity The entity controlling the trigger. Returns `nil` if the trigger could not be created.
+local trigger_id, trigger_entity = things_client.triggers_v1.create_custom_circuit_change_detector(
+	trigger_mine_prototype,
 	parent_thing_id,
 	prefix,
 	red_circuit,

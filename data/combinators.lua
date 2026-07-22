@@ -45,6 +45,7 @@ landmine.action = {
 			{
 				type = "script",
 				effect_id = "things-trigger",
+				custom_event = "things-trigger",
 			},
 		},
 	},
@@ -69,6 +70,7 @@ data:extend({
 	powered_selector,
 	constant,
 	landmine,
+	{ type = "custom-event", name = "things-trigger" },
 	hidden_trigger_signal,
 })
 

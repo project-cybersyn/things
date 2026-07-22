@@ -160,6 +160,7 @@ function Thing:set_entity(entity, apply_status)
 	self.entity = entity
 	local unit_number = entity.unit_number
 	internal_set_unit_number(self, unit_number)
+	script.register_on_object_destroyed(entity)
 	local is_ghost = entity.type == "entity-ghost"
 	if is_ghost then
 		local tags = entity.tags or {}

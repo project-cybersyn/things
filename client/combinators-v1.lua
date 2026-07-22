@@ -218,6 +218,28 @@ function lib.get_invisible_land_mine_prototype()
 	return tlib.deep_copy(invisible_land_mine_prototype, true)
 end
 
+---Create a generic prototype for an invisible trigger mine that fires the given custom event when triggered.
+---@param custom_event_name string The name of the custom event to fire when the mine is triggered
+---@param effect_id string? The effect ID to use for the script effect. Defaults to "_trigger".
+---@return data.LandMinePrototype
+function lib.create_custom_trigger_prototype(custom_event_name, effect_id)
+	local proto = lib.get_invisible_land_mine_prototype()
+	proto.action = {
+		type = "direct",
+		action_delivery = {
+			type = "instant",
+			source_effects = {
+				{
+					type = "script",
+					effect_id = effect_id or "_trigger",
+					custom_event = custom_event_name,
+				},
+			},
+		},
+	}
+	return proto
+end
+
 ---@type table<string, things.CombinatorRegistration>
 local control_cc_registry
 

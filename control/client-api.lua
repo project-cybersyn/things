@@ -2,9 +2,9 @@
 -- These methods are intended to be called by the Client and are considered undocumented.
 -- There are no stability guarantees for these methods, and they may change or be removed at any time.
 
-local nlib = require("lib.core.math.numeric")
+local thing_lib = require("control.thing")
 
-local BIG_INT = nlib.BIG_INT
+local get_thing_by_unit_number = thing_lib.get_by_unit_number
 
 local api = {}
 
@@ -15,6 +15,14 @@ function api.get(thing_id)
 	return thing:summarize_short()
 end
 
+---@param entity LuaEntity?
+function api.get_thing_id(entity)
+	if not entity or not entity.valid then return nil end
+	local thing = get_thing_by_unit_number(entity.unit_number)
+	if not thing then return nil end
+	return thing.id
+end
+
 ---@param trigger_id things.Id?
 ---@param trigger_info things.TriggerInfo?
 function api.set_trigger_info(trigger_id, trigger_info)
@@ -23,6 +31,10 @@ function api.set_trigger_info(trigger_id, trigger_info)
 		storage.trigger_entities[trigger_id] = nil
 	else
 		storage.trigger_entities[trigger_id] = trigger_info
+		local entity = trigger_info.entity
+		if entity and entity.valid then
+			script.register_on_object_destroyed(entity)
+		end
 	end
 end
 
@@ -42,6 +54,28 @@ function api.set_trigger_armed(trigger_id, is_armed)
 	end
 
 	return true
+end
+
+---@param trigger_id things.Id?
+---@return things.Id? triggered_parent
+function api.check_trigger(trigger_id)
+	if not trigger_id then return nil end
+	local trigger_info = storage.trigger_entities[trigger_id]
+	if not trigger_info then return nil end
+
+	-- Collapse out double fired triggers
+	local t = game.tick
+	local last_fired_tick = trigger_info.fired_tick
+	trigger_info.fired_tick = t
+	if (last_fired_tick or 0) ~= (t - 1) then return nil end
+
+	-- Debounce
+	local t0 = trigger_info.trigger_after or 0
+	if t <= t0 then return nil end
+	local dt = trigger_info.debounce_ticks
+	if dt then trigger_info.trigger_after = t + dt end
+
+	return trigger_info.thing_id
 end
 
 ---@param thing_id things.Id?
