@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.1
-Date: ????
+Date: 2026-07-24
   Changes:
     - Due to usage of new APIs, now requires Factorio 2.1.12 or later.
     - Added methods to `combinators_v1`: `create_custom_trigger_prototype`.
