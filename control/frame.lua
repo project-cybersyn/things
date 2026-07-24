@@ -9,6 +9,9 @@ local constants = require("control.constants")
 local ur_util = require("control.util.undo-redo")
 local tlib = require("lib.core.table")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local OpSet = opset_lib.OpSet
 local OpType = op_lib.OpType
 local type = type

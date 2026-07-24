@@ -2,6 +2,9 @@ local MultiLineTextOverlay = require("lib.core.overlay").MultiLineTextOverlay
 local events = require("lib.core.event")
 local orientation_lib = require("lib.core.orientation.orientation")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 ---@alias things.DebugOverlay Core.MultiLineTextOverlay
 
 local state_icons = {

@@ -5,6 +5,9 @@ local reg_lib = require("control.registration")
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local lib = {}
 
 ---A simple graph on integer nodes, representing Thing ids.

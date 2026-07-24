@@ -8,6 +8,9 @@ local reg_lib = require("control.registration")
 local events = require("lib.core.event")
 local types = require("client.types")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local pairs = pairs
 local get_thing_by_id = thing_lib.get_by_id
 local EMPTY = tlib.EMPTY_STRICT

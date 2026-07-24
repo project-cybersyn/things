@@ -12,6 +12,9 @@ local strace = require("lib.core.strace")
 local pos_lib = require("lib.core.math.pos")
 local graph_lib = require("control.graph")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local pairs = pairs
 local next = next
 local type = type

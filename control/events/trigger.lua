@@ -2,6 +2,9 @@ local events = require("lib.core.event")
 local registry = require("control.registration")
 local tlib = require("lib.core.table")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local EMPTY = tlib.EMPTY
 local get_thing_registration = registry.get_thing_registration
 local script_raise_event = script.raise_event

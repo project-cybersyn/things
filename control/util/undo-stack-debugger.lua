@@ -5,6 +5,9 @@ local urs_lib = require("lib.core.undo-redo-stack")
 local tr_lib = require("lib.core.relm.table-renderer")
 local constants = require("control.constants")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local UNDO_TAG = constants.UNDO_TAG
 
 local Pr = relm.Primitive

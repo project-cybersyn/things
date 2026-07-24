@@ -5,6 +5,9 @@ local constants = require("control.constants")
 local strace = require("lib.core.strace")
 local UNDO_TAG = constants.UNDO_TAG
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local lib = {}
 
 ---@alias things.DoctorReport LocalisedString[]

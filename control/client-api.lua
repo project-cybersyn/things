@@ -4,6 +4,9 @@
 
 local thing_lib = require("control.thing")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
 
 local api = {}

@@ -2,9 +2,11 @@ local events = require("lib.core.event")
 local thing_lib = require("control.thing")
 local strace = require("lib.core.strace")
 local frame_lib = require("control.frame")
-
 local MfdOp = require("control.op.mfd").MfdOp
 local DestroyOp = require("control.op.destroy").DestroyOp
+
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
 
 local get_thing_by_unit_number = thing_lib.get_by_unit_number
 

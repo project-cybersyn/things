@@ -7,6 +7,9 @@ local ur_util = require("control.util.undo-redo")
 local strace = require("lib.core.strace")
 local ws_lib = require("lib.core.world-state")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local Op = op_lib.Op
 local OpType = op_lib.OpType
 local UNDO = OpType.UNDO

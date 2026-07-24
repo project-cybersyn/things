@@ -5,6 +5,9 @@ local tlib = require("lib.core.table")
 local op_lib = require("control.op.op")
 local counters = require("lib.core.counters")
 
+---@type things.Storage
+storage = storage --[[@as things.Storage]]
+
 local OpType = op_lib.OpType
 
 local lib = {}
