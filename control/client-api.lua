@@ -15,9 +15,8 @@ function api.get(thing_id)
 	return thing:summarize_short()
 end
 
----@param entity LuaEntity?
+---@param entity ValidEntity
 function api.get_thing_id(entity)
-	if not entity or not entity.valid then return nil end
 	local thing = get_thing_by_unit_number(entity.unit_number)
 	if not thing then return nil end
 	return thing.id

@@ -57,4 +57,14 @@ function lib.get(thing_identification)
 	end
 end
 
+---Given the entity that currently represents a Thing, get its ID.
+---@param thing_entity LuaEntity? The entity that represents the Thing.
+---@return things.Id? id The ID of the Thing, or nil if the entity does not represent a Thing.
+function lib.get_thing_id(thing_entity)
+	if not thing_entity or not thing_entity.valid then return nil end
+	local id = rcall("things-ca-v1", "get_thing_id", thing_entity)
+	---@cast id things.Id?
+	return id
+end
+
 return lib
