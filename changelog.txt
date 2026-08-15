@@ -2,6 +2,8 @@
 Version: 0.6.2
 Date: ????
   Changes:
+  Bugfixes:
+    - Fixed a null exception in core's debugger overlay
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.1
 Date: 2026-07-24
