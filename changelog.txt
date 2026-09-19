@@ -1,7 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.2
 Date: ????
-  Changes:
+  Bugfixes:
+    - Updated Cooperative Blueprinting host to work around a rare blueprint corruption bug.
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.1
 Date: 2026-07-24
