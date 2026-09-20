@@ -38,6 +38,10 @@ local function handle_generic_built(ev)
 	-- Check if a ghost is being revived.
 	local revive_thing_id = tags[GHOST_REVIVAL_TAG] --[[@as uint64?]]
 	if revive_thing_id then
+		strace.trace(
+			"handle_generic_built: found ghost revival tag for Thing ID",
+			revive_thing_id
+		)
 		if not is_ghost then
 			local revive_thing = get_thing_by_id(revive_thing_id)
 			if revive_thing then
