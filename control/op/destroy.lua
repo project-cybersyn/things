@@ -37,7 +37,9 @@ function DestroyOp:reconcile(frame)
 	if not thing then
 		strace.warn(
 			frame.debug_string,
-			"DestroyOp:reconcile: no Thing found for destroyed entity; skipping",
+			"DestroyOp:reconcile: no Thing found for destroy op; skipping. Thing ID:",
+			self.thing_id,
+			"World key:",
 			self.key
 		)
 		return

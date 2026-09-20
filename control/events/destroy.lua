@@ -4,6 +4,7 @@ local strace = require("lib.core.strace")
 local frame_lib = require("control.frame")
 local MfdOp = require("control.op.mfd").MfdOp
 local DestroyOp = require("control.op.destroy").DestroyOp
+local OpTypes = require("control.op.op").OpType
 
 ---@type things.Storage
 storage = storage --[[@as things.Storage]]
@@ -87,13 +88,31 @@ events.bind(
 	function(ev)
 		if ev.type ~= TARGET_TYPE_ENTITY then return end
 		local unit_number = ev.useful_id
+		storage.trigger_entities[unit_number] = nil
 		local thing = storage.things_by_unit_number[unit_number]
 		if thing then
+			local thing_id = thing.id
+			-- Check for redundancy with existing DESTROY op.
+			local frame = frame_lib.in_frame()
+			if frame then
+				local destroy_op = frame.op_set:findt_unique(
+					OpTypes.DESTROY,
+					function(op) return op.thing_id == thing_id end
+				)
+				if destroy_op then
+					strace.trace(
+						"on_object_destroyed: redundant event concurrent with DESTROY op for Thing ID",
+						thing_id
+					)
+					return
+				end
+			end
+
 			if thing.state == "ghost" then
 				-- Ghosts can get clobbered when they collide with a reviving entity.
 				strace.warn(
 					"on_object_destroyed: ghost Thing",
-					thing.id,
+					thing_id,
 					"with unit_number",
 					unit_number,
 					"was caught by on_object_destroyed. This is likely because collision with a reviving entity destroyed the ghost before it could be revived."
@@ -101,7 +120,7 @@ events.bind(
 			else
 				strace.warn(
 					"on_object_destroyed: Thing ID",
-					thing.id,
+					thing_id,
 					"with unit_number",
 					unit_number,
 					"was caught by an on_object_destroyed fallthrough. This is a possible referential integrity issue, bug, or scripted silent destruction by another mod."
@@ -111,6 +130,5 @@ events.bind(
 		else
 			remove_unthing_child(unit_number, true, false)
 		end
-		storage.trigger_entities[unit_number] = nil
 	end
 )
