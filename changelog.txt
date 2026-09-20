@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.3
-Date: ????
+Date: 2026-09-20
   Bugfixes:
     - Fixed an issue where destroyed parents would sometimes not properly trigger the destruction of their child entities.
 ---------------------------------------------------------------------------------------------------
