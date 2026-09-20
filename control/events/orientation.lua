@@ -130,3 +130,32 @@ events.bind(
 		end
 	end
 )
+
+events.bind(
+	"things-linked-rotate",
+	---@param ev EventData.CustomInputEvent
+	function(ev)
+		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		-- Get selected Thing
+		local selected = player.selected
+		if not selected then return end
+		local sun = selected.unit_number
+		if not sun then return end
+		local sth = get_thing_by_unit_number(sun)
+		if not sth then return end
+		-- Thing must have virtual orientation
+		local vo = sth.virtual_orientation
+		if not vo then return end
+		-- Entity must not already support world rotation
+		local entity_oclass = oclass_lib.get_orientation_class_for_entity(selected)
+		if oclass_lib.can_rotate_in_world(entity_oclass) then return end
+
+		local thing_oclass = orientation_lib.get_class(vo)
+	end
+)
+
+events.bind("things-linked-reverse-rotate", function(ev) end)
+
+events.bind("things-linked-flip-horizontal", function(ev) end)
+
+events.bind("things-linked-flip-vertical", function(ev) end)
