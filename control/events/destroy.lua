@@ -89,17 +89,28 @@ events.bind(
 		local unit_number = ev.useful_id
 		local thing = storage.things_by_unit_number[unit_number]
 		if thing then
-			strace.warn(
-				"on_object_destroyed: Thing ID",
-				thing.id,
-				"with unit_number",
-				unit_number,
-				"was caught by an on_object_destroyed fallthrough. This is a possible referential integrity issue, bug, or scripted silent destruction by another mod."
-			)
-
+			if thing.state == "ghost" then
+				-- Ghosts can get clobbered when they collide with a reviving entity.
+				strace.warn(
+					"on_object_destroyed: ghost Thing",
+					thing.id,
+					"with unit_number",
+					unit_number,
+					"was caught by on_object_destroyed. This is likely because collision with a reviving entity destroyed the ghost before it could be revived."
+				)
+			else
+				strace.warn(
+					"on_object_destroyed: Thing ID",
+					thing.id,
+					"with unit_number",
+					unit_number,
+					"was caught by an on_object_destroyed fallthrough. This is a possible referential integrity issue, bug, or scripted silent destruction by another mod."
+				)
+			end
 			thing:tombstone()
+		else
+			remove_unthing_child(unit_number, true, false)
 		end
-		remove_unthing_child(unit_number, true, false)
 		storage.trigger_entities[unit_number] = nil
 	end
 )
