@@ -10,6 +10,8 @@ local CreateOp = require("control.op.create").CreateOp
 local strace = require("lib.core.strace")
 local tu_lib = require("control.util.tags")
 
+local next = next
+
 local get_migrated_tags = tu_lib.get_migrated_tags
 local get_initial_tags = tu_lib.get_initial_tags
 local get_thing_by_id = thing_lib.get_by_id
