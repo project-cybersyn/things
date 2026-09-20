@@ -4,6 +4,14 @@
 
 data:extend({
 	{
+		type = "string-setting",
+		name = "things-setting-log-level",
+		order = "a",
+		setting_type = "runtime-global",
+		default_value = "NONE",
+		allowed_values = { "NONE", "WARN", "INFO", "DEBUG", "TRACE" },
+	},
+	{
 		type = "bool-setting",
 		name = "things-setting-debug",
 		order = "aa",

@@ -490,17 +490,19 @@ end
 function Frame:terminate()
 	events.raise("things.frame_will_end", self)
 	local t = game.ticks_played
-	-- XXX: TYPES: FMTK bug (LocalisedString doesn't support LuaProfiler)
-	---@diagnostic disable-next-line: param-type-mismatch
-	log({
-		"",
-		self.debug_string,
-		" ",
-		frame_profiler,
-		" (",
-		t - self.t + 1,
-		" ticks)",
-	})
+	if strace.should_log(strace.TRACE) then
+		-- XXX: TYPES: FMTK bug (LocalisedString doesn't support LuaProfiler)
+		---@diagnostic disable-next-line: param-type-mismatch
+		log({
+			"",
+			self.debug_string,
+			" ",
+			frame_profiler,
+			" (",
+			t - self.t + 1,
+			" ticks)",
+		})
+	end
 	strace.info(
 		self.debug_string,
 		"^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^END FRAME^^^^^^^^^^^^^^^^^^^^^^^^^^^"
