@@ -40,7 +40,6 @@ end
 ---@return AnyBasic? tag_value The value of the tag, or `nil` if the Thing or the tag does not exist.
 function ClientThingV1:get_tag(tag_name, skip_cache)
 	local _, tag_value = rcall("things-tags-v1", "get_tag", self.id, tag_name)
-	---@cast tag_value AnyBasic?
 	return tag_value
 end
 
