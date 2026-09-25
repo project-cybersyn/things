@@ -130,3 +130,137 @@ events.bind(
 		end
 	end
 )
+
+---@param selected LuaEntity The currently selected entity.
+local function get_thing_linked_input_info(selected)
+	-- Selection must be a Thing
+	local sun = selected.unit_number
+	if not sun then return nil end
+	local selected_thing = get_thing_by_unit_number(sun)
+	if not selected_thing then return nil end
+	-- Selection must have virtual orientation
+	local vo = selected_thing.virtual_orientation
+	if not vo then
+		strace.trace(
+			"Linked orientation input: Thing",
+			selected_thing.id,
+			"does not have a virtual orientation, skipping."
+		)
+		return nil
+	end
+	-- Get world entity orientation class
+	local entity_oclass = oclass_lib.get_orientation_class_for_entity(selected)
+	return selected_thing, vo, entity_oclass
+end
+
+events.bind(
+	"things-linked-rotate",
+	---@param ev EventData.CustomInputEvent
+	function(ev)
+		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		local selected = player.selected
+		if not selected then return end
+		local selected_thing, vo, entity_oclass =
+			get_thing_linked_input_info(selected)
+		if not selected_thing or not vo then return end
+		if oclass_lib.can_rotate_in_world(entity_oclass) then return end
+		-- Apply orientation logic to the thing.
+		local transform = orientation_lib.R(vo, WORLD)
+		if transform then
+			local frame = frame_lib.get_frame()
+			frame:add_op(
+				OrientationOp:new(
+					ev.player_index,
+					selected,
+					selected_thing.id,
+					vo,
+					transform
+				)
+			)
+		end
+	end
+)
+
+events.bind(
+	"things-linked-reverse-rotate",
+	---@param ev EventData.CustomInputEvent
+	function(ev)
+		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		local selected = player.selected
+		if not selected then return end
+		local selected_thing, vo, entity_oclass =
+			get_thing_linked_input_info(selected)
+		if not selected_thing or not vo then return end
+		if oclass_lib.can_rotate_in_world(entity_oclass) then return end
+		-- Apply orientation logic to the thing.
+		local transform = orientation_lib.Rinv(vo, WORLD)
+		if transform then
+			local frame = frame_lib.get_frame()
+			frame:add_op(
+				OrientationOp:new(
+					ev.player_index,
+					selected,
+					selected_thing.id,
+					vo,
+					transform
+				)
+			)
+		end
+	end
+)
+
+events.bind(
+	"things-linked-flip-horizontal",
+	---@param ev EventData.CustomInputEvent
+	function(ev)
+		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		local selected = player.selected
+		if not selected then return end
+		local selected_thing, vo, entity_oclass =
+			get_thing_linked_input_info(selected)
+		if not selected_thing or not vo then return end
+		if oclass_lib.can_hflip_in_world(entity_oclass) then return end
+		-- Apply orientation logic to the thing.
+		local transform = orientation_lib.H(vo, WORLD)
+		if transform then
+			local frame = frame_lib.get_frame()
+			frame:add_op(
+				OrientationOp:new(
+					ev.player_index,
+					selected,
+					selected_thing.id,
+					vo,
+					transform
+				)
+			)
+		end
+	end
+)
+
+events.bind(
+	"things-linked-flip-vertical",
+	---@param ev EventData.CustomInputEvent
+	function(ev)
+		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		local selected = player.selected
+		if not selected then return end
+		local selected_thing, vo, entity_oclass =
+			get_thing_linked_input_info(selected)
+		if not selected_thing or not vo then return end
+		if oclass_lib.can_vflip_in_world(entity_oclass) then return end
+		-- Apply orientation logic to the thing.
+		local transform = orientation_lib.V(vo, WORLD)
+		if transform then
+			local frame = frame_lib.get_frame()
+			frame:add_op(
+				OrientationOp:new(
+					ev.player_index,
+					selected,
+					selected_thing.id,
+					vo,
+					transform
+				)
+			)
+		end
+	end
+)
