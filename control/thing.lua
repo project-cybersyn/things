@@ -434,12 +434,10 @@ function Thing:set_orientation(orientation, impose, suppress_event)
 		end
 		local entity = self:get_entity()
 		if not entity then return changed, false end
-		-- TODO: check if config allows imposition
 		if impose then
 			local eo = orientation_lib.extract(entity)
 			if not o_loose_eq(eo, orientation) then
-				orientation_lib.impose(orientation, entity)
-				imposed = true
+				if orientation_lib.impose(orientation, entity) then imposed = true end
 				changed = true
 			end
 		end

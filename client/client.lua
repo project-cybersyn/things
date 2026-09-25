@@ -5,6 +5,7 @@ local tags_v1 = require("tags-v1")
 local parent_child_v1 = require("parent-child-v1")
 local triggers_v1 = require("triggers-v1")
 local graph_v1 = require("graph-v1")
+local orientation_v1 = require("orientation-v1")
 
 local rcall
 if helpers.stage == "runtime" then
@@ -21,6 +22,7 @@ lib.tags_v1 = tags_v1
 lib.parent_child_v1 = parent_child_v1
 lib.triggers_v1 = triggers_v1
 lib.graph_v1 = graph_v1
+lib.orientation_v1 = orientation_v1
 
 ---Register a Thing type during the data phase.
 ---@param registration things.ThingRegistration

@@ -3,6 +3,8 @@ Version: 0.6.4
 Date: ????
   Changes:
     - Added log level setting to mod settings.
+  Bugfixes:
+    - Fixed an issue where Things with a virtual orientation but an unorientable entity wouldn't respond to player orientation inputs.
   Optimizations:
     - Default log level set to "NONE" which should improve general performance compared to previous verbose logging.
 ---------------------------------------------------------------------------------------------------
