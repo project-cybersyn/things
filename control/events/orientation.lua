@@ -158,6 +158,7 @@ events.bind(
 	---@param ev EventData.CustomInputEvent
 	function(ev)
 		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		if not player.is_cursor_empty() then return end
 		local selected = player.selected
 		if not selected then return end
 		local selected_thing, vo, entity_oclass =
@@ -186,6 +187,7 @@ events.bind(
 	---@param ev EventData.CustomInputEvent
 	function(ev)
 		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		if not player.is_cursor_empty() then return end
 		local selected = player.selected
 		if not selected then return end
 		local selected_thing, vo, entity_oclass =
@@ -214,6 +216,7 @@ events.bind(
 	---@param ev EventData.CustomInputEvent
 	function(ev)
 		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		if not player.is_cursor_empty() then return end
 		local selected = player.selected
 		if not selected then return end
 		local selected_thing, vo, entity_oclass =
@@ -242,6 +245,7 @@ events.bind(
 	---@param ev EventData.CustomInputEvent
 	function(ev)
 		local player = game.get_player(ev.player_index) --[[@as LuaPlayer]]
+		if not player.is_cursor_empty() then return end
 		local selected = player.selected
 		if not selected then return end
 		local selected_thing, vo, entity_oclass =
