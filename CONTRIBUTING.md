@@ -2,13 +2,13 @@
 
 Everyone is welcome to contribute, and all types of contributions are welcome, including code, documentation, bug reports, and feature requests.
 
+## AI Policy
+
+It is okay to use AI to help you understand and write code, but all changes must be reviewed, vetted, and understood by a human, who makes the final submission and is responsible for the code. Drive-by "AI slop" or "vibe code" that is not attached to a human willing to be responsible for the code is unwelcome.
+
 ## Design Guidelines
 
 Those contributing code or requesting features should be aware of the following design guidelines:
-
-### AI Policy
-
-It is okay to use AI to help you understand and write code, but all changes must be reviewed, vetted, and understood by a human, who makes the final submission and is responsible for the code. Drive-by "AI slop" or "vibe code" that is not attached to a human willing to be responsible for the code is unwelcome.
 
 ### DO NOT BREAK USERSPACE
 
