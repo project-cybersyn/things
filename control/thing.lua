@@ -11,6 +11,7 @@ local events = require("lib.core.event")
 local strace = require("lib.core.strace")
 local pos_lib = require("lib.core.math.pos")
 local graph_lib = require("control.graph")
+local entities_lib = require("lib.core.entities")
 
 ---@type things.Storage
 storage = storage --[[@as things.Storage]]
@@ -26,6 +27,7 @@ local NO_RAISE_DESTROY = { raise_destroy = false }
 local RAISE_DESTROY = { raise_destroy = true }
 local NO_RAISE_REVIVE = { raise_revive = false }
 local EMPTY = tlib.EMPTY_STRICT
+local trace = strace.trace
 
 local lib = {}
 
@@ -773,7 +775,7 @@ end
 ---@param no_recurse? boolean? If true, do not reorient children.
 ---@param no_self? boolean? If true, do not reorient self.
 function Thing:reorient(no_recurse, no_self)
-	-- Reorient self first, then children.
+	-- Reorient self first
 	local entity = self:get_entity()
 	if not entity then return end
 	if not no_self then
@@ -791,14 +793,30 @@ function Thing:reorient(no_recurse, no_self)
 		if adj_orientation then self:set_orientation(adj_orientation, true) end
 	end
 
+	-- Reorient children
 	if (not no_recurse) and self.children then
-		for _, child in pairs(self.children) do
+		for child_index, child in pairs(self.children) do
 			if type(child) == "number" then
+				trace(
+					"Parent Thing",
+					self.id,
+					"is reorienting Thing child at index",
+					child_index
+				)
+				-- Thing child
 				local child_thing = storage.things[child]
 				if child_thing then child_thing:reorient() end
 			else
+				-- Unthing child
+				trace(
+					"Parent Thing",
+					self.id,
+					"is reorienting unthing child at index",
+					child_index
+				)
 				local rel = get_unthing_child(child[1])
-				if rel then
+				local child_entity = rel and rel[6]
+				if rel and child_entity and child_entity.valid then
 					local child_pos, child_or = lib.get_adjusted_pos_and_orientation(
 						entity,
 						self:get_orientation(),
@@ -806,11 +824,9 @@ function Thing:reorient(no_recurse, no_self)
 						rel[4]
 					)
 					if child_pos then
-						-- TODO: unthing child
+						entities_lib.teleport_if_far(child_entity, child_pos, nil, true)
 					end
-					if child_or then
-						-- TODO: unthing child
-					end
+					if child_or then orientation_lib.impose(child_or, child_entity) end
 				end
 			end
 		end
