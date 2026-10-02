@@ -19,6 +19,7 @@ local function update_overlay(thing)
 	local thing_id = thing.id
 	local debug_overlay = storage.debug_overlays[thing_id]
 	if not debug_overlay then return end
+	if not debug_overlay:is_valid() then return end
 	local lines = {
 		string.format("%s %s", thing.id, state_icons[thing.state] or "?"),
 	}
