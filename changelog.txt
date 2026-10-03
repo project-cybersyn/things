@@ -3,6 +3,7 @@ Version: 0.6.5
 Date: ????
   Changes:
     - Tightened enforcement of valid Thing definitions at startup. Certain invalid definitions may now cause startup errors; mod authors must fix these.
+    - Tightened enforcement of string indices for child Things. Non-string indices will now cause errors.
   Bugfixes:
     - Fixed a crash when updating debug overlays.
     - Fixed an issue were unthing children were not responding to certain virtual orientation changes.
