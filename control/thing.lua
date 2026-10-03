@@ -600,7 +600,9 @@ function Thing:add_child(
 	lifecycle_type,
 	suppress_event
 )
-	if not index then error("Thing:add_child(): index is required") end
+	if type(index) ~= "string" then
+		error("Thing:add_child(): a string index is required")
+	end
 	if self.children and self.children[index] then return false end
 	if type(child) == "userdata" then
 		-- Unthing child
