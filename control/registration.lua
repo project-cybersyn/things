@@ -32,6 +32,17 @@ end
 for thing_key, thing_reg in pairs(thing_names) do
 	if thing_reg.children then
 		for index, child_def in pairs(thing_reg.children) do
+			-- Enforce string keys
+			if type(index) ~= "string" then
+				error(
+					"Thing Registration for '"
+						.. thing_reg.name
+						.. "' has a child with a non-string index: `"
+						.. tostring(index)
+						.. "` is not a string."
+				)
+			end
+
 			-- Normalize creation
 			if child_def.create then
 				local name = child_def.create.name
@@ -44,7 +55,34 @@ for thing_key, thing_reg in pairs(thing_names) do
 							.. "' with create instructions missing 'name'"
 					)
 				end
-				if not thing_names[name] then child_def._unthing = true end
+				if not thing_names[name] then
+					-- Unthing child checks
+					child_def._unthing = true
+					local eproto = prototypes.entity[name]
+					if not eproto then
+						error(
+							"Thing Registration for '"
+								.. thing_reg.name
+								.. "' has a child at index '"
+								.. tostring(index)
+								.. "' with create instructions referencing unknown entity prototype '"
+								.. name
+								.. "'"
+						)
+					else
+						if not eproto.flags["not-blueprintable"] then
+							error(
+								"Thing Registration for '"
+									.. thing_reg.name
+									.. "' has a non-Thing child at index '"
+									.. tostring(index)
+									.. "' with create instructions referencing an entity prototype '"
+									.. name
+									.. "' that is blueprintable. Non-Thing children must be non-blueprintable. If you need blueprintable children, they must also be Things."
+							)
+						end
+					end
+				end -- unthing
 			end
 
 			-- Normalize lifecycle
