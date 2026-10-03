@@ -7,6 +7,7 @@ local strace = require("lib.core.strace")
 local reg_lib = require("control.registration")
 local events = require("lib.core.event")
 local types = require("client.types")
+local orientation_lib = require("lib.core.orientation.orientation")
 
 ---@type things.Storage
 storage = storage --[[@as things.Storage]]
@@ -340,6 +341,7 @@ local function check_unthing_child(
 		child_entity =
 			create_child_entity(parent_entity, def, child_pos --[[@as MapPosition]])
 		if child_entity then
+			if child_or then orientation_lib.impose(child_or, child_entity) end
 			parent_thing:add_child(
 				index,
 				child_entity,
