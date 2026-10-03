@@ -7,6 +7,7 @@ Date: ????
   Bugfixes:
     - Fixed a crash when updating debug overlays.
     - Fixed an issue were unthing children were not responding to certain virtual orientation changes.
+    - Fixed an issue where unthing children created from a blueprinted parent with virtual orientation were not inheriting their orientation properly.
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.4
 Date: 2026-09-25
