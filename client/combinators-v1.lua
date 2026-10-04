@@ -23,6 +23,7 @@ local invisible_combinator_prototype = {
 	name = "DO_NOT_USE",
 	type = "combinator",
 	hidden_in_factoriopedia = true,
+	hidden = true,
 
 	-- EntityPrototype
 	flags = {
@@ -97,6 +98,7 @@ local invisible_constant_combinator_prototype = {
 	-- PrototypeBase
 	name = "DO_NOT_USE",
 	type = "constant-combinator",
+	hidden = true,
 	hidden_in_factoriopedia = true,
 
 	-- EntityPrototype
