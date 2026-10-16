@@ -1,7 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.6
 Date: ????
-  Changes:
+  Bugfixes:
+    - Fixed an issue that could cause Thing IDs to be lost when drag-building over the ghost of a Thing.
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.5
 Date: 2026-10-04

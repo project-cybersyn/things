@@ -7,6 +7,8 @@ local thing_lib = require("control.thing")
 local oclass_lib = require("lib.core.orientation.orientation-class")
 local orientation_lib = require("lib.core.orientation.orientation")
 local tlib = require("lib.core.table")
+local entities_lib = require("lib.core.entities")
+local constants = require("control.constants")
 
 local get_by_id = thing_lib.get_by_id
 local o_stringify = orientation_lib.stringify
@@ -105,6 +107,15 @@ function OverlapOp:apply(frame)
 	if not overlapped_thing then
 		error(
 			"OverlapOp:apply: Thing found in catalogue phase is missing in apply phase. This should be impossible and indicates an event order leak somewhere."
+		)
+	end
+	-- Blueprint placement may replace an existing ghost's tags.
+	local entity = overlapped_thing:get_entity()
+	if entity and entity.type == "entity-ghost" then
+		entities_lib.ghost_set_tag(
+			entity,
+			constants.GHOST_REVIVAL_TAG,
+			overlapped_thing.id
 		)
 	end
 	-- Impose tags
