@@ -107,4 +107,15 @@ function api.remove_child(thing_id, child_key, destroy_child)
 	return thing:remove_child(child_key, destroy_child)
 end
 
+---@param thing_id things.Id?
+---@param orientation Core.Orientation
+---@return boolean oriented
+function api.set_orientation(thing_id, orientation)
+	local thing = storage.things[thing_id or 0]
+	if not thing then return false end
+	if thing:has_controlled_orientation() then return false end
+	local changed = thing:set_orientation(orientation, true)
+	return changed
+end
+
 remote.add_interface("things-ca-v1", api)

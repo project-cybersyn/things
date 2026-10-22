@@ -78,10 +78,10 @@ lib.LifecycleType = LifecycleType
 
 ---@class things.ParentRelationshipInfo
 ---@field public [1] things.Id The ID of the parent Thing.
----@field public [2] string The key under which this Thing is registered in its parent's children
----@field public [3] MapPosition? The position of this Thing relative to its parent, if any.
----@field public [4] Core.Dihedral? The orientation of this Thing relative to its parent, if any. (Expressed as a transform applied to the parent's orientation to get the child's orientation.)
----@field public [5] things.LifecycleType? Lifecycle flag indicating how this Thing's lifecycle is determined by its parent.
+---@field public [2] string The key under which this child is registered in its parent's children
+---@field public [3] MapPosition? The position of this child relative to its parent, if any.
+---@field public [4] Core.Dihedral? The orientation of this child relative to its parent, if any. (Expressed as a transform applied to the parent's orientation to get the child's orientation.)
+---@field public [5] things.LifecycleType? Lifecycle flag indicating how this child's lifecycle is determined by its parent.
 
 ---Summary information about a Thing.
 ---@class (exact) things.ThingShortSummary

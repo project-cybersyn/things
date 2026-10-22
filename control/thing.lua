@@ -456,6 +456,17 @@ function Thing:set_orientation(orientation, impose, suppress_event)
 	return false, false
 end
 
+---Determine if this Thing's orientation is controlled by the engine. (In such cases we disallow user set_orientation requests.)
+---@return boolean relatively_oriented `true` if the Thing's orientation is relative to its parent, `false` otherwise.
+function Thing:has_controlled_orientation()
+	local parent = self.parent
+	if parent and parent[4] then
+		return true
+	else
+		return false
+	end
+end
+
 ---Make this Thing's orientation virtual, if it isn't already. The orientation
 ---will be inferred from the entity.
 ---@param vo_class Core.OrientationClass
@@ -474,6 +485,17 @@ function Thing:virtualize_orientation(vo_class)
 		end
 	end
 	self.virtual_orientation = new_vo
+end
+
+---Determine if this Thing's position is controlled by the engine. (In such cases we disallow user teleport requests.)
+---@return boolean relatively_positioned `true` if the Thing's position is relative to its parent, `false` otherwise.
+function Thing:has_controlled_position()
+	local parent = self.parent
+	if parent and parent[3] then
+		return true
+	else
+		return false
+	end
 end
 
 ---@param next_pos MapPosition

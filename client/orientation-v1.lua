@@ -1,6 +1,8 @@
 local oclass_lib = require("lib.core.orientation.orientation-class")
 local dihedral = require("lib.core.math.dihedral")
 
+local rcall = remote and remote.call
+
 local dih_encode = dihedral.encode
 
 ---@class things.client.OrientationV1Lib
@@ -13,5 +15,14 @@ lib.RO_IDENTITY = dih_encode(4, 0, 0)
 lib.RO_R1 = dih_encode(4, 1, 0)
 lib.RO_R2 = dih_encode(4, 2, 0)
 lib.RO_R3 = dih_encode(4, 3, 0)
+
+---Set the orientation of a Thing.
+---@param thing things.Id Thing ID to orient. This function will return `false` if the Thing does not exist.
+---@param orientation Core.Orientation Orientation to set for the Thing.
+---@return boolean oriented `true` if the orientation was successfully set, `false` otherwise.
+function lib.set_orientation(thing, orientation)
+	local oriented = rcall("things-ca-v1", "set_orientation", thing, orientation)
+	return oriented --[[@as boolean ]]
+end
 
 return lib
